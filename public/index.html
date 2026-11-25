@@ -582,7 +582,7 @@
   <div class="bi-body">
     <h3 class="st-h">Inteligência artificial (opcional)</h3>
     <p class="muted small">Usada para <b>traduzir</b> letras para o inglês e para sugerir a <b>palavra-chave</b> com mais precisão. Sem a chave, o "Destacar palavras" usa a sugestão automática do próprio sistema, sem internet.</p>
-    <label>Chave da API da Anthropic (Claude) <input id="stKey" class="search" type="password" placeholder="sk-ant-..." autocomplete="off"></label>
+    <label>Chave da API da Anthropic (Claude) <input id="stKey" class="search secret" type="text" placeholder="sk-ant-..." autocomplete="off" data-lpignore="true" data-1p-ignore spellcheck="false"></label>
     <p class="muted small" id="stKeyInfo"></p>
     <label>Modelo <input id="stModel" class="search" placeholder="claude-haiku-5-5"></label>
     <p class="muted small">Crie a chave em console.anthropic.com. O uso é cobrado pela Anthropic por quantidade de texto: traduzir um louvor custa poucos centavos. A chave fica salva só neste computador.</p>
@@ -603,7 +603,7 @@
     <h3 class="st-h" style="margin-top:14px">Atualizações</h3>
     <p class="muted small">O sistema busca a versão nova no GitHub, instala e reabre sozinho. Seus louvores, temas e configurações ficam onde estão.</p>
     <label>Repositório no GitHub <input id="upRepo" class="search" placeholder="usuario/repositorio"></label>
-    <label>Token (só se o repositório for privado) <input id="upToken" class="search" type="password" placeholder="deixe em branco se for público" autocomplete="off"></label>
+    <label>Token (só se o repositório for privado) <input id="upToken" class="search secret" type="text" placeholder="deixe em branco se for público" autocomplete="off" data-lpignore="true" data-1p-ignore spellcheck="false"></label>
     <p class="muted small" id="upInfo"></p>
     <div class="up-row"><button class="btn sm" id="upCheck">Procurar atualização</button><button class="btn primary sm" id="upApply" hidden>Atualizar agora</button></div>
   </div>
