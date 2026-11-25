@@ -119,6 +119,7 @@ export function createStage(container, { live = false } = {}) {
         stage.style.width = W + 'px';
         stage.style.setProperty('--sw', W);
         stage.querySelectorAll('.content-layer').forEach(fit);
+        sliceBg(stage);
       }
       const s = Math.min(w / W, h / 1080);
       stage.style.transform = `translate(${(w - W * s) / 2}px, ${(h - 1080 * s) / 2}px) scale(${s})`;
@@ -172,9 +173,15 @@ export function createStage(container, { live = false } = {}) {
   return api;
 }
 
-// Desenhos do fundo cobrem a tela toda em qualquer formato (cortando um pouco em cima/embaixo, sem esticar)
+// Desenhos do fundo acompanham o formato da tela: em vez de ampliar (e cortar) ou esticar,
+// a "janela" do desenho fica mais larga ou mais estreita, sempre no mesmo tamanho e centralizada.
 function sliceBg(stage) {
-  stage.querySelectorAll('.bg svg:not([preserveAspectRatio])').forEach((svg) => svg.setAttribute('preserveAspectRatio', 'xMidYMid slice'));
+  const W = parseFloat(stage.style.width) || 1920;
+  stage.querySelectorAll('.bg svg').forEach((svg) => {
+    if (!svg.dataset.vb) svg.dataset.vb = svg.getAttribute('viewBox') || '';
+    if (svg.dataset.vb !== '0 0 1920 1080' || svg.getAttribute('preserveAspectRatio') === 'none') return;
+    svg.setAttribute('viewBox', `${(1920 - W) / 2} 0 ${W} 1080`);
+  });
 }
 
 // Vídeo que não ocupa a tela toda: as bordas mostram o próprio vídeo, desfocado

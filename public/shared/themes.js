@@ -20,7 +20,7 @@ const stars = (n, seed = 7) => {
   let s = seed;
   const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
   let out = '';
-  for (let i = 0; i < n; i++) out += `<circle cx="${(rnd() * 1920).toFixed(0)}" cy="${(rnd() * 1080).toFixed(0)}" r="${(rnd() * 1.8 + 0.4).toFixed(1)}" style="animation-delay:-${(rnd() * 6).toFixed(1)}s"/>`;
+  for (let i = 0; i < n; i++) out += `<circle cx="${(rnd() * 3840 - 960).toFixed(0)}" cy="${(rnd() * 1080).toFixed(0)}" r="${(rnd() * 1.8 + 0.4).toFixed(1)}" style="animation-delay:-${(rnd() * 6).toFixed(1)}s"/>`;
   return out;
 };
 
@@ -72,7 +72,7 @@ export const THEMES = [
     cat: 'expressivo',
     name: 'Órbita',
     desc: 'Planeta, órbitas e estrelas',
-    bg: () => `<svg class="sky" viewBox="0 0 1920 1080">${stars(90)}</svg><div class="planet"></div><svg class="orbits" viewBox="0 0 1920 1080"><ellipse cx="960" cy="560" rx="760" ry="190"/><ellipse cx="960" cy="560" rx="620" ry="250" class="o2"/></svg><svg class="spark" viewBox="0 0 1920 1080"><path d="${starPath(1480, 300, 24)}"/></svg>`,
+    bg: () => `<svg class="sky" viewBox="0 0 1920 1080">${stars(180)}</svg><div class="planet"></div><svg class="orbits" viewBox="0 0 1920 1080"><ellipse cx="960" cy="560" rx="760" ry="190"/><ellipse cx="960" cy="560" rx="620" ry="250" class="o2"/></svg><svg class="spark" viewBox="0 0 1920 1080"><path d="${starPath(1480, 300, 24)}"/></svg>`,
   },
   {
     id: 'claro',
