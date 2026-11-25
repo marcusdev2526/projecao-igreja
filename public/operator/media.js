@@ -66,7 +66,7 @@ export function initMedia(ctx) {
   }
   let sidePick = [];
   let sideSel = false;
-  const filt = { sort: 'new', when: '', src: '' };
+  const filt = { sort: 'new', when: '', src: '', group: true };
   try { Object.assign(filt, JSON.parse(localStorage.getItem('mediaFilt') || '{}')); } catch {}
   const DAY = 86400000;
   const SRC = { whats: /whats ?app|wa\d{4}|img-\d{8}-wa/i, tela: /captura|gravac|screen|screenshot|grava/i, colado: /^colado/i };
@@ -84,8 +84,10 @@ export function initMedia(ctx) {
     return list.sort(by[filt.sort] || by.new);
   }
   function syncFiltUI() {
-    $('mediaFiltPop').querySelectorAll('.fp-opts').forEach((g) => g.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === filt[g.dataset.g])));
-    const n = (filt.sort !== 'new') + !!filt.when + !!filt.src;
+    $('mediaFiltPop').querySelectorAll('.fp-opts').forEach((g) => g.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === (g.dataset.g === 'cat' ? filter : filt[g.dataset.g]))));
+    $('mediaFilter').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x.dataset.f === filter));
+    $('mediaGroup').checked = !!filt.group;
+    const n = !!filter + (filt.sort !== 'new') + !!filt.when + !!filt.src;
     $('mediaFiltBtn').classList.toggle('on', n > 0);
     $('mediaFiltLbl').textContent = n ? `Filtro · ${n}` : 'Filtro';
   }
@@ -93,8 +95,9 @@ export function initMedia(ctx) {
   $('mediaFiltPop').onclick = (e) => {
     e.stopPropagation();
     const b = e.target.closest('.fp-opts button');
-    if (b) { filt[b.closest('.fp-opts').dataset.g] = b.dataset.v; }
-    if (e.target.id === 'mediaFiltReset') Object.assign(filt, { sort: 'new', when: '', src: '' });
+    if (b) { const g = b.closest('.fp-opts').dataset.g; if (g === 'cat') filter = b.dataset.v; else filt[g] = b.dataset.v; }
+    if (e.target.id === 'mediaGroup') filt.group = e.target.checked;
+    if (e.target.id === 'mediaFiltReset') { Object.assign(filt, { sort: 'new', when: '', src: '' }); filter = ''; }
     try { localStorage.setItem('mediaFilt', JSON.stringify(filt)); } catch {}
     renderMedia();
   };
@@ -105,16 +108,20 @@ export function initMedia(ctx) {
     syncFiltUI();
     $('mediaFiltCount').textContent = `${list.length} de ${media.length} arquivos`;
     $('mediaList').classList.toggle('picking', sideSel);
-    $('mediaList').innerHTML = list.length
-      ? list.map((m) => { const k = sidePick.indexOf(m.name); return `<div class="mrow ${k >= 0 ? 'picked' : ''}" draggable="${!sideSel}" data-n="${esc(m.name)}" title="${sideSel ? 'Clique para marcar' : 'Arraste para o telão ou para o culto'}">
+    const rowHTML = (m) => { const k = sidePick.indexOf(m.name); return `<div class="mrow ${k >= 0 ? 'picked' : ''}" draggable="${!sideSel}" data-n="${esc(m.name)}" title="${sideSel ? 'Clique para marcar' : 'Arraste para o telão ou para o culto'}">
           ${sideSel ? `<span class="pick-n">${k >= 0 ? k + 1 : ''}</span>` : ''}
           <div class="mth t-${m.type}">${m.type === 'video' ? `<video src="${esc(m.url)}#t=1" muted preload="metadata"></video>` : m.type === 'image' ? `<img src="${esc(m.url)}" loading="lazy" alt="">` : icon('audio')}${kindBadge(m.type, ' on-th')}</div>
           <div class="info"><div class="t">${esc(pretty(m))}</div><div class="a"><i class="tdot t-${m.type}"></i>${m.type === 'audio' ? 'Playback' : TYPE_LABEL[m.type]} · ${size(m.size)} · ${when(m.mtime)}</div></div>
           ${sideSel ? '' : `<button class="mini" data-act="show" title="Mostrar agora no telão">${icon('play')}</button>
           ${m.type !== 'audio' ? `<button class="mini" data-act="poster" title="Usar como cartaz">${icon('pin')}</button>` : ''}
           <button class="mini" data-act="add" title="Adicionar ao culto">${icon('plus')}</button>
-          <button class="mini danger" data-act="del" title="Excluir">${icon('trash')}</button>`}</div>`; }).join('')
-      : `<div class="empty">${media.length ? 'Nada encontrado' : 'Arraste vídeos, imagens ou músicas para cá'}</div>`;
+          <button class="mini danger" data-act="del" title="Excluir">${icon('trash')}</button>`}</div>`; };
+    const CATS = [['video', 'Vídeos'], ['image', 'Imagens'], ['audio', 'Playbacks']];
+    let html = '';
+    if (!list.length) html = `<div class="empty">${media.length ? 'Nada encontrado' : 'Arraste vídeos, imagens ou músicas para cá'}</div>`;
+    else if (filt.group && !filter) html = CATS.map(([t, name]) => { const g = list.filter((m) => m.type === t); return g.length ? `<div class="mcat"><i class="tdot t-${t}"></i>${name}<span>${g.length}</span></div>` + g.map(rowHTML).join('') : ''; }).join('');
+    else html = list.map(rowHTML).join('');
+    $('mediaList').innerHTML = html;
     const n = sidePick.length;
     $('mediaBulk').hidden = !sideSel;
     $('mbkCount').textContent = n ? `${n} selecionado${n > 1 ? 's' : ''} · na ordem que você clicou` : 'Clique nos arquivos na ordem em que vão passar';
@@ -122,7 +129,7 @@ export function initMedia(ctx) {
     $('mediaSelBtn').classList.toggle('on', sideSel);
     $('mediaSelBtn').lastChild.textContent = sideSel ? 'Concluir' : 'Em lote';
   }
-  const sideVisible = () => { const q = $('mediaSearch').value.trim().toLowerCase(); return applyFilt(media.filter((m) => (!filter || m.type === filter) && (!q || m.name.toLowerCase().includes(q) || pretty(m).toLowerCase().includes(q)))); };
+  const sideVisible = () => { const q = $('mediaSearch').value.trim().toLowerCase(); const l = applyFilt(media.filter((m) => (!filter || m.type === filter) && (!q || m.name.toLowerCase().includes(q) || pretty(m).toLowerCase().includes(q)))); return filt.group && !filter ? ['video', 'image', 'audio'].flatMap((t) => l.filter((m) => m.type === t)) : l; };
   $('mediaSelBtn').onclick = () => { sideSel = !sideSel; if (!sideSel) sidePick = []; renderMedia(); };
   $('mediaBulk').onclick = async (e) => {
     const b = e.target.closest('[data-bk]')?.dataset.bk;

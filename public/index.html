@@ -171,6 +171,9 @@
         <input class="search" id="mediaSearch" placeholder="Buscar arquivo…" autocomplete="off">
         <button class="btn sm filt-btn" id="mediaFiltBtn" title="Filtrar e ordenar"><svg viewBox="0 0 24 24" class="bi"><path d="M4 5h16l-6 7.5V19l-4 1.5v-8z"/></svg><span id="mediaFiltLbl">Filtro</span></button>
         <div class="filt-pop" id="mediaFiltPop" hidden>
+          <div class="fp-h">Categoria</div>
+          <div class="fp-opts cat" data-g="cat"><button data-v="" class="on">Todas</button><button data-v="video"><i class="tdot t-video"></i>Vídeos</button><button data-v="image"><i class="tdot t-image"></i>Imagens</button><button data-v="audio"><i class="tdot t-audio"></i>Playbacks</button></div>
+          <label class="fp-chk"><input type="checkbox" id="mediaGroup"> Separar a lista em seções por categoria</label>
           <div class="fp-h">Ordenar por</div>
           <div class="fp-opts" data-g="sort"><button data-v="new" class="on">Mais recentes</button><button data-v="old">Mais antigos</button><button data-v="name">Nome (A–Z)</button><button data-v="big">Maiores</button><button data-v="small">Menores</button></div>
           <div class="fp-h">Enviado</div>
