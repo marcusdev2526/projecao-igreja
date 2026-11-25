@@ -515,6 +515,11 @@
   <div class="aud-body">
     <p class="muted small">Escolha o áudio que toca junto com a letra. Você passa os slides normalmente e controla o som pelo player.</p>
     <div class="list" id="audList"></div>
+    <div class="aud-link">
+      <label class="muted small">Baixar por link (mp3 direto, Google Drive, Dropbox ou OneDrive)</label>
+      <div class="url-row"><input class="search" id="audUrl" placeholder="Cole o link do playback…" autocomplete="off"><button class="btn sm primary" id="audUrlGo">Baixar e usar</button></div>
+      <div class="aud-msg" id="audMsg" hidden></div>
+    </div>
     <div class="aud-foot"><button class="btn sm" data-pick="audio">+ Enviar áudio</button><button class="btn sm danger" id="audRemove">Tirar playback</button></div>
   </div>
 </dialog>

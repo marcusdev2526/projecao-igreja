@@ -1125,25 +1125,39 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   });
 
   // Mídia por link (ex.: arrastar uma imagem/vídeo do WhatsApp Web ou Telegram Web)
+  // Links de nuvem → link de download direto (Google Drive, Dropbox, OneDrive)
+  function directLink(url) {
+    let m = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?.*id=)([\w-]{10,})/);
+    if (m) return `https://drive.usercontent.google.com/download?id=${m[1]}&export=download&confirm=t`;
+    if (/dropbox\.com\//.test(url)) return url.replace(/([?&])dl=0/, '$1dl=1') + (/[?&]dl=/.test(url) ? '' : (url.includes('?') ? '&' : '?') + 'dl=1');
+    if (/1drv\.ms\/|onedrive\.live\.com/.test(url) && !/download=1/.test(url)) return url + (url.includes('?') ? '&' : '?') + 'download=1';
+    return url;
+  }
   app.post('/api/media/url', wrap(async (req, res) => {
-    const url = String(req.body.url || '').trim();
+    const original = String(req.body.url || '').trim();
+    if (/youtube\.com|youtu\.be/i.test(original)) throw new Error('Links do YouTube não podem ser baixados. Use o arquivo do playback (mp3) ou um link do Drive/Dropbox.');
+    const url = directLink(original);
     let u;
     try { u = new URL(url); } catch { throw new Error('Link inválido'); }
     if (!/^https?:$/.test(u.protocol) || /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1)/i.test(u.hostname)) throw new Error('Esse link não pode ser baixado');
     const r = await fetch(url, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36' } });
     if (!r.ok) throw new Error('Não deu para baixar (' + r.status + ')');
     const mime = r.headers.get('content-type') || '';
-    const ext = extOf(decodeURIComponent(u.pathname.split('/').pop() || ''), mime);
+    const cd = r.headers.get('content-disposition') || '';
+    const cdName = decodeURIComponent((cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i) || [])[1] || '');
+    if (/text\/html/i.test(mime)) throw new Error('O link abriu uma página, não o arquivo. No Drive, deixe o arquivo como “Qualquer pessoa com o link”.');
+    const fileName = cdName || decodeURIComponent(u.pathname.split('/').pop() || '');
+    const ext = extOf(fileName, mime);
     if (!MEDIA_EXT[ext]) throw new Error('O link não é um vídeo, imagem ou áudio');
     const len = +r.headers.get('content-length') || 0;
     if (len > 1024 * 1024 * 1024) throw new Error('Arquivo grande demais');
     const tmp = path.join(tmpDir, 'url-' + Date.now().toString(36));
     fs.writeFileSync(tmp, Buffer.from(await r.arrayBuffer()));
-    const base = decodeURIComponent(u.pathname.split('/').pop() || 'midia').replace(/\.[^.]+$/, '') || 'midia';
+    const base = (fileName || 'midia').replace(/\.[^.]+$/, '') || 'midia';
     const it = mediaItem({ path: tmp, originalname: Buffer.from(base + '.' + ext, 'utf8').toString('latin1'), mimetype: mime }, '');
-    const itemId = addToService(req.body.service_id, it);
+    const itemId = req.body.no_item ? null : addToService(req.body.service_id, it);
     io.emit('library');
-    ok(res, { ok: true, itemId, type: MEDIA_EXT[ext] });
+    ok(res, { ok: true, itemId, type: MEDIA_EXT[ext], url: JSON.parse(it.text).url });
   }));
 
   // QR code para o celular do pregador enviar arquivos direto para o culto

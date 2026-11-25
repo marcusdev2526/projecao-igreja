@@ -428,6 +428,19 @@ export function initMedia(ctx) {
   }
   $('audList').onclick = (e) => { const r = e.target.closest('.mrow'); if (r) setAudio(r.dataset.url); };
   $('audRemove').onclick = () => setAudio(null);
+  $('audUrlGo').onclick = async () => {
+    const url = $('audUrl').value.trim();
+    if (!url) return $('audUrl').focus();
+    const b = $('audUrlGo'); b.disabled = true; b.textContent = 'Baixando…'; $('audMsg').hidden = true;
+    const say = (t) => { $('audMsg').textContent = t; $('audMsg').hidden = false; };
+    try {
+      const r = await api('/api/media/url', { method: 'POST', body: { url, no_item: true } });
+      if (r.type !== 'audio') say('O arquivo baixado não é áudio (' + r.type + '). Ele ficou na aba Mídia.');
+      else { $('audUrl').value = ''; await setAudio(r.url); }
+    } catch (e) { say(e.message || 'Não deu para baixar'); }
+    b.disabled = false; b.textContent = 'Baixar e usar';
+  };
+  $('audUrl').onkeydown = (e) => { if (e.key === 'Enter') $('audUrlGo').click(); };
   $('audClose').onclick = () => $('audioDlg').close();
 
   // ---------- Item selecionado: slides da apresentação / mídia ----------
