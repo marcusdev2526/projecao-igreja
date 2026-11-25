@@ -1202,3 +1202,110 @@ body.light.skin-gelo .slide[data-type="refrao"]:not(.live) { background: #f3f1ec
 body.skin-grafite .btn.primary, body.skin-grafite .cb.next { background: linear-gradient(180deg, #2f8fde, var(--adpc-blue)); border-color: var(--adpc-blue); color: #fff; }
 body.skin-grafite .book.on { background: #4a4e55; box-shadow: inset 0 3px 0 var(--gc), 0 0 0 2px var(--accent); }
 body.skin-grafite .numgrid button.live { background: var(--live); border-color: var(--live); color: #1a1206; }
+
+/* =====================================================================
+   Botões "Liquid Glass" (estilo Apple): vidro translúcido em pílula,
+   borda clara, brilho no topo e sombra macia. Vale para todas as aparências.
+   ===================================================================== */
+:root {
+  --glass-bg: linear-gradient(180deg, rgba(255,255,255,.13), rgba(255,255,255,.04));
+  --glass-bg-hover: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.07));
+  --glass-border: rgba(255,255,255,.16);
+  --glass-hi: inset 0 1px 0 rgba(255,255,255,.32), inset 0 -1px 0 rgba(255,255,255,.05), inset 0 0 12px rgba(255,255,255,.04);
+  --glass-drop: 0 6px 18px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.25);
+  --glass-txt: #eef3f9;
+}
+body.skin-grafite { --glass-bg: linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.05)); --glass-drop: 0 6px 16px rgba(0,0,0,.22), 0 1px 2px rgba(0,0,0,.2); }
+body.light {
+  --glass-bg: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.45));
+  --glass-bg-hover: linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,255,255,.6));
+  --glass-border: rgba(255,255,255,.9);
+  --glass-hi: inset 0 1px 0 #fff, inset 0 -1px 0 rgba(20,40,70,.06), 0 0 0 .5px rgba(20,40,70,.12);
+  --glass-drop: 0 6px 18px rgba(25,45,80,.12), 0 1px 2px rgba(25,45,80,.1);
+  --glass-txt: #1f2d3d;
+}
+
+/* Fundo da barra com luz ambiente (azul do globo e chama) para o vidro "refratar" */
+.top { position: relative; isolation: isolate; border-bottom-color: transparent;
+  background:
+    radial-gradient(520px 90px at 22% -20%, rgba(43,147,208,.28), transparent 70%),
+    radial-gradient(420px 80px at 62% 130%, rgba(242,146,30,.12), transparent 70%),
+    radial-gradient(600px 100px at 95% -30%, rgba(31,111,191,.22), transparent 70%),
+    linear-gradient(180deg, #0a1322, #060a11); }
+.top::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.12), transparent); }
+body.skin-grafite .top { background:
+    radial-gradient(520px 90px at 22% -20%, rgba(43,147,208,.18), transparent 70%),
+    radial-gradient(600px 100px at 95% -30%, rgba(255,255,255,.06), transparent 70%),
+    linear-gradient(180deg, #303236, #27292d); }
+body.light .top { background:
+    radial-gradient(520px 90px at 22% -20%, rgba(43,147,208,.22), transparent 70%),
+    radial-gradient(420px 80px at 62% 130%, rgba(242,146,30,.12), transparent 70%),
+    radial-gradient(600px 100px at 95% -30%, rgba(31,111,191,.14), transparent 70%),
+    linear-gradient(180deg, var(--panel), var(--panel2)); }
+body.light .top::after { background: linear-gradient(90deg, transparent, rgba(20,40,70,.12), transparent); }
+
+/* Grupos (Início/Bíblia, idiomas) = cápsula de vidro */
+.top .seg {
+  border-radius: 999px; padding: 3px; gap: 2px; border: 1px solid var(--glass-border);
+  background: var(--glass-bg); box-shadow: var(--glass-hi), var(--glass-drop);
+  backdrop-filter: blur(18px) saturate(170%); -webkit-backdrop-filter: blur(18px) saturate(170%);
+}
+.top .seg button { border-radius: 999px; padding: 6px 14px; border: 1px solid transparent; background: transparent; color: var(--glass-txt); opacity: .72; transition: background .25s, opacity .2s, box-shadow .25s, transform .15s; }
+.top .seg button:hover { opacity: 1; background: rgba(255,255,255,.07); }
+body.light .top .seg button:hover { background: rgba(255,255,255,.6); }
+.top .seg button:active { transform: scale(.96); }
+/* Item ativo: gota de vidro azul ADPC */
+.top .seg button.on, body.light .top .seg button.on, body.skin-grafite .top .seg button.on {
+  opacity: 1; color: #fff; font-weight: 600;
+  background: linear-gradient(180deg, rgba(110,185,240,.95) 0%, rgba(43,138,217,.92) 45%, rgba(31,111,191,.95) 100%);
+  border-color: rgba(255,255,255,.35);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -2px 6px rgba(10,40,90,.35), 0 4px 14px rgba(31,111,191,.45);
+}
+.top .seg button.on svg { stroke: #fff; }
+
+/* Botões soltos da barra = pílulas de vidro */
+.top > .btn, .top .timer-card {
+  border-radius: 999px; border: 1px solid var(--glass-border); color: var(--glass-txt);
+  background: var(--glass-bg); box-shadow: var(--glass-hi), var(--glass-drop);
+  backdrop-filter: blur(18px) saturate(170%); -webkit-backdrop-filter: blur(18px) saturate(170%);
+  transition: background .25s, box-shadow .25s, transform .15s;
+}
+.top > .btn { height: 36px; padding: 0 14px; display: inline-flex; align-items: center; gap: 7px; }
+.top > .btn.ic.only { width: 36px; padding: 0; justify-content: center; }
+.top > .btn:hover { background: var(--glass-bg-hover); }
+.top > .btn:active { transform: scale(.95); }
+.top > .btn.on { background: linear-gradient(180deg, rgba(110,185,240,.9), rgba(31,111,191,.92)); color: #fff; border-color: rgba(255,255,255,.35);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 4px 14px rgba(31,111,191,.4); }
+.top > .btn.primary { background: linear-gradient(180deg, rgba(255,214,110,.95), rgba(242,146,30,.95)); color: #2a1600; border-color: rgba(255,255,255,.45);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 4px 14px rgba(242,146,30,.4); }
+.top > .btn kbd { border-radius: 999px; background: rgba(255,255,255,.1); border: 1px solid var(--glass-border); }
+.top .timer-card { padding: 4px 14px; height: 36px; }
+.top .tm-btn { border-radius: 999px; }
+
+/* Barra de comandos de baixo: mesmo vidro, mais discreto */
+.cmdbar .cb {
+  border-radius: 999px; border: 1px solid var(--glass-border); color: var(--glass-txt);
+  background: var(--glass-bg); box-shadow: var(--glass-hi), 0 3px 10px rgba(0,0,0,.18);
+  backdrop-filter: blur(14px) saturate(160%); -webkit-backdrop-filter: blur(14px) saturate(160%);
+  transition: background .25s, box-shadow .25s, transform .15s;
+}
+.cmdbar .cb:hover { background: var(--glass-bg-hover); }
+.cmdbar .cb:active { transform: scale(.96); }
+.cmdbar .cb.next, body.light .cmdbar .cb.next, body.skin-grafite .cmdbar .cb.next {
+  color: #fff; border-color: rgba(255,255,255,.35);
+  background: linear-gradient(180deg, rgba(110,185,240,.95) 0%, rgba(43,138,217,.95) 45%, rgba(31,111,191,1) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -2px 8px rgba(10,40,90,.35), 0 6px 18px rgba(31,111,191,.45);
+}
+.cmdbar .cb.warn { color: #ffd479; }
+body.light .cmdbar .cb.warn { color: #9a6400; }
+.cmdbar .cb.on { background: linear-gradient(180deg, rgba(var(--accent-rgb), .55), rgba(var(--accent-rgb), .35)); color: #fff; border-color: rgba(255,255,255,.3); }
+.cmdbar .cb.base.on { background: linear-gradient(180deg, rgba(255,200,49,.5), rgba(242,146,30,.45)); color: #fff; }
+.cmdbar .cb.freeze.on { background: linear-gradient(180deg, rgba(143,216,255,.6), rgba(43,147,208,.6)); color: #fff; }
+body.light .cmdbar .cb.on, body.light .cmdbar .cb.base.on, body.light .cmdbar .cb.freeze.on { color: #0f2236; }
+@media (prefers-reduced-transparency: reduce) { .top .seg, .top > .btn, .cmdbar .cb { backdrop-filter: none; -webkit-backdrop-filter: none; } }
+/* garante a gota azul igual em todas as aparências */
+.top .seg button.on {
+  background: linear-gradient(180deg, rgba(110,185,240,.95) 0%, rgba(43,138,217,.92) 45%, rgba(31,111,191,.95) 100%) !important;
+  color: #fff !important; border-color: rgba(255,255,255,.35) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -2px 6px rgba(10,40,90,.35), 0 4px 14px rgba(31,111,191,.45) !important;
+}
