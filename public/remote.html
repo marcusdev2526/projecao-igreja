@@ -3,41 +3,41 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0e1116">
+<meta name="theme-color" content="#070b12">
 <title>Controle — Projeção Igreja</title>
 <style>
   @import url('/fonts/inter/400.css'); @import url('/fonts/inter/600.css'); @import url('/fonts/inter/700.css');
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body { margin: 0; background: #0e1116; color: #e8eaed; font-family: Inter, system-ui, sans-serif; padding-bottom: 240px; }
-  header { position: sticky; top: 0; background: #0e1116ee; backdrop-filter: blur(8px); padding: 12px 14px 8px; z-index: 2; border-bottom: 1px solid #222; }
+  body { margin: 0; background: #070b12; color: #e8eaed; font-family: Inter, system-ui, sans-serif; padding-bottom: 240px; }
+  header { position: sticky; top: 0; background: #070b12ee; backdrop-filter: blur(8px); padding: 12px 14px 8px; z-index: 2; border-bottom: 1px solid #222; }
   h1 { font-size: 17px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sub { color: #8a919a; font-size: 13px; margin-top: 2px; }
   .tabs { display: flex; gap: 6px; margin-top: 10px; }
-  .tabs button, .modes button { flex: 1; background: #1b2028; color: #cfd3d8; border: 0; border-radius: 9px; padding: 9px 4px; font: 600 13px Inter, sans-serif; }
-  .tabs button.on, .modes button.on { background: #ff5a36; color: #fff; }
+  .tabs button, .modes button { flex: 1; background: #132033; color: #cfd3d8; border: 0; border-radius: 9px; padding: 9px 4px; font: 600 13px Inter, sans-serif; }
+  .tabs button.on, .modes button.on { background: #1f78d1; color: #fff; }
   .list { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
-  .slide, .item { background: #171b22; border: 2px solid transparent; border-radius: 12px; padding: 12px 14px; text-align: left; color: inherit; font: inherit; width: 100%; }
-  .slide.on, .item.on { border-color: #ff5a36; background: #241a18; }
-  .slide .n { font-size: 11px; font-weight: 700; color: #ff8a6e; letter-spacing: .06em; text-transform: uppercase; }
+  .slide, .item { background: #0f1826; border: 2px solid transparent; border-radius: 12px; padding: 12px 14px; text-align: left; color: inherit; font: inherit; width: 100%; }
+  .slide.on, .item.on { border-color: #f2921e; background: #2a1d0c; }
+  .slide .n { font-size: 11px; font-weight: 700; color: #fcc12d; letter-spacing: .06em; text-transform: uppercase; }
   .slide .t { font-size: 15px; margin-top: 4px; line-height: 1.35; }
   .item .t { font-weight: 600; } .item .a { font-size: 12px; color: #8a919a; margin-top: 2px; }
   .modes { display: flex; gap: 6px; padding: 0 12px; }
-  footer { position: fixed; left: 0; right: 0; bottom: 0; background: #0e1116; border-top: 1px solid #222; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
-  footer button { border: 0; border-radius: 12px; font: 700 15px Inter, sans-serif; padding: 16px 4px; background: #1b2028; color: #e8eaed; }
-  footer .big { grid-column: span 2; background: #ff5a36; color: #fff; font-size: 20px; padding: 22px 4px; }
+  footer { position: fixed; left: 0; right: 0; bottom: 0; background: #070b12; border-top: 1px solid #222; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+  footer button { border: 0; border-radius: 12px; font: 700 15px Inter, sans-serif; padding: 16px 4px; background: #132033; color: #e8eaed; }
+  footer .big { grid-column: span 2; background: #1f78d1; color: #fff; font-size: 20px; padding: 22px 4px; }
   footer .prev { grid-column: span 2; font-size: 20px; padding: 22px 4px; }
   footer .on { background: #e33; color: #fff; }
-  footer #freeze.on { background: #1d5fae; } footer #base.on { background: #ff5a36; }
-  .media { position: fixed; left: 0; right: 0; bottom: 172px; display: none; gap: 8px; padding: 8px 12px; background: #0e1116; border-top: 1px solid #222; }
-  .media.on { display: flex; } .media button { flex: 1; border: 0; border-radius: 10px; background: #1b2028; color: #fff; font: 700 15px Inter, sans-serif; padding: 12px 4px; }
-  .media .pp { background: #ff5a36; }
+  footer #freeze.on { background: #2b9fd8; } footer #base.on { background: #1f78d1; }
+  .media { position: fixed; left: 0; right: 0; bottom: 172px; display: none; gap: 8px; padding: 8px 12px; background: #070b12; border-top: 1px solid #222; }
+  .media.on { display: flex; } .media button { flex: 1; border: 0; border-radius: 10px; background: #132033; color: #fff; font: 700 15px Inter, sans-serif; padding: 12px 4px; }
+  .media .pp { background: #1f78d1; }
   .media .nm { flex: 2.2; font-size: 12px; color: #9aa; display: flex; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .bsearch { padding: 10px 12px 0; } .bsearch input { width: 100%; background: #171b22; border: 1px solid #2a2f37; border-radius: 10px; color: #fff; padding: 12px; font: 15px Inter, sans-serif; }
+  .bsearch { padding: 10px 12px 0; } .bsearch input { width: 100%; background: #0f1826; border: 1px solid #2a2f37; border-radius: 10px; color: #fff; padding: 12px; font: 15px Inter, sans-serif; }
   .hit .r { font-weight: 700; } .hit .x { font-size: 13px; color: #9aa; margin-top: 3px; }
   .frz { background: #1d5fae; color: #fff; text-align: center; font-weight: 700; font-size: 13px; padding: 6px; border-radius: 8px; margin-top: 8px; display: none; }
   .frz.on { display: block; }
   .msg { display: flex; gap: 6px; padding: 4px 12px 10px; }
-  .msg input { flex: 1; background: #171b22; border: 1px solid #2a2f37; border-radius: 9px; color: #fff; padding: 10px; font: 14px Inter, sans-serif; }
+  .msg input { flex: 1; background: #0f1826; border: 1px solid #2a2f37; border-radius: 9px; color: #fff; padding: 10px; font: 14px Inter, sans-serif; }
   .msg button { background: #2b3340; color: #fff; border: 0; border-radius: 9px; padding: 0 14px; font-weight: 600; }
 </style>
 </head>

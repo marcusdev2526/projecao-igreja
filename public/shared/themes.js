@@ -47,6 +47,13 @@ export const THEME_CATS = { minimalista: 'Minimalistas', expressivo: 'Expressivo
 
 export const THEMES = [
   {
+    id: 'adpc',
+    cat: 'expressivo',
+    name: 'ADPC',
+    desc: 'Cores da logo da igreja: azul do globo, faixas azuis e a chama dourada subindo',
+    bg: () => `<div class="globe"></div><svg class="swoosh" viewBox="-960 0 3840 1080" preserveAspectRatio="xMidYMid slice"><path class="s1" d="M-960 760 C-300 560 300 980 960 760 S 2200 560 2880 820"/><path class="s2" d="M-960 860 C-200 700 420 1040 1000 860 S 2300 700 2880 900"/><path class="s3" d="M-960 300 C-200 120 500 420 1100 240 S 2300 120 2880 300"/></svg><div class="flame"></div>${particles('ember adpc-ember', 34, 21)}<div class="vignette"></div>`,
+  },
+  {
     id: 'pulso',
     cat: 'expressivo',
     name: 'Pulso',

@@ -53,8 +53,8 @@ export const PROGRESS_CSS = `
 .seg-i i { display: block; height: 3px; border-radius: 2px; background: rgba(255,255,255,.12); transition: background .3s, height .2s; }
 .seg-i:hover i { height: 5px; background: rgba(255,255,255,.28); }
 .seg-i.p-done i { background: rgba(255,255,255,.42); }
-.seg-i.p-cur i { background: var(--prog, #ff6a3d); height: 4px; }
-.seg-i.p-next i { background: rgba(255,106,61,.32); }
+.seg-i.p-cur i { background: var(--prog, #f2921e); height: 4px; }
+.seg-i.p-next i { background: rgba(242,146,30,.32); }
 .seg-i .lb { display: none; }
 .prog-meta { display: flex; justify-content: flex-end; font-size: 12px; color: #7c8592; margin-top: 2px; }
 .prog-meta b { color: #c9ced6; font-weight: 600; }

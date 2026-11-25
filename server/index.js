@@ -56,7 +56,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   // ---------------- Estado ao vivo ----------------
   const live = {
     mode: repo.getSetting('mode', 'pt'),
-    themeId: repo.getSetting('theme', 'brasa'),
+    themeId: repo.getSetting('theme', 'adpc'),
     transition: repo.getSetting('transition', 'suave'),
     trSpeed: repo.getSetting('tr_speed', 'normal'),
     black: false,
@@ -173,7 +173,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     const d = deckId && decks.get(deckId);
     return {
       name: repo.getSetting('church_name', ''),
-      logo: repo.getSetting('church_logo', ''),
+      logo: repo.getSetting('church_logo', '/brand/adpc.png'),
       start: repo.getSetting('wait_start', '19:00'),
       waitText: repo.getSetting('wait_text', 'O culto já vai começar'),
       deck: d ? { urls: d.urls, auto: d.auto || 8 } : null,
