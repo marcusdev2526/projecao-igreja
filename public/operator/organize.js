@@ -14,6 +14,13 @@ export function initOrganize(ctx) {
   $('nextBtn').onclick = () => cmd({ type: 'next' });
   $('logoBtn').onclick = () => cmd({ type: 'logo' });
   $('waitBtn').onclick = () => cmd({ type: 'waiting' });
+  // Congelar: o público continua vendo o que está agora; você prepara o próximo e solta quando quiser
+  $('freezeBtn').onclick = () => cmd({ type: 'freeze' });
+  document.addEventListener('keydown', (e) => {
+    if (e.target.closest('input, textarea, select, dialog[open]') || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'f' || e.key === 'F') cmd({ type: 'freeze' });
+    if (e.key === 'Enter' && getLive()?.frozen) cmd({ type: 'freeze', value: false });
+  });
 
   // ---------- Cronômetro ----------
   const fmt = (ms) => {
@@ -47,6 +54,12 @@ export function initOrganize(ctx) {
   socket.on('state', (s) => {
     $('logoBtn').classList.toggle('on', !!s.logo);
     $('waitBtn').classList.toggle('on', !!s.waiting);
+    $('freezeBtn').classList.toggle('on', !!s.frozen);
+    $('freezeBtn').querySelector('span').textContent = s.frozen ? 'Soltar no telão (Enter)' : 'Congelar';
+    $('frozenBadge').hidden = !s.frozen;
+    document.body.classList.toggle('is-frozen', !!s.frozen);
+    const lbl = document.querySelector('#liveTitle')?.previousElementSibling;
+    if (lbl) lbl.textContent = s.frozen ? 'Preparado · fora do telão' : 'No ar';
     const bid = s.timing?.blockId ?? null;
     if (bid !== lastBlock) { lastBlock = bid; renderItems(); }
     tick();

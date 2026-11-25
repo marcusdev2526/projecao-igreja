@@ -799,3 +799,14 @@ body.light .blk-grid button { background: #fff; border-color: #d5dae1; }
 body.light .mb-card { background: #fff; border-color: var(--line); }
 body.light .pl-track input[type=range] { background: linear-gradient(to right, var(--accent) var(--pct, 0%), #d9dee5 var(--pct, 0%)); }
 .mb-acts .btn { display: inline-flex; align-items: center; white-space: nowrap; }
+
+/* =========== Congelar =========== */
+.pv-frame { position: relative; }
+.frozen-badge { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 7px; background: rgba(30, 110, 200, .92); color: #fff; font: 800 12px Inter, system-ui, sans-serif; letter-spacing: .06em; padding: 6px 12px; border-radius: 999px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.frozen-badge svg, .cb.freeze svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+body.is-frozen .preview-wrap iframe { border-color: #3b8be0; box-shadow: 0 0 0 2px #3b8be0, 0 18px 50px rgba(0,0,0,.45); }
+.cb.freeze { color: #8cc4ff; }
+.cb.freeze.on { background: #1d5fae; border-color: #3b8be0; color: #fff; animation: frz 2s ease-in-out infinite; }
+@keyframes frz { 50% { box-shadow: 0 0 0 4px rgba(59,139,224,.25); } }
+body.is-frozen .rc-card .label { color: #8cc4ff; }
+body.is-frozen .slide.live { border-color: #3b8be0; box-shadow: inset 3px 0 0 #3b8be0; }

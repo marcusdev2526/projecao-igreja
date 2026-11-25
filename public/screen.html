@@ -23,7 +23,9 @@
   const stage = createStage(document.getElementById('host'), { live: true });
   let lastKey = '';
   const socket = io();
-  socket.on('state', (s) => {
+  socket.on('state', (s0) => {
+    // congelado: o telão continua mostrando o que estava no ar
+    const s = s0.frozen && s0.screen ? { ...s0, ...s0.screen } : s0;
     stage.setTheme(s.themeId, s.themeDef);
     stage.setBlack(s.black);
     stage.setTransition(s.transition, s.trSpeed);

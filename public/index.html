@@ -95,7 +95,7 @@
   <section class="panel live">
     <div class="live-top">
       <div class="preview-wrap">
-        <iframe id="livePreview" src="/screen.html?embed" title="Prévia do telão"></iframe>
+        <div class="pv-frame"><iframe id="livePreview" src="/screen.html?embed" title="Prévia do telão"></iframe><div class="frozen-badge" id="frozenBadge" hidden><svg viewBox="0 0 24 24"><path d="M12 2v20M4.9 6.5l14.2 11M19.1 6.5 4.9 17.5"/></svg>TELÃO CONGELADO · o público vê isto</div></div>
         <div id="liveProg" hidden></div>
         <div class="player" id="playerBar" hidden>
           <div class="pl-tl"><span id="plCur">0:00</span><div class="pl-track"><input type="range" id="plSeek" min="0" max="100" step="0.1" value="0"><span class="pl-tip" id="plTip" hidden></span></div><span id="plDur">0:00</span></div>
@@ -129,6 +129,7 @@
     <div class="cmdbar">
       <button class="cb" id="prevBtn" title="Voltar (←)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Anterior</button>
       <button class="cb next" id="nextBtn" title="Próximo (→ ou Espaço)">Próximo<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+      <button class="cb freeze" id="freezeBtn" title="Congela o telão no que está agora. Você prepara o próximo (vídeo, imagem, louvor) sem o público ver, e solta quando quiser. Atalho: F"><svg viewBox="0 0 24 24"><path d="M12 2v20M4.9 6.5l14.2 11M19.1 6.5 4.9 17.5M9 3.5l3 2.5 3-2.5M9 20.5l3-2.5 3 2.5"/></svg><span>Congelar</span></button>
       <span class="cb-sep"></span>
       <button class="cb warn" id="blackBtn" title="Atalho: B">Tela preta</button>
       <button class="cb" id="clearBtn" title="Atalho: C">Sem letra</button>

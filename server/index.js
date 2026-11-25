@@ -70,6 +70,8 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     index: -1,
     message: '',
     logo: false, // tela só com a logo da igreja
+    frozen: false, // telão congelado: o público vê screenSnap enquanto o operador prepara o próximo
+    screenSnap: null,
     waiting: false, // tela de espera (logo, contagem regressiva, avisos)
     timing: { serviceStart: null, blockId: null, blockStart: null },
     loggedSongs: new Set(),
@@ -248,9 +250,37 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   }
 
   const preview = (s) => (s ? (s.lines || []).map((l) => l.pt).join(' / ') || s.name || '' : '');
+  // O que o telão mostra (usado para "congelar": o público continua vendo isto enquanto o operador prepara o próximo)
+  function screenView() {
+    return {
+      slide: live.slides[live.index] || null,
+      mode: live.mode,
+      themeId: live.themeId,
+      themeDef: themeDef(live.themeId),
+      clear: live.clear,
+      black: live.black,
+      logo: live.logo,
+      waiting: live.waiting,
+      church: churchInfo(),
+      player: live.player,
+      transition: live.transition,
+      trSpeed: live.trSpeed,
+    };
+  }
+  function frozenScreen() {
+    const snap = live.screenSnap;
+    if (!snap) return null;
+    // vídeo que estava no telão fica parado no quadro; playback de áudio (louvor) continua sendo controlado normalmente
+    let player = snap.player;
+    if (player?.type === 'video') player = { ...player, status: 'paused', seq: player.seq + 0.5 };
+    else if (live.player?.type === 'audio') player = live.player;
+    return { ...snap, player, black: live.black };
+  }
   function publicState() {
     const slide = live.slides[live.index] || null;
     return {
+      frozen: live.frozen,
+      screen: live.frozen ? frozenScreen() : null,
       mode: live.mode,
       themeId: live.themeId,
       black: live.black,
@@ -470,6 +500,13 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       case 'black':
         live.black = typeof c.value === 'boolean' ? c.value : !live.black;
         break;
+      case 'freeze': {
+        const on = typeof c.value === 'boolean' ? c.value : !live.frozen;
+        if (on && !live.frozen) live.screenSnap = screenView();
+        live.frozen = on;
+        if (!on) live.screenSnap = null;
+        break;
+      }
       case 'logo':
         live.logo = typeof c.value === 'boolean' ? c.value : !live.logo;
         if (live.logo) live.waiting = false;
