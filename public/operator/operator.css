@@ -1458,3 +1458,18 @@ body.light .filt-pop { box-shadow: 0 16px 40px rgba(16,24,40,.16); }
 .mcat:first-child { margin-top: 0; }
 .mcat span { margin-left: auto; font-weight: 600; letter-spacing: 0; background: var(--ds-raised); border: 1px solid var(--ds-border); border-radius: 999px; padding: 1px 7px; }
 .filt-pop { max-height: min(560px, calc(100vh - 260px)); overflow: auto; }
+
+/* Congelado: monitores maiores
+   - telão 16:9 → lado a lado, ocupando mais altura
+   - telão ultrawide → um embaixo do outro (Preparado em cima, No telão embaixo), bem maiores */
+.preview-wrap:has(.pv-frame.dual) { width: min(100%, calc(clamp(220px, 44vh, 620px) * var(--ar, 1.7778) * 2 + 14px)); }
+body.ar-wide .pv-frame.dual { grid-template-columns: 1fr; gap: 12px; }
+body.ar-wide .preview-wrap:has(.pv-frame.dual) { width: min(100%, calc(clamp(160px, 27vh, 440px) * var(--ar, 1.7778))); }
+body.ar-wide .pv-frame.dual .pv-go { height: 34px; }
+.live-top:has(.pv-frame.dual) { padding-left: 14px; padding-right: 14px; }
+/* (regras com peso suficiente para vencer o ajuste do player) */
+.live-top .preview-wrap:has(#pvFrame.dual) { width: min(100%, calc(clamp(220px, 42vh, 620px) * var(--ar, 1.7778) * 2 + 14px)); }
+.live-top:has(#playerBar:not([hidden])) .preview-wrap:has(#pvFrame.dual) { width: min(100%, calc(clamp(200px, 36vh, 560px) * var(--ar, 1.7778) * 2 + 14px)); }
+body.ar-wide .live-top .preview-wrap:has(#pvFrame.dual) { width: min(100%, calc(clamp(150px, 31vh, 480px) * var(--ar, 1.7778))); }
+body.ar-wide .live-top:has(#playerBar:not([hidden])) .preview-wrap:has(#pvFrame.dual) { width: min(100%, calc(clamp(140px, 25vh, 420px) * var(--ar, 1.7778))); }
+.pv-frame.dual .frozen-badge { white-space: nowrap; }
