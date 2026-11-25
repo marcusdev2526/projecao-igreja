@@ -17,7 +17,7 @@ import { makeDecks, convertPresentation } from './decks.js';
 import { makeBackup } from './backup.js';
 import { translateLines, keywordChunks, askClaude, alignOfficial, DEFAULT_MODEL } from './ai.js';
 import { lyricLines, missingTranslations, insertTranslations, setEnStatus, englishLines } from '../public/shared/enhance.js';
-import { fetchLyrics } from './urlimport.js';
+import { fetchLyrics, searchLyricsOnline, fetchOnlineResult } from './urlimport.js';
 import { makeUpdater, RESTART_CODE } from './updater.js';
 import { parseRef, refText } from '../public/shared/bible.js';
 
@@ -807,6 +807,17 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     const dup = repo.findDuplicate(p.title || '', p.artist || '');
     ok(res, [{ from: req.body.url, source, title: p.title, artist: p.artist, sections: p.sections.length,
       slides: buildSlides(p, { maxLines: 2 }).length, hasEn: p.hasEn, duplicateId: dup?.id || null, action: dup ? 'skip' : 'create' }]);
+  }));
+  // Buscar letra na internet e importar com 1 clique
+  app.get('/api/lyrics/search', wrap(async (req, res) => ok(res, await searchLyricsOnline(req.query.q))));
+  app.post('/api/lyrics/import', wrap(async (req, res) => {
+    const url = String(req.body.url || '');
+    if (!/^(https?:\/\/|ovh:)/.test(url)) throw new Error('Resultado inválido');
+    const source = await fetchOnlineResult(url);
+    const p = parseSong(source);
+    const dup = repo.findDuplicate(p.title || '', p.artist || '');
+    if (dup && !req.body.force) return ok(res, { id: dup.id, existed: true });
+    ok(res, { id: repo.createSong(source, {}), existed: false });
   }));
   app.post('/api/import/commit', wrap((req, res) => {
     let created = 0, replaced = 0;

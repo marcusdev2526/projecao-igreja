@@ -222,13 +222,37 @@ export const FONTS = {
 // Tema personalizado padrão (ponto de partida do editor)
 export const newCustomTheme = () => ({
   name: 'Novo tema',
-  bg: { type: 'anim', anim: 'aurora', color: '#101820', color2: '#3a1c4a', angle: 135, media: '', dim: 0, blur: 0 },
+  bg: { type: 'anim', anim: 'aurora', color: '#101820', color2: '#3a1c4a', angle: 135, media: '', dim: 0, blur: 0, motion: 'none', mcolor: '#ffffff', speed: 100, mint: 60 },
   text: { fg: '#ffffff', sub: '#cfe0ff', kwFont: 'Unbounded', bodyFont: 'Inter', serifFont: 'Instrument Serif', upper: true, glow: true, size: 100 },
   logo: { media: '', pos: 'br', size: 9 },
   transition: 'blur',
 });
 
 const escAttr = (s) => String(s || '').replace(/["<>&]/g, '');
+
+// Movimento por cima de cor, degradê, imagem ou vídeo (temas personalizados)
+export const MOTIONS = [
+  ['none', 'Sem movimento'],
+  ['flow', 'Luz fluindo'],
+  ['bokeh', 'Luzes desfocadas'],
+  ['embers', 'Partículas subindo'],
+  ['stars', 'Estrelas piscando'],
+  ['rays', 'Feixes de luz'],
+  ['waves', 'Ondas'],
+  ['zoom', 'Zoom lento (imagem/vídeo)'],
+];
+function motionHTML(kind) {
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+  const dots = (n, f) => Array.from({ length: n }, (_, i) => f(i)).join('');
+  if (kind === 'flow') return '<div class="mo mo-flow"><i></i><i></i><i></i></div>';
+  if (kind === 'bokeh') return `<div class="mo mo-bokeh">${dots(16, () => `<i style="left:${(rnd() * 100).toFixed(1)}%;top:${(rnd() * 100).toFixed(1)}%;--s:${(40 + rnd() * 160) | 0}px;--d:${(14 + rnd() * 18).toFixed(1)}s;--dl:-${(rnd() * 30).toFixed(1)}s;--o:${(0.25 + rnd() * 0.5).toFixed(2)}"></i>`)}</div>`;
+  if (kind === 'embers') return `<div class="mo mo-embers">${dots(40, () => `<i style="left:${(rnd() * 100).toFixed(1)}%;--s:${(3 + rnd() * 6).toFixed(1)}px;--d:${(9 + rnd() * 12).toFixed(1)}s;--dl:-${(rnd() * 20).toFixed(1)}s;--x:${((rnd() - 0.5) * 160) | 0}px"></i>`)}</div>`;
+  if (kind === 'stars') return `<div class="mo mo-stars">${dots(90, () => `<i style="left:${(rnd() * 100).toFixed(2)}%;top:${(rnd() * 100).toFixed(2)}%;--s:${(1.5 + rnd() * 3).toFixed(1)}px;--d:${(2 + rnd() * 5).toFixed(1)}s;--dl:-${(rnd() * 6).toFixed(1)}s"></i>`)}</div>`;
+  if (kind === 'rays') return '<div class="mo mo-rays"><i></i></div>';
+  if (kind === 'waves') return '<svg class="mo mo-waves" viewBox="-960 0 3840 1080" preserveAspectRatio="xMidYMid slice"><path d="M-960 760 C-300 560 300 980 960 760 S 2200 560 2880 820"/><path d="M-960 860 C-200 700 420 1040 1000 860 S 2300 700 2880 900"/><path d="M-960 300 C-200 120 500 420 1100 240 S 2300 120 2880 300"/></svg>';
+  return '';
+}
 const fontStack = (f, fallback) => `'${escAttr(f)}', ${fallback}`;
 
 // Aplica um tema personalizado no palco (cores, fontes, fundo, logo, transição)
@@ -238,6 +262,7 @@ export function applyCustomTheme(stage, def) {
   const el = stage;
   const bgEl = el.querySelector('.bg');
   bgEl.removeAttribute('style');
+  bgEl.classList.remove('mo-zoom');
   if (bg.type === 'anim') {
     const base = themeById(bg.anim);
     el.classList.add('theme-' + base.id);
@@ -249,6 +274,13 @@ export function applyCustomTheme(stage, def) {
     if (bg.type === 'image' && bg.media) bgEl.innerHTML = `<div class="media" style="background-image:url('${escAttr(bg.media)}')"></div>`;
     else if (bg.type === 'video' && bg.media) bgEl.innerHTML = `<video class="media" src="${escAttr(bg.media)}" autoplay muted loop playsinline></video>`;
     else bgEl.innerHTML = '';
+    const mo = bg.motion || 'none';
+    if (mo !== 'none') {
+      if (mo === 'zoom') bgEl.classList.add('mo-zoom'); else bgEl.insertAdjacentHTML('beforeend', motionHTML(mo));
+      bgEl.style.setProperty('--mc', escAttr(bg.mcolor) || '#fff');
+      bgEl.style.setProperty('--mk', String(100 / Math.max(25, +bg.speed || 100)));
+      bgEl.style.setProperty('--mi', String(Math.max(0.05, Math.min(1, (+bg.mint || 60) / 100))));
+    }
   }
   const media = bgEl.querySelector('.media');
   if (media && +bg.blur) media.style.filter = `blur(${+bg.blur}px)`;

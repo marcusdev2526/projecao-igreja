@@ -1,7 +1,7 @@
 // Painel do operador
 import { parseSong, buildSlides, slideMaxLines } from '/shared/parser.js';
 import { createStage, slideHTML, stripMarkup, niceCase } from '/shared/render.js';
-import { THEMES, THEME_CATS, themeById, FONTS, newCustomTheme } from '/shared/themes.js';
+import { THEMES, THEME_CATS, themeById, FONTS, newCustomTheme, MOTIONS } from '/shared/themes.js';
 import { BOOKS, parseRef, refText, bookName } from '/shared/bible.js';
 import { initBibleView } from '/operator/bible.js';
 import { initMedia } from '/operator/media.js';
@@ -84,18 +84,61 @@ socket.on('state', (s) => {
 
 // ---------------- Biblioteca ----------------
 const enBadge = (v) => (v === 2 ? '<span class="badge auto" title="Inglês traduzido automaticamente — revise no editor">EN auto</span>' : v ? '<span class="badge">EN</span>' : '');
-async function loadSongs() {
+let webQ = '';
+let webRes = null;
+let webBusy = false;
+let webT;
+const WEB_ICON = '<svg viewBox="0 0 24 24" class="bi"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>';
+function webBlock(q) {
+  if (q.length < 2) return '';
+  if (webBusy) return `<div class="web-box"><div class="web-h">${WEB_ICON}Buscando “${esc(q)}” na internet…</div><div class="web-load"><i></i><i></i><i></i></div></div>`;
+  if (webRes && webQ === q) {
+    return `<div class="web-box"><div class="web-h">${WEB_ICON}Na internet <span>${webRes.length} resultado${webRes.length === 1 ? '' : 's'}</span></div>` +
+      (webRes.length ? webRes.map((r, i) => `<div class="web-row" data-w="${i}"><div class="info"><div class="t">${esc(r.title)}</div><div class="a">${esc(r.artist || '—')} · <em>${esc(r.source)}</em></div></div>
+        <button class="btn sm" data-wact="imp" title="Importar e conferir a letra">Importar</button><button class="btn sm primary" data-wact="svc" title="Importar e já colocar no culto">+ Culto</button></div>`).join('')
+        : '<div class="empty">Nada encontrado. Tente com o nome do cantor, ex.: “Santo és Fernandinho”.</div>') + '</div>';
+  }
+  return `<button class="web-btn" id="webSearchBtn">${WEB_ICON}<span>Buscar <b>“${esc(q)}”</b> na internet</span><small>Letras.mus.br e outros</small></button>`;
+}
+async function webSearch(q) {
+  webQ = q; webBusy = true; webRes = null; loadSongs(true);
+  try { webRes = await api('/api/lyrics/search?q=' + encodeURIComponent(q)); }
+  catch (e) { webRes = null; toast(e.message || 'Sem internet'); }
+  webBusy = false;
+  if ($('search').value.trim() === q) loadSongs(true);
+}
+async function loadSongs(keepWeb = false) {
+  const q = $('search').value.trim();
   const list = await api('/api/songs?q=' + encodeURIComponent($('search').value));
+  if (!keepWeb && q !== webQ) { webRes = null; webBusy = false; }
   $('songCount').textContent = `${list.length} louvor${list.length === 1 ? '' : 'es'}`;
-  $('songList').innerHTML = list.length
+  $('songList').innerHTML = (list.length
     ? list.map((s) => `<div class="song" draggable="true" data-id="${s.id}" title="Duplo clique: projetar agora · arraste para o telão ou para o culto">
         <div class="info"><div class="t">${esc(s.title)}</div><div class="a">${esc(s.artist || '—')}${s.song_key ? ' · ' + esc(s.song_key) : ''}</div></div>
         ${s.last_played && (Date.now() - new Date(s.last_played.replace(' ', 'T'))) < 21 * 864e5 ? `<span class="badge recent" title="Cantado em ${s.last_played.slice(0, 10).split('-').reverse().join('/')}">há ${Math.max(0, Math.round((Date.now() - new Date(s.last_played.replace(' ', 'T'))) / 864e5))}d</span>` : ''}
         ${enBadge(s.has_en)}
         <button class="mini" data-act="edit" title="Editar">✎</button>
         <button class="mini" data-act="add" title="Adicionar ao culto">＋</button></div>`).join('')
-    : '<div class="empty">Nenhum louvor encontrado</div>';
+    : (q ? '<div class="empty">Não está na biblioteca.</div>' : '<div class="empty">Nenhum louvor encontrado</div>')) + webBlock(q);
+  // Sem resultado aqui: já procura na internet sozinho
+  clearTimeout(webT);
+  if (!list.length && q.length >= 3 && !webBusy && !(webRes && webQ === q)) webT = setTimeout(() => { if ($('search').value.trim() === q) webSearch(q); }, 500);
 }
+$('songList').addEventListener('click', async (e) => {
+  if (e.target.closest('#webSearchBtn')) return webSearch($('search').value.trim());
+  const b = e.target.closest('[data-wact]');
+  if (!b) return;
+  const r = webRes?.[+b.closest('.web-row').dataset.w];
+  if (!r) return;
+  b.disabled = true; const old = b.textContent; b.textContent = 'Baixando…';
+  try {
+    const j = await api('/api/lyrics/import', { method: 'POST', body: { url: r.url } });
+    toast(j.existed ? 'Esse louvor já estava na biblioteca' : 'Letra importada');
+    $('search').value = r.title; webRes = null; await loadSongs();
+    if (b.dataset.wact === 'svc') await addSongToService(j.id);
+    else openEditor(j.id);
+  } catch (err) { toast(err.message || 'Não consegui importar'); b.disabled = false; b.textContent = old; }
+});
 let searchT;
 $('search').oninput = () => { clearTimeout(searchT); searchT = setTimeout(loadSongs, 150); };
 $('songList').onclick = async (e) => {
@@ -999,9 +1042,14 @@ function updateThemeForm() {
   const type = teDraft.bg.type;
   document.querySelectorAll('#teBgType button').forEach((b) => b.classList.toggle('on', b.dataset.v === type));
   document.querySelectorAll('#teForm [data-show]').forEach((el) => (el.hidden = !el.dataset.show.split(' ').includes(type)));
+  teDraft.bg.motion ??= 'none'; teDraft.bg.mcolor ??= '#ffffff'; teDraft.bg.speed ??= 100; teDraft.bg.mint ??= 60;
+  if (!$('teMotion').options.length) $('teMotion').innerHTML = MOTIONS.map(([v, n]) => `<option value="${v}">${n}</option>`).join('');
+  $('teMotion').value = teDraft.bg.motion;
+  document.querySelectorAll('#teForm [data-mo]').forEach((el) => { if (teDraft.bg.motion === 'none' || teDraft.bg.motion === 'zoom') el.hidden = true; else if (!el.dataset.show || el.dataset.show.split(' ').includes(type)) el.hidden = false; });
+  document.querySelectorAll('#teForm [data-k]').forEach((i) => { const v = getK(teDraft, i.dataset.k); if (v == null) return; if (i.type === 'checkbox') i.checked = !!v; else if (document.activeElement !== i) i.value = v; });
   document.querySelectorAll('#teForm output').forEach((o) => {
     const v = getK(teDraft, o.dataset.o);
-    o.textContent = o.dataset.o === 'text.size' || o.dataset.o === 'bg.dim' ? v + '%' : v + 'px';
+    o.textContent = ['text.size', 'bg.dim', 'bg.speed', 'bg.mint'].includes(o.dataset.o) ? v + '%' : v + 'px';
   });
   document.querySelectorAll('#teSample button').forEach((b) => b.classList.toggle('on', +b.dataset.v === teSample));
   teStage.setTheme('preview', { ...teDraft, name: $('teName').value });

@@ -382,6 +382,8 @@
         <div class="row" data-show="anim"><label>Animação <select class="sel" data-k="bg.anim" id="teAnim"></select></label></div>
         <div class="row" data-show="color gradient"><label>Cor <input type="color" data-k="bg.color"></label><label data-show="gradient">Cor 2 <input type="color" data-k="bg.color2"></label><label data-show="gradient">Ângulo <input type="range" min="0" max="360" step="5" data-k="bg.angle"></label></div>
         <div class="row" data-show="image video"><label class="grow">Arquivo <select class="sel" data-k="bg.media" id="teMedia"></select></label><label class="btn sm upl">Enviar…<input type="file" id="teUpload" accept="image/*,video/mp4,video/webm,video/quicktime" hidden></label></div>
+        <div class="row" data-show="color gradient image video"><label class="grow">Movimento <select class="sel" data-k="bg.motion" id="teMotion"></select></label><label data-mo>Cor <input type="color" data-k="bg.mcolor"></label></div>
+        <div class="row" data-show="color gradient image video" data-mo><label class="grow">Velocidade <input type="range" min="25" max="200" step="5" data-k="bg.speed"><output data-o="bg.speed"></output></label><label class="grow">Intensidade <input type="range" min="10" max="100" step="5" data-k="bg.mint"><output data-o="bg.mint"></output></label></div>
         <div class="row"><label class="grow">Escurecer <input type="range" min="0" max="85" data-k="bg.dim"><output data-o="bg.dim"></output></label><label class="grow" data-show="image video">Desfoque <input type="range" min="0" max="30" data-k="bg.blur"><output data-o="bg.blur"></output></label></div>
       </fieldset>
       <fieldset><legend>Texto</legend>

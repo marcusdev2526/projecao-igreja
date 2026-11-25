@@ -121,3 +121,53 @@ export async function fetchLyrics(url, { fetchImpl = fetch } = {}) {
     clearTimeout(t);
   }
 }
+
+// ---------- Buscar letra na internet (quando não tem na biblioteca) ----------
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
+async function getText(url, ms = 8000, fetchImpl = fetch) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetchImpl(url, { signal: ctrl.signal, headers: { 'user-agent': UA, 'accept-language': 'pt-BR,pt;q=0.9' } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.text();
+  } finally { clearTimeout(t); }
+}
+const jsonLoose = (txt) => { const a = txt.indexOf('{'); const b = txt.lastIndexOf('}'); return JSON.parse(txt.slice(a, b + 1)); };
+
+// Letras.mus.br (busca rápida pública do próprio site)
+async function searchLetras(q, fetchImpl) {
+  const txt = await getText('https://solr.sscdn.co/letras/m1/?q=' + encodeURIComponent(q) + '&wt=json&rows=12', 8000, fetchImpl);
+  const j = jsonLoose(txt);
+  const docs = (j.response || j.LetrasSug?.response || {}).docs || [];
+  return docs
+    .filter((d) => d.dns && d.url && d.txt)
+    .map((d) => ({ source: 'Letras.mus.br', title: d.txt, artist: d.art || '', url: `https://www.letras.mus.br/${d.dns}/${d.url}/` }));
+}
+// lyrics.ovh (bom para louvores em inglês)
+async function searchOvh(q, fetchImpl) {
+  const j = JSON.parse(await getText('https://api.lyrics.ovh/suggest/' + encodeURIComponent(q), 8000, fetchImpl));
+  return (j.data || []).slice(0, 8).map((d) => ({ source: 'lyrics.ovh', title: d.title, artist: d.artist?.name || '', url: `ovh:${d.artist?.name || ''}|${d.title}` }));
+}
+
+export async function searchLyricsOnline(q, { fetchImpl = fetch } = {}) {
+  q = String(q || '').trim();
+  if (q.length < 2) return [];
+  const [a, b] = await Promise.allSettled([searchLetras(q, fetchImpl), searchOvh(q, fetchImpl)]);
+  const out = [...(a.status === 'fulfilled' ? a.value : []), ...(b.status === 'fulfilled' ? b.value : [])];
+  if (!out.length && a.status === 'rejected' && b.status === 'rejected') throw new Error('Não consegui buscar na internet (sem conexão ou sites fora do ar)');
+  const seen = new Set();
+  return out.filter((r) => { const k = (r.title + '|' + r.artist).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 15);
+}
+
+// Baixa a letra de um resultado da busca (link de página ou ovh:artista|título)
+export async function fetchOnlineResult(url, { fetchImpl = fetch } = {}) {
+  if (url.startsWith('ovh:')) {
+    const [artist, title] = url.slice(4).split('|');
+    const j = JSON.parse(await getText(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`, 12000, fetchImpl));
+    const lyrics = normalizeImported(String(j.lyrics || '').replace(/\r/g, '').replace(/^Paroles de la chanson.*\n/i, ''));
+    if (!lyrics) throw new Error('Letra não encontrada');
+    return `${title}\nArtista: ${artist}\nNotas: importado de lyrics.ovh\n\n${lyrics}\n`;
+  }
+  return fetchLyrics(url, { fetchImpl });
+}

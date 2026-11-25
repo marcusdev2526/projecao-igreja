@@ -1473,3 +1473,26 @@ body.ar-wide .pv-frame.dual .pv-go { height: 34px; }
 body.ar-wide .live-top .preview-wrap:has(#pvFrame.dual) { width: min(100%, calc(clamp(150px, 31vh, 480px) * var(--ar, 1.7778))); }
 body.ar-wide .live-top:has(#playerBar:not([hidden])) .preview-wrap:has(#pvFrame.dual) { width: min(100%, calc(clamp(140px, 25vh, 420px) * var(--ar, 1.7778))); }
 .pv-frame.dual .frozen-badge { white-space: nowrap; }
+
+/* Buscar letra na internet */
+.web-btn { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; text-align: left; width: calc(100% - 4px); margin: 8px 2px 4px; padding: 10px 12px;
+  border-radius: var(--ds-r); border: 1px dashed var(--ds-border-strong); background: transparent; color: var(--text); cursor: pointer; font: 500 13px Inter, system-ui, sans-serif; }
+.web-btn:hover { background: var(--ds-hover); border-color: var(--accent); }
+.web-btn .bi { grid-row: 1 / 3; width: 20px; height: 20px; fill: none; stroke: var(--accent2); stroke-width: 1.7; }
+.web-btn small { color: var(--muted); font-size: 11.5px; }
+.web-box { margin-top: 8px; border-top: 1px solid var(--ds-border); padding-top: 6px; }
+.web-h { display: flex; align-items: center; gap: 7px; padding: 6px 8px; font: 700 10.5px Inter, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.web-h .bi { width: 14px; height: 14px; fill: none; stroke: var(--accent2); stroke-width: 1.9; }
+.web-h span { margin-left: auto; letter-spacing: 0; text-transform: none; font-weight: 500; }
+.web-row { display: flex; align-items: center; gap: 6px; padding: 7px 8px; border-radius: var(--ds-r); }
+.web-row:hover { background: var(--ds-hover); }
+.web-row .info { flex: 1; min-width: 0; }
+.web-row .t { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.web-row .a { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.web-row .a em { font-style: normal; color: var(--accent2); }
+.web-row .btn { flex: none; height: 28px; padding: 0 9px; font-size: 12px; }
+.web-load { display: flex; gap: 5px; padding: 10px 12px; }
+.web-load i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent2); animation: webdot 1s ease-in-out infinite; }
+.web-load i:nth-child(2) { animation-delay: .15s; } .web-load i:nth-child(3) { animation-delay: .3s; }
+@keyframes webdot { 0%, 100% { opacity: .25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+.web-row .btn { display: inline-flex; align-items: center; justify-content: center; }
