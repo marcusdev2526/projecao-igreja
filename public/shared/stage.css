@@ -258,3 +258,7 @@
 /* Vídeo, imagem e slides de apresentação ocupando o telão inteiro */
 .media-full { position: absolute; inset: 0; background: #000; }
 .media-full video, .media-full img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.media-full img.amb { position: absolute; inset: -6%; width: 112%; height: 112%; object-fit: cover; filter: blur(48px) brightness(.5) saturate(1.25); }
+.media-full img.main { position: relative; }
+.stage.stage.stage .content-layer.leave.hold { animation: tr-hold calc(1.2s * var(--trk, 1)) linear both; }
+@keyframes tr-hold { from { opacity: 1; } to { opacity: 1; } }

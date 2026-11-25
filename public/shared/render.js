@@ -58,7 +58,8 @@ export function slideHTML(slide, mode = 'pt') {
   if (slide.kind === 'media') {
     const u = esc(slide.url || '');
     if (slide.mtype === 'video') return `<div class="media-full"><video src="${u}" playsinline preload="auto"></video></div>`;
-    if (slide.mtype === 'image') return `<div class="media-full${slide.fit === 'contain' ? ' contain' : ''}"><img src="${u}" alt=""></div>`;
+    // a própria imagem, ampliada e desfocada, preenche as bordas quando ela não ocupa a tela toda
+    if (slide.mtype === 'image') return `<div class="media-full"><img class="amb" src="${u}" alt="" aria-hidden="true"><img class="main" src="${u}" alt=""></div>`;
     return ''; // áudio: só o fundo do tema
   }
   if (slide.kind === 'text') {
@@ -133,9 +134,12 @@ export function createStage(container, { live = false } = {}) {
       layer.innerHTML = html;
       layers.appendChild(layer);
       fit(layer);
+      const newIsMedia = !!layer.querySelector('.media-full');
       old.forEach((o) => {
         if (animate && stage.dataset.tr !== 'nenhuma') {
           o.classList.add('leave');
+          // de imagem para imagem: a anterior fica firme embaixo até a nova aparecer (sem piscar o fundo)
+          if (newIsMedia && o.querySelector('.media-full')) o.classList.add('hold');
           let done = false;
           const rm = () => { if (!done) { done = true; o.remove(); } };
           o.addEventListener('animationend', (e) => e.target === o && rm());
