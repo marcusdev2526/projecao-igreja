@@ -59,8 +59,8 @@ socket.on('state', (s) => {
   document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === s.mode));
   $('themeName').textContent = themeLabel(s.themeId);
   markQuickTheme();
-  document.querySelectorAll('#trChips button').forEach((b) => b.classList.toggle('on', b.dataset.tr === s.transition));
-  document.querySelectorAll('#trSpeed button').forEach((b) => b.classList.toggle('on', b.dataset.sp === s.trSpeed));
+  $('trSel').value = s.transition || 'suave';
+  $('trSpeedSel').value = s.trSpeed || 'normal';
   if ($('bibleMain').options.length) { $('bibleMain').value = s.bibleMain; $('bibleSecond').value = s.bibleSecond || ''; }
   $('blackBtn').classList.toggle('on', s.black);
   $('clearBtn').classList.toggle('on', s.clear);
@@ -70,7 +70,10 @@ socket.on('state', (s) => {
   renderProgress($('bvProg'), prog);
   $('livePos').textContent = s.total ? `Slide ${s.index + 1} de ${s.total}${s.slide ? ' · ' + s.slide.name : ''}` : '';
   $('liveNext').textContent = s.next ? '' : s.total ? 'Fim — próximo item do culto' : '';
-  renderNextPreview(s);
+  // linha "Próximo" acima do telão
+  $('nextLine').innerHTML = s.next
+    ? `<b>Próximo:</b> ${esc(s.next.name || '')}${(s.next.lines || []).length ? ' — ' + esc(niceCase(stripMarkup(s.next.lines.map((l) => l.pt).join(' / '))).slice(0, 90)) : ''}`
+    : s.total ? '<b>Próximo:</b> próximo item do culto' : '';
   document.querySelectorAll('.item').forEach((el) => el.classList.toggle('live', +el.dataset.id === s.itemId));
   // seleção acompanha o que está no ar (ex.: avançou pelo celular para o próximo louvor)
   if (s.itemId && s.itemId !== prevItem && service?.items.some((i) => i.id === s.itemId)) selectItem(s.itemId, { keepScroll: false });
@@ -402,8 +405,55 @@ function renderQuickThemes() {
   }
 }
 const markQuickTheme = () => document.querySelectorAll('#quickThemes .qt').forEach((q) => q.classList.toggle('on', q.dataset.id === live?.themeId));
-$('trChips').onclick = (e) => { const b = e.target.closest('button'); if (b) cmd({ type: 'transition', value: b.dataset.tr }); };
-$('trSpeed').onclick = (e) => { const b = e.target.closest('button'); if (b) cmd({ type: 'transition', speed: b.dataset.sp }); };
+$('trSel').onchange = () => cmd({ type: 'transition', value: $('trSel').value });
+$('trSpeedSel').onchange = () => cmd({ type: 'transition', speed: $('trSpeedSel').value });
+// Recado para o palco: abre uma caixinha acima da barra de comando
+$('msgBtn').onclick = () => { $('msgPop').hidden = !$('msgPop').hidden; if (!$('msgPop').hidden) $('msgIn').focus(); };
+$('msgSend').addEventListener('click', () => setTimeout(() => ($('msgPop').hidden = true), 50));
+
+// ---------------- Fontes: abas da coluna da direita ----------------
+$('srcTabs').onclick = (e) => {
+  const b = e.target.closest('[data-src]');
+  if (!b) return;
+  $('srcTabs').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+  try { localStorage.setItem('src', b.dataset.src); } catch {}
+  window.dispatchEvent(new CustomEvent('libtab', { detail: b.dataset.src }));
+  if (b.dataset.src === 'biblia') { renderBibleSrc(); setTimeout(() => $('bsQ').focus(), 30); }
+};
+setTimeout(() => { let t = 'louvores'; try { t = localStorage.getItem('src') || 'louvores'; } catch {} $('srcTabs').querySelector(`[data-src="${t}"]`)?.click(); }, 0);
+
+// Bíblia rápida: digite a referência ou palavras; os versículos aparecem no centro, um clique manda para o telão
+let bsT;
+async function renderBibleSrc() {
+  $('bsVer').textContent = (live?.bibleMain || '') + (live?.bibleSecond ? ' + ' + live.bibleSecond : '');
+  const q = $('bsQ').value.trim();
+  if (!q) {
+    const hist = await api('/api/bible/history').catch(() => []);
+    $('bsList').innerHTML = hist.length
+      ? '<div class="sub-h">Lidos agora há pouco</div>' + hist.slice(0, 12).map((h) => `<div class="bs-hit" data-b="${h.book}" data-c="${h.chapter}" data-v="${h.verse || 1}"><b>${esc(refText(h.book, h.chapter, h.verse))}</b></div>`).join('')
+      : '<div class="empty">Digite uma referência (ex.: jo 3 16, sl 23) ou palavras do versículo</div>';
+    return;
+  }
+  const r = await api('/api/bible/search?q=' + encodeURIComponent(q) + '&v=' + encodeURIComponent(live?.bibleMain || ''));
+  if (r.ref) {
+    $('bsList').innerHTML = `<div class="bs-hit on" data-b="${r.ref.book}" data-c="${r.ref.chapter}" data-v="${r.ref.verse || 1}"><b>${esc(refText(r.ref.book, r.ref.chapter, r.ref.verse))}</b><span>Enter para abrir</span></div>`;
+    return;
+  }
+  $('bsList').innerHTML = (r.hits || []).length
+    ? r.hits.map((h) => `<div class="bs-hit" data-b="${h.book}" data-c="${h.chapter}" data-v="${h.verse}"><b>${esc(refText(h.book, h.chapter, h.verse))}</b><span>${esc(h.text.slice(0, 120))}</span></div>`).join('')
+    : '<div class="empty">Nada encontrado</div>';
+}
+$('bsQ').oninput = () => { clearTimeout(bsT); bsT = setTimeout(renderBibleSrc, 220); };
+$('bsQ').onkeydown = (e) => { if (e.key === 'Enter') $('bsList').querySelector('.bs-hit')?.click(); };
+$('bsList').onclick = async (e) => {
+  const h = e.target.closest('.bs-hit');
+  if (!h) return;
+  if (!$('bibleMain').value) await loadVersions();
+  await showBibleChapter(+h.dataset.b, +h.dataset.c, +h.dataset.v);
+  $('bsQ').blur(); // libera os atalhos (F, setas, Enter)
+  $('bsList').querySelectorAll('.bs-hit').forEach((x) => x.classList.toggle('on', x === h));
+};
+$('bsFull').onclick = () => document.querySelector('#viewSeg [data-view="biblia"]').click();
 // Modo culto (tela limpa) e painel claro: preferências deste computador
 const pref = { get: (k) => { try { return localStorage.getItem(k) === '1'; } catch { return false; } }, set: (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch {} } };
 function applyPrefs() {

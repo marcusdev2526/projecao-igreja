@@ -8,18 +8,11 @@ export function initBibleView({ api, cmd, toast, esc, getLive, getService, openS
   const visible = () => !$('bibleView').hidden;
 
   // ---------- Troca de tela: Culto | Bíblia ----------
-  let lastTab = (() => { try { return localStorage.getItem('tab') || 'louvores'; } catch { return 'louvores'; } })();
-  if (lastTab === 'biblia') lastTab = 'louvores';
   function setView(v) {
-    if (v === 'culto') v = lastTab;
+    if (v !== 'biblia') v = 'inicio';
     document.querySelectorAll('#viewSeg button').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
     document.querySelector('main.cols').hidden = v === 'biblia';
     $('bibleView').hidden = v !== 'biblia';
-    if (v !== 'biblia') {
-      lastTab = v;
-      window.dispatchEvent(new CustomEvent('libtab', { detail: v }));
-    }
-    try { localStorage.setItem('tab', v); } catch {}
     if (v === 'biblia') {
       if (!st.verses.length) {
         const l = getLive();
@@ -30,7 +23,7 @@ export function initBibleView({ api, cmd, toast, esc, getLive, getService, openS
     }
   }
   $('viewSeg').onclick = (e) => { const b = e.target.closest('[data-view]'); if (b) setView(b.dataset.view); };
-  setTimeout(() => setView(lastTab), 0);
+  setTimeout(() => setView('inicio'), 0);
 
   // ---------- Grade de livros ----------
   $('bvBooks').innerHTML = BOOKS.map((b) => `<button class="book g-${b.group}" data-b="${b.n}" title="${esc(b.pt)}"><b>${esc(b.short)}</b><span>${esc(b.pt)}</span></button>`).join('');

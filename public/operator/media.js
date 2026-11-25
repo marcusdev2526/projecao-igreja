@@ -32,7 +32,7 @@ export function initMedia(ctx) {
   let audioItem = null;
 
   // ---------- Abas ----------
-  const PANES = { louvores: 'songsPane', midia: 'mediaPane', apresentacoes: 'decksPane', avisos: 'avisosPane' };
+  const PANES = { louvores: 'songsPane', biblia: 'bibleSrcPane', midia: 'mediaPane', apresentacoes: 'decksPane', avisos: 'avisosPane' };
   function showTab(t) {
     Object.entries(PANES).forEach(([k, id]) => ($(id).hidden = k !== t));
     if (t === 'midia') loadMedia();

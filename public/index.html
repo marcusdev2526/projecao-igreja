@@ -11,17 +11,19 @@
 <header class="top">
   <div class="brand"><span class="dot"></span>Projeção</div>
   <div class="seg view-seg tabs" id="viewSeg">
-    <button data-view="louvores" class="on"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Louvores</button>
-    <button data-view="biblia"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M12 7v6M9 10h6"/></svg>Bíblia</button>
-    <button data-view="midia"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/></svg>Mídia</button>
-    <button data-view="apresentacoes"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/></svg>Apresentações</button>
-    <button data-view="avisos"><svg viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1zM16 9a4 4 0 0 1 0 6"/></svg>Avisos</button>
+    <button data-view="inicio" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Início</button>
+    <button data-view="biblia"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M12 7v6M9 10h6"/></svg>Bíblia completa</button>
   </div>
   <div class="seg" id="modes" title="Idioma no telão">
     <button data-mode="pt">PT</button><button data-mode="pt-en">PT + EN</button><button data-mode="en">EN</button><button data-mode="en-pt">EN + PT</button>
   </div>
   <button class="btn" id="themeBtn"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4-4-7.4-9-7.4z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/></svg><span>Tema</span> <b id="themeName">—</b></button>
   <div class="spacer"></div>
+    <div class="timer-card top-timer" id="timerCard">
+      <div class="tm-top"><span class="tm-clock" id="tmClock">--:--</span><span class="tm-svc" id="tmSvc" title="Tempo de culto">Culto 0:00</span><button class="tm-btn" id="tmReset" title="Zerar o cronômetro">↺</button></div>
+      <div class="tm-block" id="tmBlock" hidden><div class="tm-row"><span id="tmBName"></span><span id="tmBTime"></span></div><div class="tm-bar"><i id="tmBBar"></i></div></div>
+    </div>
+
   <button class="btn ghost" id="focusBtn" title="Esconde a biblioteca e os temas: só o culto, o telão e os slides"><svg viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg><span>Modo culto</span></button>
   <button class="btn ghost ic only" id="lightBtn" title="Painel claro"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
   <button class="btn ghost ic" id="openScreen" title="Abrir o telão numa nova janela (arraste para o projetor e aperte F11)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span>Telão</span></button>
@@ -32,9 +34,8 @@
 </header>
 
 <main class="cols">
-  <!-- Esquerda: culto + biblioteca -->
+  <!-- Esquerda: roteiro do culto -->
   <aside class="left-col">
-  <!-- Culto -->
   <section class="panel" id="service">
     <div class="panel-h">
       <select id="serviceSel" class="sel"></select>
@@ -44,55 +45,15 @@
     <div class="panel-f"><button class="btn sm" id="addBlockBtn" title="Separar o culto em partes (Abertura, Louvor, Palavra…) com tempo previsto">+ Bloco</button><button class="btn sm" id="addTextBtn">+ Aviso</button><span class="hint">Arraste para reordenar</span></div>
   </section>
 
-  <!-- Biblioteca -->
-  <section class="panel" id="library">
-    <button class="lib-toggle" id="libToggle" title="Recolher / mostrar a biblioteca"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
-    <div id="songsPane" class="pane">
-    <div class="panel-h">
-      <h2>Biblioteca</h2>
-      <div class="acts">
-        <button class="btn sm" id="importBtn">Importar</button>
-        <button class="btn sm primary" id="newSongBtn">+ Novo</button>
-      </div>
-    </div>
-    <input class="search" id="search" placeholder="Buscar título, artista ou trecho da letra…" autocomplete="off">
-    <div class="list" id="songList"></div>
-    <div class="panel-f"><span id="songCount"></span><span class="f-acts"><a href="#" class="link" id="dedupeBtn" title="Apaga louvores com a letra repetida">Remover duplicados</a><a href="/api/export" class="link">Baixar backup</a></span></div>
-    </div>
-
-    <div id="mediaPane" class="pane" hidden>
-      <div class="panel-h"><h2>Mídia</h2><div class="acts"><button class="btn sm" id="mediaExpand" title="Abrir a biblioteca grande"><svg viewBox="0 0 24 24" class="bi"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Expandir</button><button class="btn sm primary" data-pick="media">+ Enviar</button></div></div>
-      <div class="chips-row" id="mediaFilter"><button data-f="" class="on">Todos</button><button data-f="video">Vídeos</button><button data-f="image">Imagens</button><button data-f="audio">Playbacks</button></div>
-      <div class="drop-zone" id="mediaDrop">
-        <svg viewBox="0 0 24 24"><path d="M12 15V4M7 9l5-5 5 5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>
-        <div><b>Arraste ou cole aqui (Ctrl+V)</b><span>Do WhatsApp, Telegram ou computador</span></div>
-        <button class="btn sm" data-pick="media">Procurar na pasta</button>
-      </div>
-      <input class="search" id="mediaSearch" placeholder="Buscar arquivo…" autocomplete="off">
-      <div class="list" id="mediaList"></div>
-    </div>
-
-    <div id="decksPane" class="pane" hidden>
-      <div class="panel-h"><h2>Apresentações</h2><div class="acts"><button class="btn sm" id="qrBtn" title="O pregador envia pelo celular">Receber do pregador</button><button class="btn sm primary" data-pick="deck">+ Enviar</button></div></div>
-      <div class="list" id="deckList"></div>
-      <div class="panel-f"><span class="hint">PowerPoint (.pptx) ou PDF viram slides sozinhos</span></div>
-    </div>
-
-    <div id="avisosPane" class="pane" hidden>
-      <div class="panel-h"><h2>Avisos</h2></div>
-      <div class="av-new">
-        <button class="av-card" id="avTextBtn"><b>Aviso de texto</b><span>Escreva e projete com o tema</span></button>
-        <button class="av-card" id="avCarBtn"><b>Carrossel de imagens</b><span>Passa sozinho, em repetição</span></button>
-      </div>
-      <div class="list" id="avList"></div>
-    </div>
-    <input type="file" id="fileIn" multiple hidden>
-  </section>
-
   </aside>
 
-  <!-- Centro: telão e slides -->
+  <!-- Centro: telão grande, slides e comandos -->
   <section class="panel live">
+    <div class="pv-tools">
+      <label title="Transição entre os slides"><span>Transição</span><select class="sel sm" id="trSel"><option value="suave">Suave</option><option value="desfoque">Desfoque</option><option value="subir">Subir</option><option value="zoom">Zoom</option><option value="tema">Do tema</option><option value="nenhuma">Corte</option></select></label>
+      <select class="sel sm" id="trSpeedSel" title="Velocidade da transição"><option value="lenta">Lenta</option><option value="normal">Normal</option><option value="rapida">Rápida</option></select>
+      <span class="pv-next" id="nextLine"></span>
+    </div>
     <div class="live-top">
       <div class="preview-wrap">
         <div class="pv-frame" id="pvFrame">
@@ -137,6 +98,12 @@
       <div class="acts"><button class="btn sm" id="addBibleBtn" hidden>+ Adicionar ao culto</button><button class="btn sm" id="editSelBtn" hidden>Editar letra</button></div>
     </div>
     <div class="slides" id="slideGrid"></div>
+    <div class="msg-pop" id="msgPop" hidden>
+    <div class="msgbox">
+      <input id="msgIn" placeholder="Recado para o palco…" maxlength="140">
+      <button class="btn sm" id="msgSend">Enviar</button>
+    </div>
+    </div>
     <div class="cmdbar">
       <button class="cb" id="prevBtn" title="Voltar (←)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Anterior</button>
       <button class="cb next" id="nextBtn" title="Próximo (→ ou Espaço)">Próximo<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
@@ -144,17 +111,72 @@
       <span class="cb-sep"></span>
       <button class="cb warn" id="blackBtn" title="Atalho: B">Tela preta</button>
       <button class="cb" id="clearBtn" title="Atalho: C">Sem letra</button>
+      <button class="cb" id="msgBtn" title="Recado para o palco (aparece no retorno)">Recado</button>
       <button class="cb" id="logoBtn" title="Mostra só a logo da igreja (L)">Logo</button>
       <button class="cb" id="waitBtn" title="Tela de espera: contagem regressiva e avisos">Espera</button>
     </div>
   </section>
 
-  <!-- Direita: no ar, próximo, recado e temas -->
-  <aside class="panel right-col">
-    <div class="rc-card timer-card" id="timerCard">
-      <div class="tm-top"><span class="tm-clock" id="tmClock">--:--</span><span class="tm-svc" id="tmSvc" title="Tempo de culto">Culto 0:00</span><button class="tm-btn" id="tmReset" title="Zerar o cronômetro">↺</button></div>
-      <div class="tm-block" id="tmBlock" hidden><div class="tm-row"><span id="tmBName"></span><span id="tmBTime"></span></div><div class="tm-bar"><i id="tmBBar"></i></div></div>
+
+  <!-- Direita: fontes (louvores, Bíblia, mídia, apresentações, avisos) -->
+  <aside class="right-col src-col">
+  <section class="panel" id="library">
+    <div class="src-tabs" id="srcTabs">
+      <button data-src="louvores" class="on">Louvores</button><button data-src="biblia">Bíblia</button><button data-src="midia">Mídia</button><button data-src="apresentacoes">Apresent.</button><button data-src="avisos">Avisos</button>
     </div>
+    <button class="lib-toggle" id="libToggle" hidden></button>
+    <div id="bibleSrcPane" class="pane" hidden>
+      <div class="bs-top">
+        <input class="search" id="bsQ" placeholder="João 3:16  ou  palavras do versículo" autocomplete="off">
+        <div class="bs-ver"><span id="bsVer"></span><button class="link" id="bsFull">Bíblia completa ›</button></div>
+      </div>
+      <div class="list" id="bsList"></div>
+    </div>    <div id="songsPane" class="pane">
+    <div class="panel-h">
+      <h2>Biblioteca</h2>
+      <div class="acts">
+        <button class="btn sm" id="importBtn">Importar</button>
+        <button class="btn sm primary" id="newSongBtn">+ Novo</button>
+      </div>
+    </div>
+    <input class="search" id="search" placeholder="Buscar título, artista ou trecho da letra…" autocomplete="off">
+    <div class="list" id="songList"></div>
+    <div class="panel-f"><span id="songCount"></span><span class="f-acts"><a href="#" class="link" id="dedupeBtn" title="Apaga louvores com a letra repetida">Remover duplicados</a><a href="/api/export" class="link">Baixar backup</a></span></div>
+    </div>
+
+    <div id="mediaPane" class="pane" hidden>
+      <div class="panel-h"><h2>Mídia</h2><div class="acts"><button class="btn sm" id="mediaExpand" title="Abrir a biblioteca grande"><svg viewBox="0 0 24 24" class="bi"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Expandir</button><button class="btn sm primary" data-pick="media">+ Enviar</button></div></div>
+      <div class="chips-row" id="mediaFilter"><button data-f="" class="on">Todos</button><button data-f="video">Vídeos</button><button data-f="image">Imagens</button><button data-f="audio">Playbacks</button></div>
+      <div class="drop-zone" id="mediaDrop">
+        <svg viewBox="0 0 24 24"><path d="M12 15V4M7 9l5-5 5 5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>
+        <div><b>Arraste ou cole aqui (Ctrl+V)</b><span>Do WhatsApp, Telegram ou computador</span></div>
+        <button class="btn sm" data-pick="media">Procurar na pasta</button>
+      </div>
+      <input class="search" id="mediaSearch" placeholder="Buscar arquivo…" autocomplete="off">
+      <div class="list" id="mediaList"></div>
+    </div>
+
+    <div id="decksPane" class="pane" hidden>
+      <div class="panel-h"><h2>Apresentações</h2><div class="acts"><button class="btn sm" id="qrBtn" title="O pregador envia pelo celular">Receber do pregador</button><button class="btn sm primary" data-pick="deck">+ Enviar</button></div></div>
+      <div class="list" id="deckList"></div>
+      <div class="panel-f"><span class="hint">PowerPoint (.pptx) ou PDF viram slides sozinhos</span></div>
+    </div>
+
+    <div id="avisosPane" class="pane" hidden>
+      <div class="panel-h"><h2>Avisos</h2></div>
+      <div class="av-new">
+        <button class="av-card" id="avTextBtn"><b>Aviso de texto</b><span>Escreva e projete com o tema</span></button>
+        <button class="av-card" id="avCarBtn"><b>Carrossel de imagens</b><span>Passa sozinho, em repetição</span></button>
+      </div>
+      <div class="list" id="avList"></div>
+    </div>
+    <input type="file" id="fileIn" multiple hidden>
+  </section>
+
+  </aside>
+
+  <!-- itens antigos que o código ainda atualiza (ficam escondidos) -->
+  <div hidden>
     <div class="rc-card">
       <div class="label">No ar</div>
       <div id="liveTitle" class="live-title">—</div>
@@ -165,23 +187,12 @@
       <div class="next-pv" id="nextPv"></div>
       <div id="liveNext" class="muted next"></div>
     </div>
-    <div class="msgbox">
-      <input id="msgIn" placeholder="Recado para o palco…" maxlength="140">
-      <button class="btn sm" id="msgSend">Enviar</button>
-    </div>
-    <div class="rc-tr">
-      <div class="rc-h"><span class="label">Transição</span></div>
-      <div class="chips" id="trChips">
-        <button data-tr="suave">Suave</button><button data-tr="desfoque">Desfoque</button><button data-tr="subir">Subir</button>
-        <button data-tr="zoom">Zoom</button><button data-tr="tema">Do tema</button><button data-tr="nenhuma">Corte</button>
-      </div>
-      <div class="seg sm tr-speed" id="trSpeed"><button data-sp="lenta">Lenta</button><button data-sp="normal">Normal</button><button data-sp="rapida">Rápida</button></div>
-    </div>
+    <div id="trChips"></div><div id="trSpeed"></div>
     <div class="rc-themes">
       <div class="rc-h"><span class="label">Temas</span><a href="#" class="link" id="allThemesBtn">Ver todos</a></div>
       <div class="qt-grid" id="quickThemes"></div>
     </div>
-  </aside>
+  </div>
 </main>
 
 <!-- Tela da Bíblia -->
