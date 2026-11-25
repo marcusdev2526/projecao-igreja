@@ -1010,3 +1010,80 @@ body.is-rehearsal .preview-wrap iframe { border-color: #8c5aff; box-shadow: 0 0 
 .obs-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
 .obs-row code { flex: 1; font-size: 12.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; }
 @media (max-width: 1600px) { .search-btn kbd, #rehBtn span { display: none; } }
+
+/* =====================================================================
+   Painel claro mais suave para a vista: sem branco puro, contraste confortável
+   ===================================================================== */
+body.light {
+  --bg: #e7e9ed; --panel: #f2f3f5; --panel2: #eceef1; --line: #d9dde3; --text: #2a2f37; --muted: #6f7782;
+  --soft-card: #f8f9fa; --soft-hover: #e8ebef; --soft-sel: #e2e6eb;
+  background: var(--bg);
+}
+body.light, body.light .cols, body.light .left-col { background: #dfe2e7; color: var(--text); }
+body.light .top { background: #f2f3f5; border-bottom-color: var(--line); }
+body.light .panel, body.light .right-col, body.light .src-col { background: var(--panel); }
+body.light .panel.live { background: #eceef1; }
+body.light .live-top, body.light .pv-tools { background: #e6e8ec; }
+body.light .live-top { border-bottom-color: var(--line); }
+body.light .preview-wrap iframe, body.light .pv-drop iframe { border-color: #cfd4db; box-shadow: 0 10px 30px rgba(30, 40, 55, .14); }
+body.light .btn { background: var(--soft-card); border-color: #d3d8de; color: var(--text); }
+body.light .btn:hover { background: var(--soft-hover); }
+body.light .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+body.light .btn.ghost { background: transparent; border-color: transparent; color: #4d5560; }
+body.light .btn.ghost:hover { background: var(--soft-hover); }
+body.light .seg { background: #e4e7eb; border-color: var(--line); }
+body.light .seg button.on { background: var(--soft-card); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+body.light #modes button.on { background: var(--accent); color: #fff; }
+body.light .search, body.light .sel, body.light input, body.light textarea, body.light select, body.light .msgbox input { background: var(--soft-card); border-color: #d3d8de; color: var(--text); }
+body.light .item:hover, body.light .song:hover, body.light .mrow:hover, body.light .bs-hit:hover { background: var(--soft-hover); }
+body.light .item.sel { background: var(--soft-sel); border-color: #cdd3da; }
+body.light .item.live { background: #f6e9e2; border-color: #f0c8b4; }
+body.light .slide { background: var(--soft-card); border-color: var(--line); }
+body.light .slide:hover { border-color: #c3c9d1; background: #fbfbfc; }
+body.light .slide .pt { color: #2a2f37; }
+body.light .slide .en { color: #4a74ad; }
+body.light .slide.live { background: #f8ece5; }
+body.light .slide[data-type="refrao"]:not(.live) { background: #f7f3ef; }
+body.light .cmdbar, body.light .msg-pop { background: #e9ebef; border-top-color: var(--line); }
+body.light .cb { background: var(--soft-card); border-color: #d3d8de; color: #343a43; }
+body.light .cb:hover { background: var(--soft-hover); }
+body.light .cb.next { color: #fff; background: var(--accent); }
+body.light .cb.warn { color: #9a6a12; background: #fbf3e3; border-color: #ecd6a6; }
+body.light .src-tabs { border-bottom-color: var(--line); }
+body.light .src-tabs button { color: #6f7782; }
+body.light .src-tabs button:hover { background: var(--soft-hover); color: var(--text); }
+body.light .src-tabs button.on { background: var(--soft-sel); color: var(--text); }
+body.light .rc-card, body.light .pst, body.light .mb-card, body.light .av-card, body.light .player { background: var(--soft-card); border-color: var(--line); }
+body.light .modal, body.light .pal-box { background: var(--panel); border-color: var(--line); color: var(--text); }
+body.light #palQ { color: var(--text); border-bottom-color: var(--line); }
+body.light .pal-row.on, body.light .pal-row:hover { background: var(--soft-hover); }
+body.light .pal-foot { border-top-color: var(--line); }
+body.light .badge { background: #e2ebf6; color: #375f97; }
+
+/* Bíblia completa no painel claro */
+body.light .bview { background: var(--line); }
+body.light .bv-left { background: var(--panel); }
+body.light .bv-main { background: #e9ebef; }
+body.light .bv-search { background: var(--soft-card); border-color: #d3d8de; }
+body.light .bv-search input { color: var(--text); }
+body.light .bv-search input::placeholder { color: #8a929c; }
+body.light .bv-search svg { stroke: #7a828d; }
+body.light .book { background: var(--soft-card); color: var(--text); box-shadow: 0 1px 0 rgba(0,0,0,.03); }
+body.light .book span { color: #7a828d; opacity: 1; }
+body.light .book:hover { filter: none; background: #ffffff; }
+body.light .book.on { box-shadow: 0 0 0 2px var(--accent); background: #fff6f1; filter: none; }
+body.light .bv-numcol { background: var(--soft-card); border-color: var(--line); }
+body.light .numgrid button { background: #eef0f3; border-color: #dde1e6; color: var(--text); }
+body.light .numgrid button:hover { background: #e3e7ec; }
+body.light .numgrid button.on { background: #dfe4ea; border-color: #9aa3ae; }
+body.light .numgrid button.live { background: var(--accent); border-color: var(--accent); color: #fff; }
+body.light .vrow { border-bottom-color: var(--line); }
+body.light .vrow:hover { background: var(--soft-hover); }
+body.light .vrow .en { color: #4a74ad; }
+body.light .vrow.live { background: linear-gradient(90deg, rgba(255,106,61,.14), rgba(255,106,61,.03)); }
+body.light .bv-live { background: #e6e8ec; border-top-color: var(--line); }
+body.light .bv-lic { color: #7a828d; }
+body.light .bv-pop { background: var(--panel); border-color: #cfd4db; box-shadow: 0 18px 50px rgba(30,40,55,.18); }
+body.light .bv-legend { color: #59616c; }
+body.light .book { box-shadow: inset 0 3px 0 var(--gc); }
+body.light .book.on { box-shadow: inset 0 3px 0 var(--gc), 0 0 0 2px var(--accent); }
