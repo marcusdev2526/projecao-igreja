@@ -171,7 +171,7 @@ function renderItems() {
     ? service.items.map((it, i) => {
       if (it.kind === 'block') { bc = BLOCK_COLORS[jsonOf(it.text).color] || BLOCK_COLORS.outro; return blockRow(it); }
       return `<div class="item ${bc ? 'in-block' : ''} ${selected?.item?.id === it.id ? 'sel' : ''} ${live?.itemId === it.id ? 'live' : ''}" draggable="true" data-id="${it.id}" style="${bc ? '--bc:' + bc : ''}">
-        <div class="n">${MEDIA ? MEDIA.icon(MEDIA.itemKind(it)) : i + 1}</div>
+        <div class="n">${MEDIA ? MEDIA.badge(it) : i + 1}</div>
         <div class="info"><div class="t">${esc(it.kind === 'song' ? it.song_title : it.title || 'Aviso')}</div>
         <div class="a">${MEDIA?.itemSub(it) ? esc(MEDIA.itemSub(it)) : it.kind === 'song' ? (MEDIA?.hasAudio(it) ? '<span class="badge pb">playback</span> ' : '') + esc(it.song_artist || '') + (it.has_en ? ' · ' + enBadge(it.has_en) : enPending.has(it.song_id) ? ' · <span class="badge auto pulse">traduzindo…</span>' : wantsEn() ? ' · <span class="badge no-en" data-song="' + it.song_id + '" title="' + (aiState.hasKey ? 'Não deu para traduzir — clique para abrir' : 'Cadastre a chave da IA em Configurações para traduzir sozinho') + '">sem inglês</span>' : '') : it.kind === 'bible' ? 'Bíblia' : 'Aviso / texto'}</div></div>
         ${it.kind === 'song' ? '<button class="mini aud" data-act="aud" title="Playback (áudio junto com a letra)">' + (MEDIA ? MEDIA.icon('audio') : '♪') + '</button>' : ''}
@@ -1135,5 +1135,5 @@ loadAi();
 setTimeout(() => checkUpdate({ silent: true }), 4000);
 initOrganize({ api, cmd, toast, esc, socket, getService: () => service, openService, loadServices, getLive: () => live, renderItems: () => service && renderItems(), BLOCK_COLORS });
 initExtras({ api, cmd, toast, esc, socket, getService: () => service, openService, getLive: () => live });
-MEDIA = initMedia({ api, cmd, toast, esc, socket, getService: () => service, openService, getLive: () => live });
+MEDIA = initMedia({ api, cmd, toast, esc, socket, getService: () => service, openService, getLive: () => live, selectItem: (id) => selectItem(id) });
 initBibleView({ api, cmd, toast, esc, getLive: () => live, getService: () => service, openService, loadVersions, onState: (fn) => socket.on('state', fn) });

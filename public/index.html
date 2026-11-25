@@ -160,7 +160,7 @@
     </div>
 
     <div id="mediaPane" class="pane" hidden>
-      <div class="panel-h"><h2>Mídia</h2><div class="acts"><button class="btn sm" id="mediaExpand" title="Abrir a biblioteca grande"><svg viewBox="0 0 24 24" class="bi"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Expandir</button><button class="btn sm primary" data-pick="media">+ Enviar</button></div></div>
+      <div class="panel-h"><h2>Mídia</h2><div class="acts"><button class="btn sm" id="mediaSelBtn" title="Marcar vários arquivos e criar sequência ou adicionar ao culto"><svg viewBox="0 0 24 24" class="bi"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="m14.5 17.5 2 2 4-4"/></svg>Em lote</button><button class="btn sm" id="mediaExpand" title="Expandir: abrir a biblioteca grande"><svg viewBox="0 0 24 24" class="bi"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button><button class="btn sm primary" data-pick="media">+ Enviar</button></div></div>
       <div class="chips-row" id="mediaFilter"><button data-f="" class="on">Todos</button><button data-f="video">Vídeos</button><button data-f="image">Imagens</button><button data-f="audio">Playbacks</button></div>
       <div class="drop-zone" id="mediaDrop">
         <svg viewBox="0 0 24 24"><path d="M12 15V4M7 9l5-5 5 5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>
@@ -169,6 +169,15 @@
       </div>
       <input class="search" id="mediaSearch" placeholder="Buscar arquivo…" autocomplete="off">
       <div class="list" id="mediaList"></div>
+      <div class="media-bulk" id="mediaBulk" hidden>
+        <div class="mbk-top"><span id="mbkCount"></span><span><button class="lnk" data-bk="all">Todos</button><button class="lnk" data-bk="none">Limpar</button></span></div>
+        <div class="mbk-acts">
+          <button class="btn primary" data-bk="seqlive" title="Cria a sequência no culto e já mostra o primeiro no telão">Sequência e exibir</button>
+          <button class="btn" data-bk="seq" title="Vários arquivos num item só; passa com →">Sequência no culto</button>
+          <button class="btn" data-bk="each" title="Cada arquivo vira um item do culto">Itens separados</button>
+          <button class="btn danger ic" data-bk="del" title="Excluir selecionados"><svg viewBox="0 0 24 24" class="bi"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+        </div>
+      </div>
     </div>
 
     <div id="decksPane" class="pane" hidden>

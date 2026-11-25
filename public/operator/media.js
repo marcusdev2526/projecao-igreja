@@ -16,6 +16,9 @@ const ICONS = {
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
   pin: '<path d="M9 4h6l-1 5 3 3v2H7v-2l3-3zM12 14v6"/>',
 };
+// Selo colorido por tipo: letra, playback, vídeo, imagem, Bíblia, aviso, sequência, apresentação
+const KIND_NAME = { song: 'Letra de louvor', audio: 'Playback', video: 'Vídeo', image: 'Imagem', bible: 'Bíblia', text: 'Aviso / texto', seq: 'Sequência', deck: 'Apresentação', block: 'Bloco' };
+export const kindBadge = (k, extra = '') => `<span class="kb k-${k}${extra}" title="${KIND_NAME[k] || ''}">${icon(k === 'block' ? 'seq' : k)}</span>`;
 export const icon = (k, cls = 'ki') => `<svg class="${cls}" viewBox="0 0 24 24">${ICONS[k] || ICONS.text}</svg>`;
 const jsonOf = (t) => { try { return JSON.parse(t || '{}'); } catch { return {}; } };
 const fmt = (t) => { t = Math.max(0, Math.floor(t || 0)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
@@ -25,7 +28,7 @@ const when = (t) => { const d = new Date(t); const today = new Date().toDateStri
 const TYPE_LABEL = { video: 'Vídeo', image: 'Imagem', audio: 'Áudio' };
 
 export function initMedia(ctx) {
-  const { api, cmd, toast, esc, socket, getService, openService, getLive } = ctx;
+  const { api, cmd, toast, esc, socket, getService, openService, getLive, selectItem } = ctx;
   const $ = (id) => document.getElementById(id);
   let media = [];
   let decks = [];
@@ -61,19 +64,71 @@ export function initMedia(ctx) {
     media = await api('/api/media');
     renderMedia();
   }
+  let sidePick = [];
+  let sideSel = false;
   function renderMedia() {
     const q = $('mediaSearch').value.trim().toLowerCase();
-    const list = media.filter((m) => (!filter || m.type === filter) && (!q || m.name.toLowerCase().includes(q)));
+    const list = media.filter((m) => (!filter || m.type === filter) && (!q || m.name.toLowerCase().includes(q) || pretty(m).toLowerCase().includes(q)));
+    $('mediaList').classList.toggle('picking', sideSel);
     $('mediaList').innerHTML = list.length
-      ? list.map((m) => `<div class="mrow" draggable="true" data-n="${esc(m.name)}" title="Arraste para o telão">
-          <div class="mth">${m.type === 'video' ? `<video src="${esc(m.url)}#t=1" muted preload="metadata"></video>` : m.type === 'image' ? `<img src="${esc(m.url)}" loading="lazy" alt="">` : icon('audio')}</div>
-          <div class="info"><div class="t">${esc(pretty(m))}</div><div class="a">${TYPE_LABEL[m.type]} · ${size(m.size)} · ${when(m.mtime)}</div></div>
-          <button class="mini" data-act="show" title="Mostrar agora no telão">${icon('play')}</button>
+      ? list.map((m) => { const k = sidePick.indexOf(m.name); return `<div class="mrow ${k >= 0 ? 'picked' : ''}" draggable="${!sideSel}" data-n="${esc(m.name)}" title="${sideSel ? 'Clique para marcar' : 'Arraste para o telão ou para o culto'}">
+          ${sideSel ? `<span class="pick-n">${k >= 0 ? k + 1 : ''}</span>` : ''}
+          <div class="mth t-${m.type}">${m.type === 'video' ? `<video src="${esc(m.url)}#t=1" muted preload="metadata"></video>` : m.type === 'image' ? `<img src="${esc(m.url)}" loading="lazy" alt="">` : icon('audio')}${kindBadge(m.type, ' on-th')}</div>
+          <div class="info"><div class="t">${esc(pretty(m))}</div><div class="a"><i class="tdot t-${m.type}"></i>${m.type === 'audio' ? 'Playback' : TYPE_LABEL[m.type]} · ${size(m.size)} · ${when(m.mtime)}</div></div>
+          ${sideSel ? '' : `<button class="mini" data-act="show" title="Mostrar agora no telão">${icon('play')}</button>
           ${m.type !== 'audio' ? `<button class="mini" data-act="poster" title="Usar como cartaz">${icon('pin')}</button>` : ''}
           <button class="mini" data-act="add" title="Adicionar ao culto">${icon('plus')}</button>
-          <button class="mini danger" data-act="del" title="Excluir">${icon('trash')}</button></div>`).join('')
+          <button class="mini danger" data-act="del" title="Excluir">${icon('trash')}</button>`}</div>`; }).join('')
       : `<div class="empty">${media.length ? 'Nada encontrado' : 'Arraste vídeos, imagens ou músicas para cá'}</div>`;
+    const n = sidePick.length;
+    $('mediaBulk').hidden = !sideSel;
+    $('mbkCount').textContent = n ? `${n} selecionado${n > 1 ? 's' : ''} · na ordem que você clicou` : 'Clique nos arquivos na ordem em que vão passar';
+    $('mediaBulk').querySelectorAll('[data-bk]').forEach((b) => (b.disabled = !n && b.dataset.bk !== 'all'));
+    $('mediaSelBtn').classList.toggle('on', sideSel);
+    $('mediaSelBtn').lastChild.textContent = sideSel ? 'Concluir' : 'Em lote';
   }
+  const sideVisible = () => { const q = $('mediaSearch').value.trim().toLowerCase(); return media.filter((m) => (!filter || m.type === filter) && (!q || m.name.toLowerCase().includes(q) || pretty(m).toLowerCase().includes(q))); };
+  $('mediaSelBtn').onclick = () => { sideSel = !sideSel; if (!sideSel) sidePick = []; renderMedia(); };
+  $('mediaBulk').onclick = async (e) => {
+    const b = e.target.closest('[data-bk]')?.dataset.bk;
+    if (!b) return;
+    if (b === 'all') { sideVisible().forEach((m) => { if (!sidePick.includes(m.name)) sidePick.push(m.name); }); return renderMedia(); }
+    if (b === 'none') { sidePick = []; return renderMedia(); }
+    const sel = sidePick.map((n) => media.find((m) => m.name === n)).filter(Boolean);
+    if (!sel.length) return;
+    if (b === 'del') {
+      if (!confirm(`Excluir ${sel.length} arquivo(s)? Não dá para desfazer.`)) return;
+      for (const m of sel) await api('/api/media/' + encodeURIComponent(m.name), { method: 'DELETE' });
+      toast(sel.length + ' arquivo(s) excluído(s)');
+      sidePick = [];
+      return loadMedia();
+    }
+    const svc = getService();
+    if (!svc) return toast('Abra um culto primeiro');
+    if (b === 'seq' || b === 'seqlive') {
+      const items = sel.filter((m) => m.type !== 'audio').map((m) => ({ url: m.url, type: m.type, name: pretty(m) }));
+      if (!items.length) return toast('Para sequência, escolha imagens ou vídeos');
+      const def = items.length === 1 ? items[0].name : 'Sequência · ' + items.length + ' itens';
+      const title = prompt('Nome da sequência:', def);
+      if (title == null) return;
+      const r = await api(`/api/services/${svc.id}/items`, { method: 'POST', body: { kind: 'seq', title: title.trim() || def, text: JSON.stringify({ items }) } });
+      await openService(svc.id);
+      if (r?.id && selectItem) selectItem(r.id);
+      if (b === 'seqlive' && r?.id) setTimeout(() => document.querySelector('#slideGrid .slide, #slideGrid [data-i="0"]')?.click(), 350);
+      toast(b === 'seqlive' ? 'Sequência no culto e no telão. Use → para passar.' : `Sequência com ${items.length} itens no culto. Use → para passar.`);
+    }
+    if (b === 'each') {
+      for (const m of sel) {
+        const title = pretty(m);
+        await api(`/api/services/${svc.id}/items`, { method: 'POST', body: { kind: 'media', title, text: JSON.stringify({ type: m.type, url: m.url, name: title, after: m.type === 'video' ? 'tema' : 'stop' }) } });
+      }
+      await openService(svc.id);
+      toast(`${sel.length} item(ns) adicionados ao culto, um por um`);
+    }
+    sidePick = [];
+    sideSel = false;
+    renderMedia();
+  };
   $('mediaFilter').onclick = (e) => {
     const b = e.target.closest('button');
     if (!b) return;
@@ -84,6 +139,11 @@ export function initMedia(ctx) {
   $('mediaSearch').oninput = renderMedia;
   $('mediaList').onclick = async (e) => {
     const row = e.target.closest('.mrow');
+    if (row && sideSel) {
+      const k = sidePick.indexOf(row.dataset.n);
+      if (k >= 0) sidePick.splice(k, 1); else sidePick.push(row.dataset.n);
+      return renderMedia();
+    }
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (!row || !act) return;
     const m = media.find((x) => x.name === row.dataset.n);
@@ -660,5 +720,5 @@ export function initMedia(ctx) {
     if (!$('postersPane').hidden) renderPosters();
   });
 
-  return { icon, itemKind, itemSub, renderSelected, renderPlayer, openAudioFor, showTab, hasAudio: (it) => !!jsonOf(it.text).audio };
+  return { icon, badge: (it) => kindBadge(itemKind(it), it.kind === 'song' && jsonOf(it.text).audio ? ' has-pb' : ''), itemKind, itemSub, renderSelected, renderPlayer, openAudioFor, showTab, hasAudio: (it) => !!jsonOf(it.text).audio };
 }
