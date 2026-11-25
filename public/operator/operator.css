@@ -1,7 +1,7 @@
 @import url('/fonts/inter/400.css');
-[hidden] { display: none !important; }
 @import url('/fonts/inter/600.css');
 @import url('/fonts/inter/700.css');
+[hidden] { display: none !important; }
 
 :root {
   --bg: #0e1013; --panel: #14171c; --panel2: #1b1f26; --line: #232831; --text: #e9ecf1; --muted: #8a929e;
