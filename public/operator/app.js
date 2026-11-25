@@ -53,6 +53,7 @@ socket.on('state', (s) => {
   const prevMode = live?.mode;
   live = s;
   MEDIA?.renderPlayer(s);
+  if (s.aspect) document.documentElement.style.setProperty('--ar', s.aspect);
   if (prevMode !== s.mode && service) renderItems();
   document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === s.mode));
   $('themeName').textContent = themeLabel(s.themeId);

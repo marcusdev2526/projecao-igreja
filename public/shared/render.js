@@ -57,7 +57,7 @@ export function slideHTML(slide, mode = 'pt') {
   if (slide.kind === 'bible') return bibleHTML(slide, mode);
   if (slide.kind === 'media') {
     const u = esc(slide.url || '');
-    if (slide.mtype === 'video') return `<div class="media-full"><video src="${u}" playsinline preload="auto"></video></div>`;
+    if (slide.mtype === 'video') return `<div class="media-full"><canvas class="amb" width="48" height="27"></canvas><video src="${u}" playsinline preload="auto"></video></div>`;
     // a própria imagem, ampliada e desfocada, preenche as bordas quando ela não ocupa a tela toda
     if (slide.mtype === 'image') return `<div class="media-full"><img class="amb" src="${u}" alt="" aria-hidden="true"><img class="main" src="${u}" alt=""></div>`;
     return ''; // áudio: só o fundo do tema
@@ -108,11 +108,20 @@ export function createStage(container, { live = false } = {}) {
   const api = {
     el: stage,
     themeId: null,
+    // O palco tem sempre 1080 de altura e a largura acompanha a tela (16:9, 21:9 ultrawide, 4:3…),
+    // então o fundo ocupa a tela inteira sem esticar e sem faixas pretas.
     resize() {
       const w = container.clientWidth;
       const h = container.clientHeight || (w * 9) / 16;
-      const s = Math.min(w / 1920, h / 1080);
-      stage.style.transform = `translate(${(w - 1920 * s) / 2}px, ${(h - 1080 * s) / 2}px) scale(${s})`;
+      const W = Math.round(Math.min(3840, Math.max(1440, (1080 * w) / h)));
+      if (api.width !== W) {
+        api.width = W;
+        stage.style.width = W + 'px';
+        stage.style.setProperty('--sw', W);
+        stage.querySelectorAll('.content-layer').forEach(fit);
+      }
+      const s = Math.min(w / W, h / 1080);
+      stage.style.transform = `translate(${(w - W * s) / 2}px, ${(h - 1080 * s) / 2}px) scale(${s})`;
     },
     // def = definição de tema personalizado (opcional); sem def usa um tema pronto
     setTheme(id, def) {
@@ -121,10 +130,11 @@ export function createStage(container, { live = false } = {}) {
       api.themeKey = key;
       api.themeId = id;
       resetTheme(stage);
-      if (def) return applyCustomTheme(stage, def);
+      if (def) { applyCustomTheme(stage, def); return sliceBg(stage); }
       const th = themeById(id);
       stage.classList.add('theme-' + th.id, 'tr-blur');
       stage.querySelector('.bg').innerHTML = th.bg();
+      sliceBg(stage);
     },
     show(html, { animate = live } = {}) {
       const layers = stage.querySelector('.layers');
@@ -134,6 +144,7 @@ export function createStage(container, { live = false } = {}) {
       layer.innerHTML = html;
       layers.appendChild(layer);
       fit(layer);
+      ambientVideo(layer);
       const newIsMedia = !!layer.querySelector('.media-full');
       old.forEach((o) => {
         if (animate && stage.dataset.tr !== 'nenhuma') {
@@ -161,12 +172,29 @@ export function createStage(container, { live = false } = {}) {
   return api;
 }
 
+// Desenhos do fundo cobrem a tela toda em qualquer formato (cortando um pouco em cima/embaixo, sem esticar)
+function sliceBg(stage) {
+  stage.querySelectorAll('.bg svg:not([preserveAspectRatio])').forEach((svg) => svg.setAttribute('preserveAspectRatio', 'xMidYMid slice'));
+}
+
+// Vídeo que não ocupa a tela toda: as bordas mostram o próprio vídeo, desfocado
+function ambientVideo(layer) {
+  const v = layer.querySelector('.media-full video');
+  const cv = layer.querySelector('.media-full canvas.amb');
+  if (!v || !cv) return;
+  const ctx = cv.getContext('2d');
+  const t = setInterval(() => {
+    if (!layer.isConnected) return clearInterval(t);
+    if (v.readyState >= 2) try { ctx.drawImage(v, 0, 0, cv.width, cv.height); } catch {}
+  }, 120);
+}
+
 // Reduz o texto se passar da área segura (8% de margem)
 export function fit(layer) {
   const c = layer.querySelector('.slide-content');
   if (!c) return;
   c.style.transform = '';
-  const maxW = 1920 * 0.84;
+  const maxW = Math.min(layer.clientWidth || 1920, 1920) * 0.84;
   const maxH = 1080 * 0.84;
   const w = c.scrollWidth;
   const h = c.scrollHeight;

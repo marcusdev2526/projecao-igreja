@@ -73,6 +73,14 @@
       el.addEventListener('ended', () => socket.emit('player-ended', { seq: pState?.seq }));
     }
   }
+  // O painel mostra a prévia no mesmo formato da tela do telão (16:9, ultrawide…)
+  if (!embedded) {
+    let sent = 0;
+    const tell = () => { const ar = Math.round((innerWidth / innerHeight) * 1000) / 1000; if (ar !== sent && isFinite(ar)) { sent = ar; socket.emit('screen-aspect', ar); } };
+    addEventListener('resize', () => setTimeout(tell, 300));
+    socket.on('connect', () => { sent = 0; tell(); });
+    tell();
+  }
   // a prévia acompanha o tempo do telão
   if (embedded) socket.on('player-time', ({ t }) => { const el = pState && mediaEl(pState); if (el && Math.abs(el.currentTime - t) > 1.2) try { el.currentTime = t; } catch {} });
   document.addEventListener('dblclick', () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen());

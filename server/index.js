@@ -73,6 +73,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     bibleSecond: repo.getSetting('bible_second', 'KJV'),
     bible: null, // { book, chapter }
     biblePer: Math.min(3, Math.max(1, +repo.getSetting('bible_per', '1') || 1)),
+    aspect: +repo.getSetting('aspect', '1.7778') || 16 / 9, // formato da tela do telão (largura / altura)
     player: null, // { url, type: 'video'|'audio', name, status: 'playing'|'paused'|'stopped', seq, after, itemId, volume, seek }
     deck: null, // { id, auto, loop }
   };
@@ -191,6 +192,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       biblePer: live.biblePer,
       player: live.player,
       deck: live.deck,
+      aspect: live.aspect,
     };
   }
   const broadcast = () => io.emit('state', publicState());
@@ -475,6 +477,13 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     // O telão avisa o tempo do vídeo/áudio e quando terminou
     socket.on('player-time', (t) => socket.broadcast.volatile.emit('player-time', t));
     socket.on('player-blocked', () => io.emit('player-blocked'));
+    socket.on('screen-aspect', (ar) => {
+      ar = Math.min(3.6, Math.max(1.3, +ar || 0));
+      if (!ar || Math.abs(ar - live.aspect) < 0.01) return;
+      live.aspect = ar;
+      repo.setSetting('aspect', String(ar));
+      broadcast();
+    });
     socket.on('player-ended', ({ seq } = {}) => {
       const p = live.player;
       if (!p || p.seq !== seq || p.status !== 'playing') return;

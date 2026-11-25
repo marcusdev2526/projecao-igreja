@@ -661,3 +661,7 @@ body.light #dropOv > div { background: #fff; }
 .drop-zone span { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
 .drop-zone .btn { flex: 1 1 100%; justify-content: center; }
 body.light .drop-zone { background: #f8f9fb; border-color: #cfd5dd; }
+
+/* A prévia segue o formato da tela do telão (16:9, ultrawide 21:9, 4:3…) */
+.preview-wrap { width: min(100%, calc(clamp(230px, 44vh, 600px) * var(--ar, 1.7778))); }
+.preview-wrap iframe { aspect-ratio: var(--ar, 1.7778); }
