@@ -931,3 +931,11 @@ body.light .pst { background: #fff; border-color: var(--line); }
 }
 .cb.next { flex: 0 0 auto; width: 200px; min-width: 0; }
 @media (max-width: 1500px) { .cb.next { width: 116px; } }
+
+/* Fontes (direita) maiores e mais fáceis de clicar */
+.cols { grid-template-columns: 300px minmax(0, 1fr) 400px; }
+.src-tabs { gap: 4px; padding: 10px 12px 10px; }
+.src-tabs button { font-size: 13.5px; padding: 9px 4px; border-radius: 8px; }
+.src-tabs button.on { box-shadow: inset 0 -3px 0 var(--accent); }
+@media (max-width: 1700px) { .cols { grid-template-columns: 280px minmax(0, 1fr) 360px; } .src-tabs button { font-size: 12.5px; } }
+@media (max-width: 1450px) { .cols { grid-template-columns: 250px minmax(0, 1fr) 320px; } .src-tabs button { font-size: 12px; padding: 8px 2px; } }
