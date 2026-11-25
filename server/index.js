@@ -562,6 +562,15 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   }));
 
   return new Promise((resolve) => {
+    server.on('error', (e) => {
+      if (e.code === 'EADDRINUSE') {
+        console.log(`\n  O sistema já está aberto em outra janela (porta ${port} em uso).`);
+        console.log(`  Use a janela que já está aberta e acesse http://localhost:${port}`);
+        console.log('  ou feche a outra janela preta (Ctrl + C) e rode "npm start" de novo.\n');
+        process.exit(1);
+      }
+      throw e;
+    });
     server.listen(port, '0.0.0.0', () => {
       console.log(`\n  Projeção Igreja rodando:`);
       console.log(`  Painel do operador:  http://localhost:${port}`);
