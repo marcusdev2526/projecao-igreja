@@ -10,6 +10,9 @@ const RESTART_CODE = 42;
 let child = null;
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => (child ? child.kill(sig) : process.exit(0)));
 
+const crashTimes = [];
+const crashes = () => { const now = Date.now(); crashTimes.push(now); while (crashTimes.length && now - crashTimes[0] > 60000) crashTimes.shift(); return crashTimes.length - 1; };
+
 function run() {
   child = spawn(process.execPath, ['--no-warnings', path.join(ROOT, 'server', 'index.js')], {
     cwd: ROOT,
@@ -20,6 +23,10 @@ function run() {
     if (code === RESTART_CODE) {
       console.log('\n  Atualização instalada. Reabrindo o sistema...\n');
       setTimeout(run, 800);
+    } else if (code !== 0 && code !== 1 && signal !== 'SIGINT' && signal !== 'SIGTERM' && crashes() < 5) {
+      // caiu sem querer: reabre sozinho e o telão volta para onde estava
+      console.log('\n  O sistema fechou com erro. Reabrindo em 2 segundos...\n');
+      setTimeout(run, 2000);
     } else {
       process.exit(code ?? (signal ? 1 : 0));
     }

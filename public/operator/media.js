@@ -251,13 +251,17 @@ export function initMedia(ctx) {
     const r = await api('/api/qr?path=' + encodeURIComponent('/enviar.html?s=' + svc.id));
     $('qrImg').src = r.qr;
     $('qrUrl').textContent = r.url;
-    $('qrCulto').textContent = '“' + svc.title + '”';
+    $('qrDlg').querySelector('h2').textContent = 'Receber do pregador';
+    $('qrDlg').querySelector('.qr-body p').innerHTML = '<b>Aponte a câmera do celular para o código.</b>';
+    $('qrDlg').querySelector('.qr-body p.muted').innerHTML = `O pregador escolhe o arquivo (PowerPoint, PDF, vídeo ou imagem) e ele entra direto no culto <b>“${esc(svc.title)}”</b>, com o nome dele.`;
     $('qrDlg').showModal();
   };
   $('qrClose').onclick = () => $('qrDlg').close();
-  socket.on('service-changed', async ({ id }) => {
+  socket.on('service-changed', async ({ id, by }) => {
     const svc = getService();
-    if (svc?.id === id) { await openService(id); toast('Arquivo recebido no culto'); }
+    if (svc?.id !== id) return;
+    await openService(id);
+    if (!by) toast('Arquivo recebido no culto');
   });
   socket.on('library', () => { if (!$('mediaPane').hidden) loadMedia(); if (!$('decksPane').hidden || !$('avisosPane').hidden) loadDecks(); });
 

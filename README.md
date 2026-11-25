@@ -205,3 +205,16 @@ Se o navegador bloquear o som do telão, clique uma vez na janela do telão.
 - **Modelos:** em "+ Culto", salve o culto atual como modelo e crie os próximos a partir dele.
 - **Backup automático:** em ⚙ › Backup, escolha uma pasta (pen drive ou Google Drive). Uma vez por dia é gerado um .zip, e os 10 últimos ficam guardados.
 - **Bíblia:** versículo longo vira 2 telas e o fundo fica mais calmo. A referência fica no canto, embaixo.
+
+## Operação rápida e equipe
+
+- **Telão de reserva:** se o sistema fechar, ele reabre sozinho e volta para o mesmo slide, cartaz e tema.
+- **Ctrl+K:** busca louvores, Bíblia, cartazes, mídias, apresentações e itens do culto. Enter mostra no telão; Shift+Enter adiciona ao culto.
+- **Atalhos:** 1–9 pulam para o slide, R vai para o próximo refrão, F congela, Esc mostra o cartaz, L mostra a logo.
+- **Ensaio:** o telão fica parado enquanto a equipe passa o culto na prévia e no retorno.
+- **Letra com playback:** no player do louvor, "Gravar tempos" uma vez; depois o modo "Auto" passa a letra sozinho.
+- **Escala** (dirigente, pregador, louvor, banda) aparece no retorno do palco junto com a lista do culto.
+- **Pedidos pelo celular:** `/pedidos.html?s=ID` (QR no painel) para o ministro de louvor montar a lista.
+- **Histórico:** louvores cantados por culto e os mais cantados.
+- **Celular completo** (`/remote.html`): congelar, cartaz, Bíblia e controles de vídeo.
+- **OBS:** `/obs.html` mostra só a letra com fundo transparente (`?faixa=1`, `?pos=topo`, `?tamanho=80`).

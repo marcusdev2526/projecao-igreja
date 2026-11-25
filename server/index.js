@@ -284,6 +284,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     const slide = live.slides[live.index] || null;
     return {
       frozen: live.frozen,
+      rehearsal: !!live.rehearsal,
       screen: live.frozen ? frozenScreen() : null,
       mode: live.mode,
       themeId: live.themeId,
@@ -298,7 +299,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       total: live.slides.length,
       slide,
       next: live.slides[live.index + 1] || null,
-      slides: live.slides.map((s) => ({ index: s.index, name: s.name, code: s.code, part: s.part, parts: s.parts, preview: preview(s) })),
+      slides: live.slides.map((s) => ({ index: s.index, name: s.name, code: s.code, part: s.part, parts: s.parts, type: s.type, preview: preview(s) })),
       message: live.message,
       logo: live.logo,
       waiting: live.waiting,
@@ -319,7 +320,16 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       aspect: live.aspect,
     };
   }
-  const broadcast = () => io.emit('state', publicState());
+  // Telão de reserva: guarda onde o culto está; se o sistema reabrir, volta para o mesmo ponto
+  let saveT = null;
+  function saveLive() {
+    clearTimeout(saveT);
+    saveT = setTimeout(() => {
+      const snap = { serviceId: live.serviceId, itemId: live.itemId, songId: live.songId, kind: live.kind, bible: live.bible, index: live.index, showBase: live.showBase, logo: live.logo, waiting: live.waiting, clear: live.clear, at: Date.now() };
+      try { repo.setSetting('live_snapshot', JSON.stringify(snap)); } catch {}
+    }, 400);
+  }
+  const broadcast = () => { io.emit('state', publicState()); saveLive(); };
 
   function loadSong(songId, { itemId = null, index = 0 } = {}) {
     const song = repo.getSong(songId);
@@ -378,8 +388,9 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
         leaveItem(item.id);
         if (item.kind === 'song') {
           loadSong(item.song_id, { itemId: item.id, index: c.index || 0 });
-          const audio = jsonOf(item.text).audio;
-          if (audio && live.player?.itemId !== item.id) setPlayer({ url: audio, type: 'audio', name: 'Playback', status: 'stopped', after: 'stop', itemId: item.id });
+          const ij = jsonOf(item.text);
+          const audio = ij.audio;
+          if (audio && live.player?.itemId !== item.id) setPlayer({ url: audio, type: 'audio', name: 'Playback', status: 'stopped', after: 'stop', itemId: item.id, timings: ij.timings || null, auto: !!ij.timings, rec: false });
         } else if (item.kind === 'media') {
           const m = jsonOf(item.text);
           live.kind = 'media';
@@ -475,6 +486,8 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
         else if (a === 'seek') p.seek = Math.max(0, +c.value || 0);
         else if (a === 'skip') p.seek = Math.max(0, (live.playerT || 0) + (+c.value || 0));
         else if (a === 'rate') p.rate = Math.min(2, Math.max(0.25, +c.value || 1));
+        else if (a === 'rec') { p.rec = !p.rec; if (p.rec) { p.auto = false; p.timings = { 0: 0 }; } else saveTimings(); }
+        else if (a === 'auto') p.auto = !p.auto;
         else if (a === 'volume') p.volume = Math.min(1, Math.max(0, +c.value));
         else if (a === 'after') { if (['tema', 'next', 'loop', 'stop'].includes(c.value)) p.after = c.value; }
         else return;
@@ -515,12 +528,12 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       case 'themes-changed':
         break;
       case 'goto':
-        if (c.index >= 0 && c.index < live.slides.length) live.index = c.index;
+        if (c.index >= 0 && c.index < live.slides.length) { live.index = c.index; recTiming(); }
         live.clear = false;
         if (deckTimer) startDeckTimer();
         break;
       case 'next':
-        if (live.index < live.slides.length - 1) live.index++;
+        if (live.index < live.slides.length - 1) { live.index++; recTiming(); }
         else return nextItem(1);
         live.clear = false;
         break;
@@ -532,11 +545,18 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       case 'black':
         live.black = typeof c.value === 'boolean' ? c.value : !live.black;
         break;
+      case 'rehearsal': {
+        // Ensaio: o telão fica parado no que está; a equipe passa o culto só na prévia e no retorno
+        const on = typeof c.value === 'boolean' ? c.value : !live.rehearsal;
+        live.rehearsal = on;
+        if (on && !live.frozen) { live.screenSnap = screenView(); live.frozen = true; }
+        break;
+      }
       case 'freeze': {
         const on = typeof c.value === 'boolean' ? c.value : !live.frozen;
         if (on && !live.frozen) live.screenSnap = screenView();
         live.frozen = on;
-        if (!on) live.screenSnap = null;
+        if (!on) { live.screenSnap = null; live.rehearsal = false; }
         break;
       }
       case 'logo':
@@ -595,6 +615,29 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     }
     syncSeqPlayer();
     broadcast();
+  }
+  // Letra seguindo o playback: grava o tempo em que cada slide entrou (uma vez) e depois passa sozinho
+  function recTiming() {
+    const p = live.player;
+    if (!p?.rec || p.type !== 'audio' || p.itemId !== live.itemId || p.status !== 'playing') return;
+    p.timings = { ...(p.timings || {}), [live.index]: Math.round((live.playerT || 0) * 10) / 10 };
+  }
+  function saveTimings() {
+    const p = live.player;
+    if (!p?.itemId || !p.timings) return;
+    const it = db.prepare('SELECT * FROM service_item WHERE id = ?').get(p.itemId);
+    if (!it) return;
+    const j = jsonOf(it.text);
+    j.timings = p.timings;
+    repo.updateItem(it.id, { text: JSON.stringify(j), title: it.title });
+    p.auto = true;
+  }
+  function followPlayback(t) {
+    const p = live.player;
+    if (!p?.auto || p.rec || !p.timings || p.type !== 'audio' || p.status !== 'playing' || p.itemId !== live.itemId || live.frozen) return;
+    let target = 0;
+    for (const [i, at] of Object.entries(p.timings)) if (t + 0.15 >= at && +i > target) target = +i;
+    if (target !== live.index && target < live.slides.length) { live.index = target; live.clear = false; broadcast(); }
   }
   // Na sequência, o player acompanha o slide: vídeo entra pausado (▶ para tocar); imagem para o vídeo anterior
   function syncSeqPlayer() {
@@ -669,7 +712,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     socket.emit('state', publicState());
     socket.emit('en-queue', [...enQueue]);
     // O telão avisa o tempo do vídeo/áudio e quando terminou
-    socket.on('player-time', (t) => { if (t && isFinite(t.t)) live.playerT = +t.t; socket.broadcast.volatile.emit('player-time', t); });
+    socket.on('player-time', (t) => { if (t && isFinite(t.t)) { live.playerT = +t.t; followPlayback(live.playerT); } socket.broadcast.volatile.emit('player-time', t); });
     socket.on('player-blocked', () => io.emit('player-blocked'));
     socket.on('screen-aspect', (ar) => {
       ar = Math.min(3.6, Math.max(1.3, +ar || 0));
@@ -789,6 +832,23 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     if (tpl) tpl.items.forEach((it) => { if (it.kind !== 'song' || repo.getSong(it.song_id)) repo.addItem(id, it); });
     ok(res, { id });
   }));
+  // Escala do culto (quem dirige, prega, ministra, opera)
+  app.get('/api/services/:id/scale', (req, res) => { try { ok(res, JSON.parse(repo.getSetting('scale_' + +req.params.id, '{}'))); } catch { ok(res, {}); } });
+  app.put('/api/services/:id/scale', wrap((req, res) => {
+    const keys = ['dirigente', 'pregador', 'louvor', 'operador', 'banda', 'obs'];
+    const v = Object.fromEntries(keys.map((k) => [k, String(req.body[k] || '').slice(0, 200)]));
+    repo.setSetting('scale_' + +req.params.id, JSON.stringify(v));
+    io.emit('service-changed', { id: +req.params.id, by: 'scale' });
+    ok(res, v);
+  }));
+  // Histórico: louvores cantados (um por culto/dia)
+  app.get('/api/history', (req, res) => {
+    const days = Math.min(365, +req.query.days || 120);
+    const rows = db.prepare(`SELECT DISTINCT date(p.played_at) AS day, s.id, s.title, s.artist
+      FROM play_log p JOIN song s ON s.id = p.song_id
+      WHERE p.played_at >= datetime('now', 'localtime', ?) ORDER BY day DESC, s.title`).all(`-${days} days`);
+    ok(res, rows);
+  });
   // Modelos de culto (ex.: "Culto de domingo padrão")
   app.get('/api/templates', (req, res) => ok(res, templates().map((t, i) => ({ i, name: t.name, count: t.items.length }))));
   app.post('/api/templates', wrap((req, res) => {
@@ -850,6 +910,10 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   app.delete('/api/services/:id', (req, res) => { repo.deleteService(+req.params.id); ok(res); });
   app.post('/api/services/:id/items', wrap((req, res) => {
     const id = repo.addItem(+req.params.id, req.body);
+    if (req.body.by === 'pedido') {
+      const song = req.body.song_id && repo.getSong(+req.body.song_id);
+      io.emit('service-changed', { id: +req.params.id, by: 'pedido', text: (song?.title || 'louvor') + (req.body.who ? ' · ' + String(req.body.who).slice(0, 40) : '') });
+    }
     if (req.body.kind === 'song') queueEnglish([+req.body.song_id]);
     ok(res, { id });
   }));
@@ -1203,6 +1267,27 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     const remote = (urls[0] || `http://localhost:${port}`) + '/remote.html';
     ok(res, { urls, remote, qr: await QRCode.toDataURL(remote, { margin: 1, width: 220 }) });
   }));
+
+  // volta para onde estava (se o sistema fechou há menos de 6 horas)
+  try {
+    const snap = JSON.parse(repo.getSetting('live_snapshot', 'null'));
+    if (snap && Date.now() - (snap.at || 0) < 6 * 3600 * 1000) {
+      live.serviceId = snap.serviceId ?? null;
+      if (snap.itemId && live.serviceId) handleCmd({ type: 'item', id: snap.itemId, index: snap.index || 0 });
+      else if (snap.kind === 'song' && snap.songId) handleCmd({ type: 'song', id: snap.songId, index: snap.index || 0 });
+      else if (snap.kind === 'bible' && snap.bible) { loadBible(snap.bible.book, snap.bible.chapter, 1); live.index = Math.min(snap.index || 0, live.slides.length - 1); }
+      if (live.slides.length) live.index = Math.min(snap.index || 0, live.slides.length - 1);
+      live.clear = !!snap.clear;
+      live.logo = !!snap.logo;
+      live.waiting = !!snap.waiting;
+      live.showBase = !!snap.showBase && !!live.base;
+      live.timing = { serviceStart: null, blockId: null, blockStart: null };
+      if (live.player) live.player = { ...live.player, status: 'paused' };
+      if (live.title) console.log('  Voltando para onde estava: ' + live.title + ' (slide ' + (live.index + 1) + ')');
+    }
+  } catch (e) {
+    console.log('  Não deu para restaurar o ponto do culto:', e.message);
+  }
 
   return new Promise((resolve) => {
     server.on('error', (e) => {

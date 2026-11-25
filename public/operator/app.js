@@ -6,6 +6,7 @@ import { BOOKS, parseRef, refText, bookName } from '/shared/bible.js';
 import { initBibleView } from '/operator/bible.js';
 import { initMedia } from '/operator/media.js';
 import { initOrganize } from '/operator/organize.js';
+import { initExtras } from '/operator/extras.js';
 let MEDIA = null;
 import { renderProgress } from '/shared/progress.js';
 import { autoKeywords, chunksOf, markChunk, wordFreq, applyChunks, missingTranslations, insertTranslations, setEnStatus } from '/shared/enhance.js';
@@ -89,6 +90,7 @@ async function loadSongs() {
   $('songList').innerHTML = list.length
     ? list.map((s) => `<div class="song" draggable="true" data-id="${s.id}" title="Duplo clique: projetar agora · arraste para o telão ou para o culto">
         <div class="info"><div class="t">${esc(s.title)}</div><div class="a">${esc(s.artist || '—')}${s.song_key ? ' · ' + esc(s.song_key) : ''}</div></div>
+        ${s.last_played && (Date.now() - new Date(s.last_played.replace(' ', 'T'))) < 21 * 864e5 ? `<span class="badge recent" title="Cantado em ${s.last_played.slice(0, 10).split('-').reverse().join('/')}">há ${Math.max(0, Math.round((Date.now() - new Date(s.last_played.replace(' ', 'T'))) / 864e5))}d</span>` : ''}
         ${enBadge(s.has_en)}
         <button class="mini" data-act="edit" title="Editar">✎</button>
         <button class="mini" data-act="add" title="Adicionar ao culto">＋</button></div>`).join('')
@@ -1096,5 +1098,6 @@ loadVersions();
 loadAi();
 setTimeout(() => checkUpdate({ silent: true }), 4000);
 initOrganize({ api, cmd, toast, esc, socket, getService: () => service, openService, loadServices, getLive: () => live, renderItems: () => service && renderItems(), BLOCK_COLORS });
+initExtras({ api, cmd, toast, esc, socket, getService: () => service, openService, getLive: () => live });
 MEDIA = initMedia({ api, cmd, toast, esc, socket, getService: () => service, openService, getLive: () => live });
 initBibleView({ api, cmd, toast, esc, getLive: () => live, getService: () => service, openService, loadVersions, onState: (fn) => socket.on('state', fn) });

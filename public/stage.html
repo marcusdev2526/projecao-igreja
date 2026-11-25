@@ -24,6 +24,16 @@
   #msg.on { display: block; animation: pulse 1.4s ease-in-out 3; }
   @keyframes pulse { 50% { background: #fff3a0; } }
   .blk { color: #f55; font-weight: 700; }
+  #scale { padding: .8vh 2vw; background: #0b0b0b; color: #9ab; font-size: 2.2vh; border-bottom: 1px solid #222; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #scale b { color: #dde; font-weight: 700; } #scale:empty { display: none; }
+  body.with-set main#cur, body.with-set #next, body.with-set #msg { margin-right: 24vw; }
+  #setlist { position: fixed; right: 0; top: 0; bottom: 0; width: 24vw; background: #0a0a0a; border-left: 1px solid #222; padding: 9vh 1.4vw 2vh; overflow: hidden; display: none; }
+  body.with-set #setlist { display: block; }
+  #setlist h3 { margin: 0 0 1vh; font-size: 1.8vh; letter-spacing: .14em; text-transform: uppercase; color: #777; }
+  #setlist .s { font-size: 2.3vh; padding: .9vh .8vw; border-radius: .8vh; color: #aaa; display: flex; gap: .8vw; }
+  #setlist .s i { font-style: normal; color: #555; min-width: 1.6em; }
+  #setlist .s.on { background: #1d1410; color: #fff; font-weight: 700; box-shadow: inset .4vw 0 0 #ff6a3d; }
+  #setlist .b { font-size: 1.6vh; letter-spacing: .12em; text-transform: uppercase; color: #6a7; margin: 1.6vh 0 .4vh; }
   .hr { display: flex; align-items: center; gap: 2.4vw; }
   #blk { font-size: 3vh; color: #9ad; font-variant-numeric: tabular-nums; }
   #blk.over { color: #ff5a5a; font-weight: 700; animation: pulse2 1.4s ease-in-out infinite; }
@@ -32,9 +42,11 @@
 </head>
 <body>
 <header style="position:relative"><div><span id="title">—</span><span id="pos"></span> <span id="flags"></span></div><div class="hr"><span id="blk"></span><span id="clock"></span></div></header>
+<div id="scale"></div>
 <div id="prog" style="padding:0 2vw" hidden></div>
 <main id="cur"></main>
 <div id="msg"></div>
+<aside id="setlist"><h3>Culto</h3><div id="setItems"></div></aside>
 <section id="next"><div class="label">Próximo</div><div class="txt" id="nexttxt">—</div></section>
 <script src="/socket.io/socket.io.js"></script>
 <script type="module">
@@ -59,7 +71,23 @@
     $('msg').classList.toggle('on', !!s.message);
   });
   let st = null;
-  io().on('state', (s) => { st = s; tick(); });
+  let svcId = null;
+  // escala e lista do culto (para a banda)
+  async function loadSet() {
+    if (!svcId) return;
+    const [svc, sc] = await Promise.all([fetch('/api/services/' + svcId).then((r) => r.json()), fetch('/api/services/' + svcId + '/scale').then((r) => r.json()).catch(() => ({}))]);
+    const parts = [['Dirigente', sc.dirigente], ['Pregador', sc.pregador], ['Louvor', sc.louvor], ['Banda', sc.banda], ['Obs.', sc.obs]].filter((p) => p[1]);
+    $('scale').innerHTML = parts.map(([k, v]) => `${k}: <b>${esc(v)}</b>`).join(' &nbsp;·&nbsp; ');
+    let n = 0;
+    $('setItems').innerHTML = (svc.items || []).map((it) => it.kind === 'block' ? `<div class="b">${esc(it.title)}</div>` : `<div class="s" data-id="${it.id}"><i>${++n}</i>${esc(it.kind === 'song' ? it.song_title : it.title || 'Aviso')}</div>`).join('');
+    document.body.classList.add('with-set');
+    mark();
+  }
+  const mark = () => document.querySelectorAll('#setItems .s').forEach((d) => d.classList.toggle('on', +d.dataset.id === st?.itemId));
+  const sock2 = io();
+  sock2.on('state', (s) => { st = s; if (s.serviceId !== svcId) { svcId = s.serviceId; loadSet(); } mark(); tick(); });
+  sock2.on('service-changed', () => loadSet());
+  setInterval(loadSet, 30000);
   const fmt = (ms) => { const t = Math.max(0, Math.floor(ms / 1000)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
   function tick() {
     $('clock').textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });

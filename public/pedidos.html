@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pedidos de louvores</title>
+<link rel="stylesheet" href="/fonts/inter/400.css">
+<link rel="stylesheet" href="/fonts/inter/600.css">
+<link rel="stylesheet" href="/fonts/inter/700.css">
+<style>
+  :root { --bg: #0e1014; --card: #171b21; --line: #262b34; --text: #eef1f4; --muted: #8f98a5; --accent: #ff6a3d; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 Inter, system-ui, sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 22px 16px 40px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; color: var(--muted); }
+  .brand i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  h1 { font-size: 24px; margin: 16px 0 2px; }
+  .sub { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
+  input { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 12px; color: var(--text); font: inherit; padding: 13px 14px; outline: none; }
+  input:focus { border-color: var(--accent); }
+  .row { display: flex; gap: 8px; margin-bottom: 10px; }
+  h2 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 22px 0 8px; }
+  .it { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; margin-bottom: 7px; }
+  .it .t { flex: 1; min-width: 0; } .it b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .it span { font-size: 12.5px; color: var(--muted); }
+  .add { border: 0; background: var(--accent); color: #fff; font: 700 14px Inter, sans-serif; border-radius: 10px; padding: 9px 14px; }
+  .add.done { background: #1f3a2b; color: #7fdcb0; }
+  .n { width: 24px; text-align: center; color: var(--muted); font-weight: 700; font-size: 13px; }
+  .empty { color: var(--muted); font-size: 14px; padding: 8px 2px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><i></i>Projeção</div>
+  <h1>Pedidos de louvores</h1>
+  <p class="sub" id="culto">Os louvores entram direto no culto.</p>
+  <div class="row"><input id="who" placeholder="Seu nome (opcional)" autocomplete="name"></div>
+  <input id="q" placeholder="Buscar louvor pelo nome, cantor ou trecho…" autocomplete="off">
+  <div id="res"></div>
+  <h2>Lista do culto</h2>
+  <div id="list"></div>
+</main>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const sid = new URLSearchParams(location.search).get('s');
+  try { $('who').value = localStorage.getItem('who') || ''; } catch {}
+  let svc = null;
+  async function loadSvc() {
+    if (!sid) return;
+    svc = await (await fetch('/api/services/' + sid)).json();
+    $('culto').textContent = 'Vai direto para: ' + svc.title;
+    const songs = svc.items.filter((i) => i.kind === 'song');
+    $('list').innerHTML = songs.length ? songs.map((s, i) => `<div class="it"><span class="n">${i + 1}</span><div class="t"><b>${esc(s.song_title)}</b><span>${esc(s.song_artist || '')}</span></div></div>`).join('') : '<div class="empty">Nenhum louvor ainda</div>';
+  }
+  let t;
+  $('q').oninput = () => { clearTimeout(t); t = setTimeout(search, 200); };
+  async function search() {
+    const q = $('q').value.trim();
+    if (q.length < 2) return ($('res').innerHTML = '');
+    const list = (await (await fetch('/api/songs?q=' + encodeURIComponent(q))).json()).slice(0, 15);
+    const inSvc = new Set((svc?.items || []).map((i) => i.song_id));
+    $('res').innerHTML = '<h2>Resultados</h2>' + (list.length ? list.map((s) => `<div class="it"><div class="t"><b>${esc(s.title)}</b><span>${esc(s.artist || '')}</span></div><button class="add ${inSvc.has(s.id) ? 'done' : ''}" data-id="${s.id}">${inSvc.has(s.id) ? 'No culto' : '+ Adicionar'}</button></div>`).join('') : '<div class="empty">Nenhum louvor encontrado</div>');
+  }
+  $('res').onclick = async (e) => {
+    const b = e.target.closest('.add');
+    if (!b || b.classList.contains('done')) return;
+    try { localStorage.setItem('who', $('who').value.trim()); } catch {}
+    b.disabled = true;
+    await fetch(`/api/services/${sid}/items`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'song', song_id: +b.dataset.id, by: 'pedido', who: $('who').value.trim() }) });
+    b.textContent = 'No culto';
+    b.classList.add('done');
+    navigator.vibrate?.(20);
+    loadSvc();
+  };
+  io().on('service-changed', loadSvc);
+  loadSvc();
+</script>
+</body>
+</html>

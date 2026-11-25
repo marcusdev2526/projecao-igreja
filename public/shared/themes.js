@@ -47,6 +47,27 @@ export const THEME_CATS = { minimalista: 'Minimalistas', expressivo: 'Expressivo
 
 export const THEMES = [
   {
+    id: 'pulso',
+    cat: 'expressivo',
+    name: 'Pulso',
+    desc: 'Anéis de luz saindo do centro, no ritmo; no refrão pulsam mais forte',
+    bg: () => `<div class="core"></div>${[0, 1, 2, 3, 4].map((i) => `<i class="ring" style="animation-delay:-${i * 1.6}s"></i>`).join('')}<div class="vignette"></div>`,
+  },
+  {
+    id: 'feixes',
+    cat: 'expressivo',
+    name: 'Feixes de luz',
+    desc: 'Raios de luz quentes vindo do alto, como palco; abrem no refrão',
+    bg: () => `<div class="haze"></div>${[-34, -18, -6, 6, 18, 34].map((d, i) => `<i class="beam" style="--d:${d}deg;animation-delay:-${i * 1.3}s"></i>`).join('')}<div class="floor"></div>`,
+  },
+  {
+    id: 'vitral',
+    cat: 'expressivo',
+    name: 'Vitral',
+    desc: 'Manchas de cor se misturando devagar, como luz atravessando vitral',
+    bg: () => `<i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i><i class="blob b4"></i><div class="grain"></div>`,
+  },
+  {
     id: 'brasa',
     cat: 'expressivo',
     name: 'Brasa',

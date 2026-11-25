@@ -58,6 +58,7 @@ export function initOrganize(ctx) {
     $('freezeBtn').classList.toggle('on', !!s.frozen);
     $('freezeBtn').querySelector('span').textContent = s.frozen ? 'Soltar no telão (Enter)' : 'Congelar';
     $('frozenBadge').hidden = !s.frozen;
+    $('frozenBadge').lastChild.textContent = s.rehearsal ? 'ENSAIO · o telão está parado' : 'TELÃO CONGELADO · o público vê isto';
     // congelado: aparecem dois monitores — Preparado (o que vai entrar) e No telão (o que o público vê)
     $('prepMon').hidden = !s.frozen;
     $('liveLbl').hidden = !s.frozen;

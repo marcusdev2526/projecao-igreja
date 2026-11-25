@@ -101,7 +101,8 @@ export function makeRepo(db) {
     listSongs(term = '') {
       const t = normalize(term).trim();
       const rows = q(`SELECT s.id, s.title, s.artist, s.song_key, s.tags, s.has_en, s.theme_id,
-          (SELECT COUNT(*) FROM play_log p WHERE p.song_id = s.id) AS plays
+          (SELECT COUNT(DISTINCT date(p.played_at)) FROM play_log p WHERE p.song_id = s.id) AS plays,
+          (SELECT MAX(p.played_at) FROM play_log p WHERE p.song_id = s.id) AS last_played
         FROM song s ${t ? 'WHERE s.search LIKE ?' : ''} ORDER BY s.title COLLATE NOCASE`).all(...(t ? [`%${t}%`] : []));
       // títulos que começam com o termo primeiro
       if (t) rows.sort((a, b) => (normalize(b.title).startsWith(t) ? 1 : 0) - (normalize(a.title).startsWith(t) ? 1 : 0));

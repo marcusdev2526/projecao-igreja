@@ -31,6 +31,8 @@
     stage.setTheme(s.themeId, s.themeDef);
     stage.setBlack(s.black);
     stage.setTransition(s.transition, s.trSpeed);
+    // fundo reage ao refrão
+    stage.el.classList.toggle('is-chorus', !s.showBase && !s.clear && s.slide?.type === 'refrao');
     const html = s.waiting ? waitingHTML(s.church) : s.logo ? logoHTML(s.church) : s.showBase && s.base ? baseHTML(s.base) : s.clear || !s.slide ? '' : slideHTML(s.slide, s.mode);
     const key = s.themeId + '|' + s.mode + '|' + html;
     if (key !== lastKey) { stage.show(html); lastKey = key; tickWaiting(stage.el); }
@@ -47,10 +49,13 @@
   let applied = -1;
   const mediaEl = (p) => (p?.type === 'video' ? [...document.querySelectorAll('.content-layer:not(.leave) video:not(.base-v)')].pop() : aud);
   function fadeOut(el) {
+    clearInterval(el._fade);
     const v0 = el.volume;
+    el._v0 = v0;
     let k = 0;
-    const t = setInterval(() => { k++; el.volume = Math.max(0, v0 * (1 - k / 12)); if (k >= 12) { clearInterval(t); el.pause(); el.volume = v0; } }, 60);
+    el._fade = setInterval(() => { k++; el.volume = Math.max(0, v0 * (1 - k / 12)); if (k >= 12) { clearInterval(el._fade); el._fade = null; el.pause(); el.volume = v0; } }, 60);
   }
+  const cancelFade = (el) => { if (el?._fade) { clearInterval(el._fade); el._fade = null; el.volume = el._v0 ?? 1; } };
   function applyPlayer(p) {
     if (!p) { if (!aud.paused) fadeOut(aud); pState = null; return; }
     if (p.seq === applied && mediaEl(p) === pState?.el) return;
@@ -66,6 +71,7 @@
     el.loop = false;
     if (p.seek != null && isFinite(p.seek)) { try { el.currentTime = p.seek; } catch {} }
     if (p.status === 'playing') {
+      cancelFade(el);
       el.play().catch(() => { if (!embedded) { el.muted = true; el.play().catch(() => {}); socket.emit('player-blocked'); } });
     } else if (p.status === 'stopped' && p.type === 'audio') { if (!el.paused) fadeOut(el); }
     else { el.pause(); if (p.type === 'video' && el.currentTime === 0 && el.readyState < 2) el.addEventListener('loadeddata', () => { try { el.currentTime = 0.05; } catch {} }, { once: true }); }

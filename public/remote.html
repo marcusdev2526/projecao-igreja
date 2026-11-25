@@ -8,7 +8,7 @@
 <style>
   @import url('/fonts/inter/400.css'); @import url('/fonts/inter/600.css'); @import url('/fonts/inter/700.css');
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body { margin: 0; background: #0e1116; color: #e8eaed; font-family: Inter, system-ui, sans-serif; padding-bottom: 150px; }
+  body { margin: 0; background: #0e1116; color: #e8eaed; font-family: Inter, system-ui, sans-serif; padding-bottom: 240px; }
   header { position: sticky; top: 0; background: #0e1116ee; backdrop-filter: blur(8px); padding: 12px 14px 8px; z-index: 2; border-bottom: 1px solid #222; }
   h1 { font-size: 17px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sub { color: #8a919a; font-size: 13px; margin-top: 2px; }
@@ -27,6 +27,15 @@
   footer .big { grid-column: span 2; background: #ff5a36; color: #fff; font-size: 20px; padding: 22px 4px; }
   footer .prev { grid-column: span 2; font-size: 20px; padding: 22px 4px; }
   footer .on { background: #e33; color: #fff; }
+  footer #freeze.on { background: #1d5fae; } footer #base.on { background: #ff5a36; }
+  .media { position: fixed; left: 0; right: 0; bottom: 172px; display: none; gap: 8px; padding: 8px 12px; background: #0e1116; border-top: 1px solid #222; }
+  .media.on { display: flex; } .media button { flex: 1; border: 0; border-radius: 10px; background: #1b2028; color: #fff; font: 700 15px Inter, sans-serif; padding: 12px 4px; }
+  .media .pp { background: #ff5a36; }
+  .media .nm { flex: 2.2; font-size: 12px; color: #9aa; display: flex; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .bsearch { padding: 10px 12px 0; } .bsearch input { width: 100%; background: #171b22; border: 1px solid #2a2f37; border-radius: 10px; color: #fff; padding: 12px; font: 15px Inter, sans-serif; }
+  .hit .r { font-weight: 700; } .hit .x { font-size: 13px; color: #9aa; margin-top: 3px; }
+  .frz { background: #1d5fae; color: #fff; text-align: center; font-weight: 700; font-size: 13px; padding: 6px; border-radius: 8px; margin-top: 8px; display: none; }
+  .frz.on { display: block; }
   .msg { display: flex; gap: 6px; padding: 4px 12px 10px; }
   .msg input { flex: 1; background: #171b22; border: 1px solid #2a2f37; border-radius: 9px; color: #fff; padding: 10px; font: 14px Inter, sans-serif; }
   .msg button { background: #2b3340; color: #fff; border: 0; border-radius: 9px; padding: 0 14px; font-weight: 600; }
@@ -37,10 +46,12 @@
   <h1 id="title">Conectando…</h1>
   <div class="sub" id="sub"></div>
   <div id="prog" hidden></div>
-  <div class="tabs"><button data-tab="slides" class="on">Slides</button><button data-tab="culto">Culto</button><button data-tab="mais">Mais</button></div>
+  <div class="frz" id="frz">TELÃO CONGELADO · você está preparando o próximo</div>
+  <div class="tabs"><button data-tab="slides" class="on">Slides</button><button data-tab="culto">Culto</button><button data-tab="biblia">Bíblia</button><button data-tab="mais">Mais</button></div>
 </header>
 <div id="slides" class="list"></div>
 <div id="culto" class="list" hidden></div>
+<div id="biblia" hidden><div class="bsearch"><input id="bq" placeholder="jo 3 16 · sl 23 · palavras" autocomplete="off"></div><div class="list" id="bres"></div></div>
 <div id="mais" hidden>
   <div class="list"><div class="sub">Idioma no telão</div></div>
   <div class="modes" id="modes">
@@ -49,17 +60,19 @@
   <div class="list"><div class="sub">Recado para o retorno (só aparece no palco)</div></div>
   <div class="msg"><input id="msgIn" placeholder="Ex.: mais uma vez o refrão" maxlength="140"><button id="msgSend">Enviar</button><button id="msgClear">Limpar</button></div>
 </div>
+<div class="media" id="media"><span class="nm" id="mname"></span><button id="mback">−10s</button><button class="pp" id="mplay">▶</button><button id="mfwd">+10s</button></div>
 <footer>
   <button class="prev" id="prev">◀ Voltar</button>
   <button class="big" id="next">Próximo ▶</button>
+  <button id="freeze">Congelar</button>
+  <button id="base">Cartaz</button>
   <button id="black">Tela preta</button>
   <button id="clear">Sem letra</button>
-  <button id="first">Início</button>
-  <button id="last">Fim</button>
 </footer>
 <script src="/socket.io/socket.io.js"></script>
 <script type="module">
   import { stripMarkup } from '/shared/render.js';
+  import { refText } from '/shared/bible.js';
   import { renderProgress, PROGRESS_CSS } from '/shared/progress.js';
   document.head.insertAdjacentHTML('beforeend', `<style>${PROGRESS_CSS}.prog-meta{display:none}</style>`);
   const $ = (id) => document.getElementById(id);
@@ -71,15 +84,35 @@
 
   document.querySelectorAll('.tabs button').forEach((b) => (b.onclick = () => {
     document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));
-    ['slides', 'culto', 'mais'].forEach((t) => ($(t).hidden = t !== b.dataset.tab));
+    ['slides', 'culto', 'biblia', 'mais'].forEach((t) => ($(t).hidden = t !== b.dataset.tab));
+    if (b.dataset.tab === 'biblia') setTimeout(() => $('bq').focus(), 50);
     if (b.dataset.tab === 'culto') loadService();
   }));
   $('next').onclick = () => cmd({ type: 'next' });
   $('prev').onclick = () => cmd({ type: 'prev' });
   $('black').onclick = () => cmd({ type: 'black' });
   $('clear').onclick = () => cmd({ type: 'clear' });
-  $('first').onclick = () => cmd({ type: 'goto', index: 0 });
-  $('last').onclick = () => state && cmd({ type: 'goto', index: state.total - 1 });
+  $('freeze').onclick = () => cmd({ type: 'freeze' });
+  $('base').onclick = () => (state?.base ? cmd({ type: 'base-show' }) : alert('Nenhum cartaz fixado no painel'));
+  $('mplay').onclick = () => cmd({ type: 'player', action: state?.player?.status === 'playing' ? 'pause' : state?.player?.status === 'stopped' ? 'restart' : 'play' });
+  $('mback').onclick = () => cmd({ type: 'player', action: 'skip', value: -10 });
+  $('mfwd').onclick = () => cmd({ type: 'player', action: 'skip', value: 10 });
+  // Bíblia pelo celular
+  let bt;
+  $('bq').oninput = () => { clearTimeout(bt); bt = setTimeout(bsearch, 250); };
+  async function bsearch() {
+    const q = $('bq').value.trim();
+    if (!q) return ($('bres').innerHTML = '');
+    const r = await (await fetch('/api/bible/search?q=' + encodeURIComponent(q))).json();
+    if (r.ref) {
+      const ch = await (await fetch(`/api/bible/chapter?book=${r.ref.book}&chapter=${r.ref.chapter}`)).json();
+      $('bres').innerHTML = ch.verses.map((v) => `<button class="slide hit ${v.verse === r.ref.verse ? 'on' : ''}" data-b="${r.ref.book}" data-c="${r.ref.chapter}" data-v="${v.verse}"><div class="n">${refText(r.ref.book, r.ref.chapter, v.verse)}</div><div class="t">${esc(v.text)}</div></button>`).join('');
+      $('bres').querySelector('.on')?.scrollIntoView({ block: 'center' });
+    } else {
+      $('bres').innerHTML = (r.hits || []).slice(0, 40).map((h) => `<button class="slide hit" data-b="${h.book}" data-c="${h.chapter}" data-v="${h.verse}"><div class="n">${refText(h.book, h.chapter, h.verse)}</div><div class="t">${esc(h.text)}</div></button>`).join('') || '<div class="sub">Nada encontrado</div>';
+    }
+  }
+  $('bres').onclick = (e) => { const h = e.target.closest('.hit'); if (h) cmd({ type: 'bible', book: +h.dataset.b, chapter: +h.dataset.c, verse: +h.dataset.v }); };
   $('modes').onclick = (e) => e.target.dataset.mode && cmd({ type: 'mode', value: e.target.dataset.mode });
   $('msgSend').onclick = () => cmd({ type: 'message', value: $('msgIn').value });
   $('msgClear').onclick = () => { $('msgIn').value = ''; cmd({ type: 'message', value: '' }); };
@@ -109,6 +142,14 @@
     renderProgress($('prog'), { slides: s.slides, index: s.index, onPick: (i) => cmd({ type: 'goto', index: i }) });
     $('sub').textContent = s.total ? `Slide ${s.index + 1} de ${s.total}` : 'Escolha um louvor na aba Culto';
     $('black').classList.toggle('on', s.black);
+    $('freeze').classList.toggle('on', !!s.frozen);
+    $('freeze').textContent = s.frozen ? 'Soltar no telão' : 'Congelar';
+    $('frz').classList.toggle('on', !!s.frozen);
+    $('base').classList.toggle('on', !!s.showBase);
+    const p = s.player;
+    const showMedia = p && (p.status === 'playing' || (p.itemId && p.itemId === s.itemId) || s.slide?.url === p.url);
+    $('media').classList.toggle('on', !!showMedia);
+    if (showMedia) { $('mname').textContent = p.name || 'Vídeo'; $('mplay').textContent = p.status === 'playing' ? '❚❚' : '▶'; }
     $('clear').classList.toggle('on', s.clear);
     document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === s.mode));
     if (changedSong) {
