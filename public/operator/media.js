@@ -335,7 +335,9 @@ export function initMedia(ctx) {
   let dur = 0;
   function renderPlayer(s) {
     const p = s.player;
-    const show = !!p && (p.status !== 'stopped' || (p.itemId && p.itemId === s.itemId) || s.kind === 'media');
+    // só mostra o player se o vídeo/áudio é do que está no ar (ou se está tocando)
+    const onAir = p && ((p.itemId && p.itemId === s.itemId) || (s.kind === 'media' && s.slide?.url === p.url));
+    const show = !!p && (p.status === 'playing' || onAir);
     $('playerBar').hidden = !show;
     if (!show) return;
     $('playerBar').classList.toggle('playing', p.status === 'playing');
