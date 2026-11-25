@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projeção Igreja — Operador</title>
+<link rel="stylesheet" href="/shared/stage.css">
+<link rel="stylesheet" href="/operator/operator.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="dot"></span>Projeção</div>
+  <div class="seg view-seg" id="viewSeg"><button data-view="culto" class="on">Culto</button><button data-view="biblia">Bíblia</button></div>
+  <div class="seg" id="modes" title="Idioma no telão">
+    <button data-mode="pt">PT</button><button data-mode="pt-en">PT + EN</button><button data-mode="en">EN</button><button data-mode="en-pt">EN + PT</button>
+  </div>
+  <button class="btn" id="themeBtn"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4-4-7.4-9-7.4z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/></svg><span>Tema</span> <b id="themeName">—</b></button>
+  <div class="spacer"></div>
+  <button class="btn warn" id="blackBtn" title="Atalho: B">Tela preta</button>
+  <button class="btn" id="clearBtn" title="Atalho: C">Sem letra</button>
+  <div class="sep"></div>
+  <button class="btn ghost ic" id="openScreen" title="Abrir o telão numa nova janela (arraste para o projetor e aperte F11)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span>Telão</span></button>
+  <button class="btn ghost ic" id="openStage" title="Abrir o retorno do palco"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="10" rx="2"/><path d="M7 19h10"/><path d="M8 9h8M8 12h5"/></svg><span>Retorno</span></button>
+  <button class="btn ghost ic" id="phoneBtn" title="Controlar pelo celular"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18h2"/></svg><span>Celular</span></button>
+  <button class="btn primary sm" id="updBadge" hidden title="Instalar a versão nova do sistema">Atualizar</button>
+  <button class="btn ghost ic only" id="settingsBtn" title="Configurações"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+</header>
+
+<main class="cols">
+  <!-- Biblioteca -->
+  <section class="panel" id="library">
+    <div id="songsPane" class="pane">
+    <div class="panel-h">
+      <h2>Biblioteca</h2>
+      <div class="acts">
+        <button class="btn sm" id="importBtn">Importar</button>
+        <button class="btn sm primary" id="newSongBtn">+ Novo</button>
+      </div>
+    </div>
+    <input class="search" id="search" placeholder="Buscar título, artista ou trecho da letra…" autocomplete="off">
+    <div class="list" id="songList"></div>
+    <div class="panel-f"><span id="songCount"></span><a href="/api/export" class="link">Baixar backup</a></div>
+    </div>
+  </section>
+
+  <!-- Culto -->
+  <section class="panel" id="service">
+    <div class="panel-h">
+      <select id="serviceSel" class="sel"></select>
+      <div class="acts"><button class="btn sm" id="newServiceBtn" title="Novo culto">+ Culto</button></div>
+    </div>
+    <div class="list" id="itemList"></div>
+    <div class="panel-f"><button class="btn sm" id="addTextBtn">+ Aviso</button><span class="hint">Arraste para reordenar</span></div>
+  </section>
+
+  <!-- Ao vivo -->
+  <section class="panel live">
+    <div class="live-top">
+      <div class="preview-wrap">
+        <div class="label">AO VIVO</div>
+        <iframe id="livePreview" src="/screen.html?embed" title="Prévia do telão"></iframe>
+        <div id="liveProg" hidden></div>
+      </div>
+      <div class="live-info">
+        <div class="label">TOCANDO</div>
+        <div id="liveTitle" class="live-title">—</div>
+        <div id="livePos" class="muted"></div>
+        <div class="label" style="margin-top:14px">PRÓXIMO</div>
+        <div id="liveNext" class="muted next"></div>
+        <div class="msgbox">
+          <input id="msgIn" placeholder="Recado para o retorno (palco)…" maxlength="140">
+          <button class="btn sm" id="msgSend">Enviar</button>
+        </div>
+        <div class="keys">→ / Espaço próximo · ← voltar · B tela preta · C sem letra</div>
+      </div>
+    </div>
+    <div class="panel-h">
+      <h2 id="selTitle">Selecione um item do culto</h2>
+      <div class="acts"><button class="btn sm" id="addBibleBtn" hidden>+ Adicionar ao culto</button><button class="btn sm" id="editSelBtn" hidden>Editar letra</button></div>
+    </div>
+    <div class="slides" id="slideGrid"></div>
+  </section>
+</main>
+
+<!-- Tela da Bíblia -->
+<main class="bview" id="bibleView" hidden>
+  <aside class="bv-left">
+    <div class="bv-head">
+      <button class="iconbtn" id="bvPrevCh" title="Capítulo anterior">‹</button>
+      <h2 id="bvRef">—</h2>
+      <button class="iconbtn" id="bvNextCh" title="Próximo capítulo">›</button>
+    </div>
+    <div class="bv-vers">
+      <label><span>Principal</span><select class="sel" id="bibleMain"></select></label>
+      <label><span>Tradução</span><select class="sel" id="bibleSecond"></select></label>
+      <label><span>Por slide</span><div class="seg sm" id="bvPer"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button></div></label>
+    </div>
+    <div class="bv-list" id="bvList"></div>
+    <div class="bv-lic" id="bvLic"></div>
+    <div class="bv-live">
+      <iframe src="/screen.html?embed" title="Prévia do telão"></iframe>
+      <div id="bvProg" hidden></div>
+      <div class="bv-ctrl">
+        <button class="btn sm" id="bvPrev" title="Anterior (←)">◀</button>
+        <button class="btn sm primary" id="bvNext" title="Próximo (→)">▶</button>
+        <button class="btn sm" id="bvBlack" title="B">Preta</button>
+        <button class="btn sm" id="bvClear" title="C">Sem texto</button>
+        <button class="btn sm" id="bvAdd" title="Adicionar a leitura ao culto">+ Culto</button>
+      </div>
+    </div>
+  </aside>
+  <section class="bv-main">
+    <div class="bv-top">
+      <div class="bv-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="bvQ" placeholder="Digite a referência (jo 3 16, sl 23, 1co 13:4) ou palavras e aperte Enter" autocomplete="off"></div>
+      <button class="btn" id="bvFavBtn">Favoritos</button>
+      <button class="btn" id="bvHistBtn">Histórico</button>
+      <button class="btn ghost" id="bibleImportBtn" title="Importar outra versão da Bíblia">Versões</button>
+    </div>
+    <div class="bv-pop" id="bvPop" hidden><div class="bv-pop-h"><b id="bvPopTitle"></b><button class="iconbtn" id="bvPopClose">✕</button></div><div class="bv-pop-list" id="bvPopList"></div></div>
+    <div class="bv-books" id="bvBooks"></div>
+    <div class="bv-legend" id="bvLegend"></div>
+    <div class="bv-nums">
+      <div class="bv-numcol"><h3>Capítulos <span id="bvChInfo"></span></h3><div class="numgrid" id="bvChaps"></div></div>
+      <div class="bv-numcol"><h3>Versículos <span id="bvVsInfo"></span></h3><div class="numgrid big" id="bvVerses"></div></div>
+    </div>
+    <div class="bv-hint">Comece a digitar em qualquer lugar para buscar · Enter projeta · ← → passam os versículos · ☆ marca favorito</div>
+  </section>
+</main>
+
+<!-- Editor -->
+<dialog id="editor" class="modal big">
+  <div class="modal-h">
+    <h2 id="edTitle">Novo louvor</h2>
+    <div class="acts">
+      <button class="btn sm" id="edKw" title="Sugere a palavra-chave de cada slide (estilo do vídeo)">Destacar palavras</button>
+      <button class="btn sm" id="edTr" title="Sugere a tradução em inglês das linhas sem tradução (precisa da IA)">Traduzir</button>
+      <button class="btn sm" id="edUndo" title="Desfazer a última sugestão" disabled>↶ Desfazer</button>
+      <select id="edTheme" class="sel" title="Tema padrão deste louvor"></select>
+      <div class="seg sm" id="edModes"><button data-mode="pt">PT</button><button data-mode="pt-en">PT+EN</button><button data-mode="en">EN</button></div>
+      <button class="btn danger sm" id="edDelete">Excluir</button>
+      <button class="btn sm" id="edCancel">Cancelar</button>
+      <button class="btn primary sm" id="edSave">Salvar</button>
+    </div>
+  </div>
+  <div class="ed-body">
+    <div class="ed-left">
+      <textarea id="edSource" spellcheck="false"></textarea>
+      <details class="help" open>
+        <summary>Como escrever</summary>
+        <div class="help-grid">
+          <code>[Verso 1] [Refrão] [Ponte]</code><span>Rótulos das partes. <code>[Refrão]</code> sozinho repete o refrão; <code>[Refrão] 2x</code> repete 2 vezes.</span>
+          <code>| Your grace</code><span>Tradução em inglês da linha de cima.</span>
+          <code>*PALAVRA*</code><span>Palavra-chave gigante.</span>
+          <code>_tudo é_</code><span>Serifada itálica (combina com a palavra-chave).</span>
+          <code>^sem^ ~abaixo~</code><span>Texto pequeno acima / abaixo.</span>
+          <code>---</code><span>Força quebra de slide.</span>
+          <code>Artista: / Tom: / Ordem: V1 R V2 R</code><span>Dados do louvor e ordem das partes.</span>
+        </div>
+      </details>
+    </div>
+    <div class="ed-right">
+      <div class="ed-meta" id="edMeta"></div>
+      <div class="ed-previews" id="edPreviews"></div>
+    </div>
+  </div>
+</dialog>
+
+<!-- Importar -->
+<dialog id="importer" class="modal big">
+  <div class="modal-h">
+    <h2>Importar louvores</h2>
+    <div class="acts"><button class="btn sm" id="imClose">Fechar</button></div>
+  </div>
+  <div class="im-body">
+    <div class="im-step" id="imStep1">
+      <div class="im-cols">
+        <div>
+          <h3>Link da letra</h3>
+          <div class="url-row"><input id="imUrl" class="search" placeholder="Cole o link da página da letra (ex.: site de letras ou cifras)" autocomplete="off"><button class="btn primary" id="imUrlBtn">Buscar</button></div>
+          <h3>Colar letra(s)</h3>
+          <textarea id="imText" placeholder="Cole aqui. Primeira linha = título.&#10;Para vários louvores de uma vez, separe com uma linha ===&#10;&#10;Linhas começando com | são a tradução em inglês da linha de cima."></textarea>
+        </div>
+        <div>
+          <h3>Ou arquivos</h3>
+          <label class="drop" id="drop">
+            <input type="file" id="imFiles" multiple accept=".mufl,.txt,.docx,.xml,.json">
+            <div><b>Arraste arquivos aqui</b><br>ou clique para escolher<br><span class="muted">.mufl (Holyrics) · .txt · .docx (Word) · .xml (OpenLyrics) · .json (backup)</span></div>
+          </label>
+          <div id="imFileList" class="muted small"></div>
+        </div>
+      </div>
+      <div class="im-foot"><button class="btn primary" id="imPreview">Ver prévia</button></div>
+    </div>
+    <div class="im-step" id="imStep2" hidden>
+      <table class="im-table"><thead><tr><th>Ação</th><th>Título</th><th>Artista</th><th>Slides</th><th>EN</th><th>Origem</th></tr></thead><tbody id="imRows"></tbody></table>
+      <div class="im-foot"><button class="btn" id="imBack">Voltar</button><span id="imSummary" class="muted"></span><button class="btn primary" id="imCommit">Importar</button></div>
+    </div>
+  </div>
+</dialog>
+
+<!-- Temas -->
+<dialog id="themes" class="modal big">
+  <div class="modal-h"><h2>Escolha o tema do telão</h2><div class="acts"><button class="btn sm" id="mediaBtn">Mídia (fundos e logos)</button><button class="btn sm primary" id="newThemeBtn">+ Criar tema</button><button class="btn sm" id="thClose">Fechar</button></div></div>
+  <div class="theme-grid" id="themeGrid"></div>
+</dialog>
+
+<!-- Editor de tema -->
+<dialog id="themeEd" class="modal big">
+  <div class="modal-h">
+    <input id="teName" class="title-in" maxlength="40" aria-label="Nome do tema">
+    <div class="acts">
+      <button class="btn danger sm" id="teDelete">Excluir</button>
+      <button class="btn sm" id="teCancel">Cancelar</button>
+      <button class="btn sm" id="teApply">Salvar e usar</button>
+      <button class="btn primary sm" id="teSave">Salvar</button>
+    </div>
+  </div>
+  <div class="te-body">
+    <form class="te-form" id="teForm" onsubmit="return false">
+      <fieldset><legend>Fundo</legend>
+        <div class="seg wrap" id="teBgType"><button type="button" data-v="anim">Animado</button><button type="button" data-v="color">Cor</button><button type="button" data-v="gradient">Degradê</button><button type="button" data-v="image">Imagem</button><button type="button" data-v="video">Vídeo</button></div>
+        <div class="row" data-show="anim"><label>Animação <select class="sel" data-k="bg.anim" id="teAnim"></select></label></div>
+        <div class="row" data-show="color gradient"><label>Cor <input type="color" data-k="bg.color"></label><label data-show="gradient">Cor 2 <input type="color" data-k="bg.color2"></label><label data-show="gradient">Ângulo <input type="range" min="0" max="360" step="5" data-k="bg.angle"></label></div>
+        <div class="row" data-show="image video"><label class="grow">Arquivo <select class="sel" data-k="bg.media" id="teMedia"></select></label><label class="btn sm upl">Enviar…<input type="file" id="teUpload" accept="image/*,video/mp4,video/webm,video/quicktime" hidden></label></div>
+        <div class="row"><label class="grow">Escurecer <input type="range" min="0" max="85" data-k="bg.dim"><output data-o="bg.dim"></output></label><label class="grow" data-show="image video">Desfoque <input type="range" min="0" max="30" data-k="bg.blur"><output data-o="bg.blur"></output></label></div>
+      </fieldset>
+      <fieldset><legend>Texto</legend>
+        <div class="row"><label>Cor do texto <input type="color" data-k="text.fg"></label><label>Cor da tradução <input type="color" data-k="text.sub"></label></div>
+        <div class="row"><label class="grow">Palavra-chave <select class="sel" data-k="text.kwFont" id="teKw"></select></label><label class="grow">Texto <select class="sel" data-k="text.bodyFont" id="teBody"></select></label></div>
+        <div class="row"><label class="grow">Itálico <select class="sel" data-k="text.serifFont" id="teSerif"></select></label><label class="grow">Tamanho <input type="range" min="60" max="130" step="5" data-k="text.size"><output data-o="text.size"></output></label></div>
+        <div class="row"><label class="chk"><input type="checkbox" data-k="text.upper"> Palavra-chave em MAIÚSCULAS</label><label class="chk"><input type="checkbox" data-k="text.glow"> Brilho e sombra</label></div>
+      </fieldset>
+      <fieldset><legend>Logo e transição</legend>
+        <div class="row"><label class="grow">Logo <select class="sel" data-k="logo.media" id="teLogo"></select></label><label>Posição <select class="sel" data-k="logo.pos"><option value="br">Baixo direita</option><option value="bl">Baixo esquerda</option><option value="tr">Cima direita</option><option value="tl">Cima esquerda</option></select></label></div>
+        <div class="row"><label class="grow">Tamanho do logo <input type="range" min="4" max="20" data-k="logo.size"></label><label>Transição <select class="sel" data-k="transition"><option value="blur">Desfoque (do vídeo)</option><option value="fade">Esmaecer</option><option value="none">Corte seco</option></select></label></div>
+      </fieldset>
+    </form>
+    <div class="te-preview">
+      <div class="seg" id="teSample"><button type="button" data-v="0" class="on">Louvor estilizado</button><button type="button" data-v="1">PT + EN</button><button type="button" data-v="2">Versículo</button></div>
+      <div class="te-stage" id="teStage"></div>
+      <p class="muted small">A prévia mostra o tema como vai aparecer no telão. Vídeos de fundo rodam em loop e sem som.</p>
+    </div>
+  </div>
+</dialog>
+
+<!-- Mídia -->
+<dialog id="mediaLib" class="modal big">
+  <div class="modal-h"><h2>Mídia: fundos e logos</h2><div class="acts"><label class="btn sm primary upl">Enviar arquivos…<input type="file" id="mlUpload" multiple accept="image/*,video/mp4,video/webm,video/quicktime" hidden></label><button class="btn sm" id="mlClose">Fechar</button></div></div>
+  <div class="ml-grid" id="mlGrid"></div>
+  <p class="muted small" style="padding:0 16px 14px">Imagens (jpg, png, webp) e vídeos (mp4, webm, mov). Use vídeos curtos em loop, sem som, em 1920×1080. Arraste arquivos para esta janela.</p>
+</dialog>
+
+<!-- Importar versão da Bíblia -->
+<dialog id="bibleImp" class="modal">
+  <div class="modal-h"><h2>Importar versão da Bíblia</h2><div class="acts"><button class="btn sm" id="biCancel">Cancelar</button><button class="btn primary sm" id="biSave">Importar</button></div></div>
+  <div class="bi-body">
+    <label>Arquivo (.json) <input type="file" id="biFile" accept=".json,.gz"></label>
+    <label>Sigla <input id="biCode" class="search" placeholder="Ex.: ARC" maxlength="16"></label>
+    <label>Nome <input id="biName" class="search" placeholder="Ex.: Almeida Revista e Corrigida"></label>
+    <label>Idioma <select id="biLang" class="sel"><option value="pt">Português</option><option value="en">Inglês</option><option value="es">Espanhol</option></select></label>
+    <p class="muted small">Aceita JSON no formato do projeto <i>thiagobodruk/biblia</i>, do <i>scrollmapper/bible_databases</i> ou o deste sistema. Importe só versões que a igreja tem direito de projetar (NVI, NAA e ARA têm direitos autorais).</p>
+    <div id="biVersions"></div>
+  </div>
+</dialog>
+
+<!-- Celular -->
+<dialog id="phone" class="modal">
+  <div class="modal-h"><h2>Controle pelo celular</h2><div class="acts"><button class="btn sm" id="phClose">Fechar</button></div></div>
+  <div class="phone-body">
+    <img id="qr" alt="QR code do controle">
+    <p>Conecte o celular no <b>mesmo Wi-Fi</b> deste computador e leia o QR code, ou abra:</p>
+    <div id="phUrls"></div>
+    <p class="muted small">Retorno do palco: mesmo endereço com <code>/stage.html</code> (TV ou tablet).</p>
+  </div>
+</dialog>
+
+<!-- Aviso -->
+<dialog id="textItem" class="modal">
+  <div class="modal-h"><h2>Aviso / texto livre</h2><div class="acts"><button class="btn sm" id="txCancel">Cancelar</button><button class="btn primary sm" id="txSave">Salvar</button></div></div>
+  <div class="tx-body">
+    <input id="txTitle" class="search" placeholder="Nome (ex.: Avisos, Boas-vindas)">
+    <textarea id="txText" placeholder="Uma linha em branco separa os slides.&#10;Aceita *PALAVRA*, _serifa_, ^acima^, ~abaixo~"></textarea>
+  </div>
+</dialog>
+
+<!-- Configurações -->
+<dialog id="settings" class="modal">
+  <div class="modal-h"><h2>Configurações</h2><div class="acts"><button class="btn sm" id="stClose">Fechar</button><button class="btn primary sm" id="stSave">Salvar</button></div></div>
+  <div class="bi-body">
+    <h3 class="st-h">Inteligência artificial (opcional)</h3>
+    <p class="muted small">Usada para <b>traduzir</b> letras para o inglês e para sugerir a <b>palavra-chave</b> com mais precisão. Sem a chave, o "Destacar palavras" usa a sugestão automática do próprio sistema, sem internet.</p>
+    <label>Chave da API da Anthropic (Claude) <input id="stKey" class="search" type="password" placeholder="sk-ant-..." autocomplete="off"></label>
+    <p class="muted small" id="stKeyInfo"></p>
+    <label>Modelo <input id="stModel" class="search" placeholder="claude-haiku-5-5"></label>
+    <p class="muted small">Crie a chave em console.anthropic.com. O uso é cobrado pela Anthropic por quantidade de texto: traduzir um louvor custa poucos centavos. A chave fica salva só neste computador.</p>
+    <div><button class="btn sm" id="stTest">Testar conexão</button> <span id="stTestRes" class="small"></span></div>
+    <h3 class="st-h" style="margin-top:14px">Atualizações</h3>
+    <p class="muted small">O sistema busca a versão nova no GitHub, instala e reabre sozinho. Seus louvores, temas e configurações ficam onde estão.</p>
+    <label>Repositório no GitHub <input id="upRepo" class="search" placeholder="usuario/repositorio"></label>
+    <label>Token (só se o repositório for privado) <input id="upToken" class="search" type="password" placeholder="deixe em branco se for público" autocomplete="off"></label>
+    <p class="muted small" id="upInfo"></p>
+    <div class="up-row"><button class="btn sm" id="upCheck">Procurar atualização</button><button class="btn primary sm" id="upApply" hidden>Atualizar agora</button></div>
+  </div>
+</dialog>
+
+<div id="updOverlay" class="upd-overlay" hidden><div><div class="spin"></div><b>Atualizando o sistema…</b><p class="muted small">Não feche a janela preta. Esta tela volta sozinha em alguns segundos.</p></div></div>
+<div id="toast"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script type="module" src="/operator/app.js"></script>
+</body>
+</html>

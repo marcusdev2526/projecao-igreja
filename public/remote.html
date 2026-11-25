@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1116">
+<title>Controle — Projeção Igreja</title>
+<style>
+  @import url('/fonts/inter/400.css'); @import url('/fonts/inter/600.css'); @import url('/fonts/inter/700.css');
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; background: #0e1116; color: #e8eaed; font-family: Inter, system-ui, sans-serif; padding-bottom: 150px; }
+  header { position: sticky; top: 0; background: #0e1116ee; backdrop-filter: blur(8px); padding: 12px 14px 8px; z-index: 2; border-bottom: 1px solid #222; }
+  h1 { font-size: 17px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sub { color: #8a919a; font-size: 13px; margin-top: 2px; }
+  .tabs { display: flex; gap: 6px; margin-top: 10px; }
+  .tabs button, .modes button { flex: 1; background: #1b2028; color: #cfd3d8; border: 0; border-radius: 9px; padding: 9px 4px; font: 600 13px Inter, sans-serif; }
+  .tabs button.on, .modes button.on { background: #ff5a36; color: #fff; }
+  .list { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .slide, .item { background: #171b22; border: 2px solid transparent; border-radius: 12px; padding: 12px 14px; text-align: left; color: inherit; font: inherit; width: 100%; }
+  .slide.on, .item.on { border-color: #ff5a36; background: #241a18; }
+  .slide .n { font-size: 11px; font-weight: 700; color: #ff8a6e; letter-spacing: .06em; text-transform: uppercase; }
+  .slide .t { font-size: 15px; margin-top: 4px; line-height: 1.35; }
+  .item .t { font-weight: 600; } .item .a { font-size: 12px; color: #8a919a; margin-top: 2px; }
+  .modes { display: flex; gap: 6px; padding: 0 12px; }
+  footer { position: fixed; left: 0; right: 0; bottom: 0; background: #0e1116; border-top: 1px solid #222; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+  footer button { border: 0; border-radius: 12px; font: 700 15px Inter, sans-serif; padding: 16px 4px; background: #1b2028; color: #e8eaed; }
+  footer .big { grid-column: span 2; background: #ff5a36; color: #fff; font-size: 20px; padding: 22px 4px; }
+  footer .prev { grid-column: span 2; font-size: 20px; padding: 22px 4px; }
+  footer .on { background: #e33; color: #fff; }
+  .msg { display: flex; gap: 6px; padding: 4px 12px 10px; }
+  .msg input { flex: 1; background: #171b22; border: 1px solid #2a2f37; border-radius: 9px; color: #fff; padding: 10px; font: 14px Inter, sans-serif; }
+  .msg button { background: #2b3340; color: #fff; border: 0; border-radius: 9px; padding: 0 14px; font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Conectando…</h1>
+  <div class="sub" id="sub"></div>
+  <div id="prog" hidden></div>
+  <div class="tabs"><button data-tab="slides" class="on">Slides</button><button data-tab="culto">Culto</button><button data-tab="mais">Mais</button></div>
+</header>
+<div id="slides" class="list"></div>
+<div id="culto" class="list" hidden></div>
+<div id="mais" hidden>
+  <div class="list"><div class="sub">Idioma no telão</div></div>
+  <div class="modes" id="modes">
+    <button data-mode="pt">PT</button><button data-mode="pt-en">PT + EN</button><button data-mode="en">EN</button><button data-mode="en-pt">EN + PT</button>
+  </div>
+  <div class="list"><div class="sub">Recado para o retorno (só aparece no palco)</div></div>
+  <div class="msg"><input id="msgIn" placeholder="Ex.: mais uma vez o refrão" maxlength="140"><button id="msgSend">Enviar</button><button id="msgClear">Limpar</button></div>
+</div>
+<footer>
+  <button class="prev" id="prev">◀ Voltar</button>
+  <button class="big" id="next">Próximo ▶</button>
+  <button id="black">Tela preta</button>
+  <button id="clear">Sem letra</button>
+  <button id="first">Início</button>
+  <button id="last">Fim</button>
+</footer>
+<script src="/socket.io/socket.io.js"></script>
+<script type="module">
+  import { stripMarkup } from '/shared/render.js';
+  import { renderProgress, PROGRESS_CSS } from '/shared/progress.js';
+  document.head.insertAdjacentHTML('beforeend', `<style>${PROGRESS_CSS}.prog-meta{display:none}</style>`);
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const socket = io();
+  const cmd = (c) => { socket.emit('cmd', c); navigator.vibrate?.(15); };
+  let state = null;
+  let serviceId = null;
+
+  document.querySelectorAll('.tabs button').forEach((b) => (b.onclick = () => {
+    document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));
+    ['slides', 'culto', 'mais'].forEach((t) => ($(t).hidden = t !== b.dataset.tab));
+    if (b.dataset.tab === 'culto') loadService();
+  }));
+  $('next').onclick = () => cmd({ type: 'next' });
+  $('prev').onclick = () => cmd({ type: 'prev' });
+  $('black').onclick = () => cmd({ type: 'black' });
+  $('clear').onclick = () => cmd({ type: 'clear' });
+  $('first').onclick = () => cmd({ type: 'goto', index: 0 });
+  $('last').onclick = () => state && cmd({ type: 'goto', index: state.total - 1 });
+  $('modes').onclick = (e) => e.target.dataset.mode && cmd({ type: 'mode', value: e.target.dataset.mode });
+  $('msgSend').onclick = () => cmd({ type: 'message', value: $('msgIn').value });
+  $('msgClear').onclick = () => { $('msgIn').value = ''; cmd({ type: 'message', value: '' }); };
+
+  async function loadService() {
+    serviceId = state?.serviceId;
+    if (!serviceId) {
+      const list = await (await fetch('/api/services')).json();
+      serviceId = list[0]?.id;
+    }
+    if (!serviceId) return ($('culto').innerHTML = '<div class="sub">Nenhum culto montado</div>');
+    const svc = await (await fetch('/api/services/' + serviceId)).json();
+    $('culto').innerHTML = `<div class="sub">${esc(svc.title)}</div>` + svc.items
+      .map((it) => `<button class="item ${state?.itemId === it.id ? 'on' : ''}" data-id="${it.id}"><div class="t">${esc(it.kind === 'song' ? it.song_title : it.title || 'Aviso')}</div><div class="a">${esc(it.kind === 'song' ? it.song_artist || '' : 'Aviso')}</div></button>`)
+      .join('');
+    $('culto').querySelectorAll('.item').forEach((b) => (b.onclick = () => {
+      if (!state?.serviceId) cmd({ type: 'service', id: serviceId });
+      cmd({ type: 'item', id: +b.dataset.id });
+      document.querySelector('[data-tab=slides]').click();
+    }));
+  }
+
+  socket.on('state', (s) => {
+    const changedSong = !state || state.itemId !== s.itemId || state.songId !== s.songId || state.total !== s.total;
+    state = s;
+    $('title').textContent = s.title || 'Nada selecionado';
+    renderProgress($('prog'), { slides: s.slides, index: s.index, onPick: (i) => cmd({ type: 'goto', index: i }) });
+    $('sub').textContent = s.total ? `Slide ${s.index + 1} de ${s.total}` : 'Escolha um louvor na aba Culto';
+    $('black').classList.toggle('on', s.black);
+    $('clear').classList.toggle('on', s.clear);
+    document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === s.mode));
+    if (changedSong) {
+      $('slides').innerHTML = s.slides
+        .map((sl) => `<button class="slide" data-i="${sl.index}"><div class="n">${esc(sl.name)}${sl.parts > 1 ? ` · ${sl.part}/${sl.parts}` : ''}</div><div class="t">${esc(stripMarkup(sl.preview))}</div></button>`)
+        .join('');
+      $('slides').querySelectorAll('.slide').forEach((b) => (b.onclick = () => cmd({ type: 'goto', index: +b.dataset.i })));
+    }
+    $('slides').querySelectorAll('.slide').forEach((b) => b.classList.toggle('on', +b.dataset.i === s.index));
+    const on = $('slides').querySelector('.slide.on');
+    if (on && changedSong) on.scrollIntoView({ block: 'center' });
+  });
+  // depois de uma atualização do sistema, recarrega para pegar a versão nova
+  { const s2 = io(); s2.on('updating', () => setTimeout(function w() { fetch('/api/info', { cache: 'no-store' }).then(() => location.reload(), () => setTimeout(w, 1500)); }, 3000)); }
+</script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retorno — Projeção Igreja</title>
+<style>
+  @import url('/fonts/inter/400.css'); @import url('/fonts/inter/700.css'); @import url('/fonts/inter/400-italic.css');
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; color: #fff; font-family: Inter, system-ui, sans-serif; }
+  body { display: grid; grid-template-rows: auto auto 1fr auto auto; height: 100vh; }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 1.2vh 2vw; background: #111; font-size: 2.6vh; }
+  #title { font-weight: 700; } #pos { color: #9aa; margin-left: 1vw; }
+  #clock { font-size: 4.2vh; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #cur { display: flex; flex-direction: column; justify-content: center; padding: 2vh 4vw; gap: 1.6vh; }
+  .line { font-size: 6.6vh; font-weight: 700; line-height: 1.15; }
+  .en { font-size: 4.2vh; font-style: italic; color: #8fd0ff; font-weight: 400; margin-top: .3vh; }
+  .chords { font-size: 3vh; color: #ffd166; font-family: ui-monospace, monospace; white-space: pre; }
+  .tag { display: inline-block; font-size: 2.2vh; background: #2a2a2a; color: #ccc; border-radius: 6px; padding: .3vh .8vw; font-weight: 700; letter-spacing: .05em; }
+  #next { border-top: 2px solid #333; padding: 1.6vh 4vw; background: #0b0b0b; }
+  #next .label { color: #888; font-size: 2.2vh; text-transform: uppercase; letter-spacing: .1em; }
+  #next .txt { font-size: 3.8vh; color: #bbb; margin-top: .5vh; }
+  #msg { display: none; background: #ffcc00; color: #000; font-size: 4.6vh; font-weight: 700; padding: 1.6vh 4vw; text-align: center; }
+  #msg.on { display: block; animation: pulse 1.4s ease-in-out 3; }
+  @keyframes pulse { 50% { background: #fff3a0; } }
+  .blk { color: #f55; font-weight: 700; }
+</style>
+</head>
+<body>
+<header style="position:relative"><div><span id="title">—</span><span id="pos"></span> <span id="flags"></span></div><div id="clock"></div></header>
+<div id="prog" style="padding:0 2vw" hidden></div>
+<main id="cur"></main>
+<div id="msg"></div>
+<section id="next"><div class="label">Próximo</div><div class="txt" id="nexttxt">—</div></section>
+<script src="/socket.io/socket.io.js"></script>
+<script type="module">
+  import { stripMarkup } from '/shared/render.js';
+  import { renderProgress, PROGRESS_CSS } from '/shared/progress.js';
+  document.head.insertAdjacentHTML('beforeend', `<style>${PROGRESS_CSS}.prog-meta{display:none}.seg-i i{height:1vh}.seg-i .lb{font-size:1.5vh;top:-2vh}</style>`);
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const showChords = !new URLSearchParams(location.search).has('semcifra');
+  io().on('state', (s) => {
+    renderProgress($('prog'), { slides: s.slides, index: s.index });
+    $('title').textContent = s.title || '—';
+    $('pos').textContent = s.total ? `${s.index + 1}/${s.total}` : '';
+    $('flags').innerHTML = (s.black ? '<span class="blk">● TELA PRETA</span>' : '') + (s.clear ? ' <span class="blk">● SEM LETRA</span>' : '');
+    const sl = s.slide;
+    $('cur').innerHTML = sl
+      ? `<div><span class="tag">${esc(sl.name)}${sl.parts > 1 ? ` ${sl.part}/${sl.parts}` : ''}</span></div>` +
+        sl.lines.map((l) => `${showChords && l.chords ? `<div class="chords">${esc(l.chords)}</div>` : ''}<div class="line">${esc(stripMarkup(l.pt))}${l.en ? `<div class="en">${esc(l.en)}</div>` : ''}</div>`).join('')
+      : '<div class="line" style="color:#555">Nada no telão</div>';
+    $('nexttxt').textContent = s.next ? `${s.next.name}: ${s.next.lines.map((l) => stripMarkup(l.pt)).join(' / ')}` : 'Fim do louvor';
+    $('msg').textContent = s.message;
+    $('msg').classList.toggle('on', !!s.message);
+  });
+  const tick = () => ($('clock').textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+  tick(); setInterval(tick, 5000);
+  // depois de uma atualização do sistema, recarrega para pegar a versão nova
+  { const s2 = io(); s2.on('updating', () => setTimeout(function w() { fetch('/api/info', { cache: 'no-store' }).then(() => location.reload(), () => setTimeout(w, 1500)); }, 3000)); }
+</script>
+</body>
+</html>
