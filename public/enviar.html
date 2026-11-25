@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Enviar para o telão</title>
+<link rel="stylesheet" href="/fonts/inter/400.css">
+<link rel="stylesheet" href="/fonts/inter/600.css">
+<link rel="stylesheet" href="/fonts/inter/700.css">
+<style>
+  :root { --bg: #0e1014; --card: #171b21; --line: #262b34; --text: #eef1f4; --muted: #8f98a5; --accent: #ff6a3d; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 Inter, system-ui, sans-serif; min-height: 100vh; display: flex; justify-content: center; }
+  main { width: 100%; max-width: 460px; padding: 28px 20px 40px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; color: var(--muted); }
+  .brand i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  h1 { font-size: 26px; line-height: 1.2; margin: 22px 0 6px; }
+  .sub { color: var(--muted); margin: 0 0 26px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+  input[type=text] { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 12px; color: var(--text); font: inherit; padding: 14px; outline: none; }
+  input[type=text]:focus { border-color: var(--accent); }
+  .pick { margin-top: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 2px dashed #3a414d; border-radius: 16px; padding: 30px 16px; text-align: center; cursor: pointer; background: var(--card); }
+  .pick b { font-size: 17px; }
+  .pick span { color: var(--muted); font-size: 13px; }
+  .pick svg { width: 34px; height: 34px; fill: none; stroke: var(--accent); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .files { margin: 16px 0 0; display: flex; flex-direction: column; gap: 8px; }
+  .f { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+  .f span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .f .ok { color: #59d499; } .f .err { color: #ff8b8b; }
+  button.go { margin-top: 18px; width: 100%; border: 0; border-radius: 14px; background: var(--accent); color: #fff; font: 700 17px Inter, system-ui, sans-serif; padding: 16px; cursor: pointer; }
+  button.go:disabled { opacity: .5; }
+  .bar { height: 6px; background: var(--line); border-radius: 3px; margin-top: 14px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .msg { color: var(--muted); font-size: 14px; margin-top: 8px; min-height: 21px; }
+  .done { text-align: center; padding: 40px 0 0; }
+  .done svg { width: 64px; height: 64px; fill: none; stroke: #59d499; stroke-width: 2; }
+  .done h2 { margin: 10px 0 4px; }
+  .done p { color: var(--muted); margin: 0 0 20px; }
+  .link { color: var(--accent); background: none; border: 0; font: 600 15px Inter, system-ui, sans-serif; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><i></i>Projeção</div>
+  <div id="form">
+    <h1>Enviar para o telão</h1>
+    <p class="sub" id="culto">Seu arquivo entra direto no culto.</p>
+    <label for="who">Seu nome</label>
+    <input type="text" id="who" placeholder="Pr. João" autocomplete="name">
+    <div class="pick" id="pick">
+      <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+      <b>Escolher arquivo</b>
+      <span>PowerPoint, PDF, vídeo, imagem ou música</span>
+    </div>
+    <input type="file" id="file" multiple hidden accept=".pptx,.ppt,.ppsx,.pps,.pdf,video/*,image/*,audio/*">
+    <div class="files" id="files"></div>
+    <button class="go" id="go" disabled>Enviar</button>
+    <div class="bar"><i id="bar"></i></div>
+    <div class="msg" id="msg"></div>
+  </div>
+  <div class="done" id="done" hidden>
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m7 12 3.5 3.5L17 9"/></svg>
+    <h2>Recebido!</h2>
+    <p id="doneTxt">Já está no culto. O operador vai projetar na hora certa.</p>
+    <button class="link" id="again">Enviar outro arquivo</button>
+  </div>
+</main>
+<script type="module">
+  import { sendFiles } from '/shared/uploader.js';
+  const $ = (id) => document.getElementById(id);
+  const sid = new URLSearchParams(location.search).get('s') || '';
+  let files = [];
+  try { $('who').value = localStorage.getItem('who') || ''; } catch {}
+  if (sid) fetch('/api/services/' + sid).then((r) => r.json()).then((s) => { if (s?.title) $('culto').textContent = 'Vai direto para: ' + s.title; }).catch(() => {});
+  $('pick').onclick = () => $('file').click();
+  $('file').onchange = () => {
+    files = [...$('file').files];
+    $('files').innerHTML = files.map((f) => `<div class="f"><span>${f.name.replace(/</g, '&lt;')}</span><span>${(f.size / 1048576).toFixed(1)} MB</span></div>`).join('');
+    $('go').disabled = !files.length;
+  };
+  $('go').onclick = async () => {
+    const who = $('who').value.trim();
+    try { localStorage.setItem('who', who); } catch {}
+    $('go').disabled = true;
+    const res = await sendFiles(files, { serviceId: sid, author: who, status: (t, p) => { $('msg').textContent = t; $('bar').style.width = Math.round((p || 0) * 100) + '%'; } });
+    const bad = res.filter((r) => !r.ok);
+    if (!bad.length) {
+      $('form').hidden = true;
+      $('done').hidden = false;
+      $('bar').style.width = '0';
+    } else {
+      $('msg').textContent = 'Erro em ' + bad[0].name + ': ' + bad[0].error;
+      $('go').disabled = false;
+    }
+  };
+  $('again').onclick = () => { files = []; $('files').innerHTML = ''; $('file').value = ''; $('msg').textContent = ''; $('go').disabled = true; $('done').hidden = true; $('form').hidden = false; };
+</script>
+</body>
+</html>

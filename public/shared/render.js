@@ -55,6 +55,12 @@ function lineHTML(line, asIs = false) {
 export function slideHTML(slide, mode = 'pt') {
   if (!slide) return '';
   if (slide.kind === 'bible') return bibleHTML(slide, mode);
+  if (slide.kind === 'media') {
+    const u = esc(slide.url || '');
+    if (slide.mtype === 'video') return `<div class="media-full"><video src="${u}" playsinline preload="auto"></video></div>`;
+    if (slide.mtype === 'image') return `<div class="media-full${slide.fit === 'contain' ? ' contain' : ''}"><img src="${u}" alt=""></div>`;
+    return ''; // áudio: só o fundo do tema
+  }
   if (slide.kind === 'text') {
     return `<div class="slide-content mode-pt"><div class="primary">${(slide.text || '').split('\n').map((l) => lineHTML(l, true)).join('')}</div></div>`;
   }

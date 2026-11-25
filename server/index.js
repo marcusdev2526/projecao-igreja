@@ -13,6 +13,7 @@ import { parseSong, buildSlides, slideMaxLines } from '../public/shared/parser.j
 import { DEMO_SONGS } from './seed.js';
 import fs from 'node:fs';
 import { parseBibleJson, seedBibles } from './bibleimport.js';
+import { makeDecks, convertPresentation } from './decks.js';
 import { translateLines, keywordChunks, askClaude, alignOfficial, DEFAULT_MODEL } from './ai.js';
 import { lyricLines, missingTranslations, insertTranslations, setEnStatus, englishLines } from '../public/shared/enhance.js';
 import { fetchLyrics } from './urlimport.js';
@@ -43,6 +44,11 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   app.use(express.json({ limit: '20mb' }));
   app.use(express.static(path.join(ROOT, 'public')));
   app.use('/media', express.static(mediaDir, { maxAge: '1h' }));
+  const decks = makeDecks(path.join(dataDir, 'decks'));
+  const tmpDir = path.join(dataDir, 'tmp');
+  fs.mkdirSync(tmpDir, { recursive: true });
+  app.use('/decks', express.static(decks.dir, { maxAge: '1h' }));
+  app.use('/vendor/pdfjs', express.static(path.join(ROOT, 'node_modules/pdfjs-dist/build')));
   for (const f of ['unbounded', 'instrument-serif', 'inter', 'anton', 'montserrat', 'playfair-display'])
     app.use('/fonts/' + f, express.static(path.join(ROOT, 'node_modules/@fontsource', f)));
 
@@ -67,7 +73,33 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     bibleSecond: repo.getSetting('bible_second', 'KJV'),
     bible: null, // { book, chapter }
     biblePer: Math.min(3, Math.max(1, +repo.getSetting('bible_per', '1') || 1)),
+    player: null, // { url, type: 'video'|'audio', name, status: 'playing'|'paused'|'stopped', seq, after, itemId, volume, seek }
+    deck: null, // { id, auto, loop }
   };
+  let deckTimer = null;
+  const jsonOf = (t) => { try { return JSON.parse(t || '{}'); } catch { return {}; } };
+  function setPlayer(p) {
+    live.player = p ? { volume: live.player?.volume ?? 1, ...p, seq: (live.player?.seq || 0) + 1 } : live.player && { ...live.player, status: 'stopped', seq: live.player.seq + 1 };
+  }
+  function stopDeckTimer() { clearInterval(deckTimer); deckTimer = null; }
+  function startDeckTimer() {
+    stopDeckTimer();
+    if (!live.deck?.auto) return;
+    deckTimer = setInterval(() => {
+      if (live.kind !== 'deck') return stopDeckTimer();
+      if (live.index < live.slides.length - 1) live.index++;
+      else if (live.deck.loop) live.index = 0;
+      else return stopDeckTimer();
+      live.clear = false;
+      broadcast();
+    }, live.deck.auto * 1000);
+  }
+  // Ao trocar de item: para vídeo/áudio de outro item e o carrossel automático
+  function leaveItem(newItemId) {
+    stopDeckTimer();
+    live.deck = null;
+    if (live.player && live.player.status !== 'stopped' && live.player.itemId !== newItemId) setPlayer(null);
+  }
   const readJson = (k) => { try { return JSON.parse(repo.getSetting(k, '[]')); } catch { return []; } };
   const bibleHistory = readJson('bible_history');
   function pushHistory(book, chapter, verse) {
@@ -131,7 +163,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       .map((text, index) => ({ index, kind: 'text', name: payload.title || 'Aviso', code: 'A', text, lines: text.split('\n').map((pt) => ({ pt, en: '' })) }));
   }
 
-  const preview = (s) => (s ? s.lines.map((l) => l.pt).join(' / ') : '');
+  const preview = (s) => (s ? (s.lines || []).map((l) => l.pt).join(' / ') || s.name || '' : '');
   function publicState() {
     const slide = live.slides[live.index] || null;
     return {
@@ -157,6 +189,8 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       bibleSecond: live.bibleSecond,
       bible: live.bible,
       biblePer: live.biblePer,
+      player: live.player,
+      deck: live.deck,
     };
   }
   const broadcast = () => io.emit('state', publicState());
@@ -189,7 +223,36 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
         const svc = live.serviceId && repo.getService(live.serviceId);
         const item = svc?.items.find((i) => i.id === c.id) || db.prepare('SELECT * FROM service_item WHERE id = ?').get(c.id);
         if (!item) return;
-        if (item.kind === 'song') loadSong(item.song_id, { itemId: item.id, index: c.index || 0 });
+        leaveItem(item.id);
+        if (item.kind === 'song') {
+          loadSong(item.song_id, { itemId: item.id, index: c.index || 0 });
+          const audio = jsonOf(item.text).audio;
+          if (audio && live.player?.itemId !== item.id) setPlayer({ url: audio, type: 'audio', name: 'Playback', status: 'stopped', after: 'stop', itemId: item.id });
+        } else if (item.kind === 'media') {
+          const m = jsonOf(item.text);
+          live.kind = 'media';
+          live.songId = null;
+          live.itemId = item.id;
+          live.title = item.title || m.name || 'Mídia';
+          live.slides = [{ index: 0, kind: 'media', mtype: m.type, url: m.url, name: live.title, code: 'M', lines: [] }];
+          live.index = 0;
+          live.clear = false;
+          if (m.type === 'video' || m.type === 'audio') {
+            if (live.player?.itemId !== item.id || live.player.status === 'stopped') setPlayer({ url: m.url, type: m.type, name: live.title, status: 'playing', after: m.after || 'tema', itemId: item.id, seek: 0 });
+          }
+        } else if (item.kind === 'deck') {
+          const d = decks.get(jsonOf(item.text).deck);
+          if (!d) return;
+          live.kind = 'deck';
+          live.songId = null;
+          live.itemId = item.id;
+          live.title = item.title || d.title;
+          live.slides = d.urls.map((url, i) => ({ index: i, kind: 'media', mtype: 'image', fit: 'contain', url, name: `Slide ${i + 1}`, code: 'S', lines: [] }));
+          live.index = Math.min(c.index || 0, live.slides.length - 1);
+          live.clear = false;
+          live.deck = { id: d.id, auto: d.auto, loop: d.loop };
+          startDeckTimer();
+        }
         else if (item.kind === 'bible') {
           const r = JSON.parse(item.text || '{}');
           if (!loadBible(r.book, r.chapter, r.verse)) return;
@@ -207,9 +270,56 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
         break;
       }
       case 'song':
+        leaveItem(null);
         loadSong(c.id, { index: c.index || 0 });
         break;
+      case 'media': {
+        // mídia mostrada direto da biblioteca (sem estar no culto)
+        leaveItem(null);
+        live.kind = 'media';
+        live.songId = null;
+        live.itemId = null;
+        live.title = c.name || 'Mídia';
+        live.slides = [{ index: 0, kind: 'media', mtype: c.mtype, url: c.url, name: live.title, code: 'M', lines: [] }];
+        live.index = 0;
+        live.clear = false;
+        if (c.mtype === 'video' || c.mtype === 'audio') setPlayer({ url: c.url, type: c.mtype, name: live.title, status: 'playing', after: 'tema', itemId: null, seek: 0 });
+        break;
+      }
+      case 'deck': {
+        const d = decks.get(c.id);
+        if (!d) return;
+        leaveItem(null);
+        live.kind = 'deck';
+        live.songId = null;
+        live.itemId = null;
+        live.title = d.title;
+        live.slides = d.urls.map((url, i) => ({ index: i, kind: 'media', mtype: 'image', fit: 'contain', url, name: `Slide ${i + 1}`, code: 'S', lines: [] }));
+        live.index = 0;
+        live.clear = false;
+        live.deck = { id: d.id, auto: d.auto, loop: d.loop };
+        startDeckTimer();
+        break;
+      }
+      case 'player': {
+        const p = live.player;
+        if (!p) return;
+        const a = c.action;
+        if (a === 'toggle') p.status = p.status === 'playing' ? 'paused' : 'playing';
+        else if (a === 'play') p.status = 'playing';
+        else if (a === 'pause') p.status = 'paused';
+        else if (a === 'stop') { p.status = 'stopped'; p.seek = 0; }
+        else if (a === 'restart') { p.status = 'playing'; p.seek = 0; }
+        else if (a === 'seek') p.seek = Math.max(0, +c.value || 0);
+        else if (a === 'volume') p.volume = Math.min(1, Math.max(0, +c.value));
+        else if (a === 'after') { if (['tema', 'next', 'loop', 'stop'].includes(c.value)) p.after = c.value; }
+        else return;
+        if (a !== 'seek' && a !== 'stop' && a !== 'restart') delete p.seek;
+        p.seq++;
+        break;
+      }
       case 'bible':
+        leaveItem(null);
         if (!loadBible(+c.book, +c.chapter, +c.verse || 1)) return;
         live.itemId = null;
         break;
@@ -243,6 +353,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       case 'goto':
         if (c.index >= 0 && c.index < live.slides.length) live.index = c.index;
         live.clear = false;
+        if (deckTimer) startDeckTimer();
         break;
       case 'next':
         if (live.index < live.slides.length - 1) live.index++;
@@ -361,6 +472,19 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   io.on('connection', (socket) => {
     socket.emit('state', publicState());
     socket.emit('en-queue', [...enQueue]);
+    // O telão avisa o tempo do vídeo/áudio e quando terminou
+    socket.on('player-time', (t) => socket.broadcast.volatile.emit('player-time', t));
+    socket.on('player-blocked', () => io.emit('player-blocked'));
+    socket.on('player-ended', ({ seq } = {}) => {
+      const p = live.player;
+      if (!p || p.seq !== seq || p.status !== 'playing') return;
+      if (p.after === 'loop') { p.seek = 0; p.seq++; return broadcast(); }
+      p.status = 'stopped';
+      p.seq++;
+      if (p.after === 'next' && p.itemId && p.itemId === live.itemId) return nextItem(1) ?? broadcast();
+      if (p.after === 'tema' && live.kind === 'media' && p.type === 'video') live.clear = true;
+      broadcast();
+    });
     socket.on('cmd', (c) => {
       try {
         handleCmd(c);
@@ -508,7 +632,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   app.delete('/api/bible/versions/:code', (req, res) => { repo.deleteVersion(req.params.code); ok(res); });
 
   // ---------------- Mídia (fundos e logos) ----------------
-  const MEDIA_EXT = { jpg: 'image', jpeg: 'image', png: 'image', webp: 'image', gif: 'image', mp4: 'video', webm: 'video', mov: 'video', m4v: 'video' };
+  const MEDIA_EXT = { jpg: 'image', jpeg: 'image', png: 'image', webp: 'image', gif: 'image', mp4: 'video', webm: 'video', mov: 'video', m4v: 'video', mp3: 'audio', wav: 'audio', m4a: 'audio', aac: 'audio', ogg: 'audio', flac: 'audio' };
   const mediaUpload = multer({
     storage: multer.diskStorage({
       destination: mediaDir,
@@ -528,7 +652,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     .sort((a, b) => a.name.localeCompare(b.name));
   app.get('/api/media', (req, res) => ok(res, listMedia()));
   app.post('/api/media', mediaUpload.array('files', 50), wrap((req, res) => {
-    if (!req.files?.length) throw new Error('Formato não aceito. Use imagem (jpg, png, webp) ou vídeo (mp4, webm, mov)');
+    if (!req.files?.length) throw new Error('Formato não aceito. Use imagem (jpg, png, webp), vídeo (mp4, webm, mov) ou áudio (mp3, wav, m4a)');
     ok(res, { files: req.files.map((f) => '/media/' + encodeURIComponent(f.filename)) });
   }));
   app.delete('/api/media/:name', (req, res) => {
@@ -536,6 +660,102 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     if (f.startsWith(mediaDir) && fs.existsSync(f)) fs.unlinkSync(f);
     ok(res);
   });
+
+  // ---------------- Apresentações e envio de arquivos (operador e celular do pregador) ----------------
+  const fixName = (n) => Buffer.from(n, 'latin1').toString('utf8');
+  const baseName = (n) => fixName(n).replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim().slice(0, 80) || 'Arquivo';
+  const tmpUpload = multer({ dest: tmpDir, limits: { fileSize: 2048 * 1024 * 1024 } });
+  const PRES_EXT = /\.(pptx?|ppsx?|pps|odp|key)$/i;
+  function addToService(sid, item) {
+    sid = +sid;
+    if (!sid || !repo.getService(sid)) return null;
+    const id = repo.addItem(sid, item);
+    io.emit('service-changed', { id: sid });
+    return id;
+  }
+  function mediaItem(file, author) {
+    const orig = fixName(file.originalname);
+    const ext = (orig.split('.').pop() || '').toLowerCase();
+    const type = MEDIA_EXT[ext];
+    const safe = orig.replace(/\.[^.]+$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9-]+/g, '-').slice(0, 40) || 'midia';
+    const name = `${safe}-${Date.now().toString(36)}.${ext}`;
+    try { fs.renameSync(file.path, path.join(mediaDir, name)); } catch { fs.copyFileSync(file.path, path.join(mediaDir, name)); fs.rmSync(file.path, { force: true }); }
+    const title = baseName(file.originalname) + (author ? ' · ' + author : '');
+    return { kind: 'media', title, text: JSON.stringify({ type, url: '/media/' + encodeURIComponent(name), name: title, after: type === 'video' ? 'tema' : 'stop' }) };
+  }
+  const deckItem = (d) => ({ kind: 'deck', title: d.title + (d.author ? ' · ' + d.author : ''), text: JSON.stringify({ deck: d.id, count: d.count }) });
+
+  app.get('/api/decks', (req, res) => ok(res, decks.list()));
+  app.get('/api/decks/:id', (req, res) => ok(res, decks.get(req.params.id)));
+  app.put('/api/decks/:id', wrap((req, res) => {
+    const d = decks.update(req.params.id, req.body || {});
+    if (live.deck?.id === d.id) { live.deck = { id: d.id, auto: d.auto, loop: d.loop }; startDeckTimer(); broadcast(); }
+    io.emit('library');
+    ok(res, d);
+  }));
+  app.delete('/api/decks/:id', (req, res) => { decks.remove(req.params.id); io.emit('library'); ok(res); });
+  // Slides já em imagem (PDF convertido no navegador, ou fotos)
+  app.post('/api/decks', tmpUpload.array('files', 500), wrap((req, res) => {
+    const files = (req.files || []).filter((f) => /\.(png|jpe?g|webp)$/i.test(fixName(f.originalname)));
+    files.forEach((f) => { const ext = path.extname(fixName(f.originalname)).toLowerCase(); fs.renameSync(f.path, f.path + ext); f.path += ext; });
+    const d = decks.create({ title: req.body.title, author: req.body.author, images: files.map((f) => f.path), auto: req.body.auto, loop: req.body.loop === '1' || req.body.loop === 'true' });
+    const itemId = addToService(req.body.service_id, deckItem(d));
+    io.emit('library');
+    ok(res, { deck: d, itemId });
+  }));
+  // Carrossel a partir de imagens da biblioteca de mídia
+  app.post('/api/decks/from-media', wrap((req, res) => {
+    const names = (req.body.names || []).map((n) => path.join(mediaDir, path.basename(decodeURIComponent(n))));
+    const ok2 = names.filter((f) => fs.existsSync(f));
+    const d = decks.create({ title: req.body.title || 'Avisos', images: ok2, auto: req.body.auto ?? 8, loop: req.body.loop ?? true, move: false });
+    const itemId = addToService(req.body.service_id, deckItem(d));
+    io.emit('library');
+    ok(res, { deck: d, itemId });
+  }));
+  // Envio geral: vídeo, imagem, áudio e PowerPoint. Entra direto no culto, se vier service_id.
+  app.post('/api/upload', tmpUpload.array('files', 50), wrap(async (req, res) => {
+    const author = String(req.body.author || '').trim().slice(0, 60);
+    const results = [];
+    for (const f of req.files || []) {
+      const orig = fixName(f.originalname);
+      const ext = (orig.split('.').pop() || '').toLowerCase();
+      try {
+        if (MEDIA_EXT[ext]) {
+          const it = mediaItem(f, author);
+          const itemId = addToService(req.body.service_id, it);
+          results.push({ name: orig, ok: true, kind: 'media', type: MEDIA_EXT[ext], itemId });
+        } else if (PRES_EXT.test(orig)) {
+          const src = f.path + '.' + ext;
+          fs.renameSync(f.path, src);
+          const out = path.join(tmpDir, 'conv-' + Date.now().toString(36));
+          try {
+            const imgs = await convertPresentation(src, out);
+            const d = decks.create({ title: baseName(orig), author, images: imgs });
+            const itemId = addToService(req.body.service_id, deckItem(d));
+            results.push({ name: orig, ok: true, kind: 'deck', slides: d.count, itemId });
+          } finally {
+            fs.rmSync(src, { force: true });
+            fs.rmSync(out, { recursive: true, force: true });
+          }
+        } else {
+          fs.rmSync(f.path, { force: true });
+          results.push({ name: orig, ok: false, error: ext === 'pdf' ? 'PDF deve ser enviado pela página (ele é convertido no navegador)' : 'Formato não aceito' });
+        }
+      } catch (e) {
+        fs.rmSync(f.path, { force: true });
+        results.push({ name: orig, ok: false, error: e.message });
+      }
+    }
+    io.emit('library');
+    ok(res, { results });
+  }));
+  // QR code para o celular do pregador enviar arquivos direto para o culto
+  app.get('/api/qr', wrap(async (req, res) => {
+    const ips = Object.values(os.networkInterfaces()).flat().filter((n) => n && n.family === 'IPv4' && !n.internal).map((n) => n.address);
+    const base = ips.length ? `http://${ips[0]}:${port}` : `http://localhost:${port}`;
+    const url = base + String(req.query.path || '/');
+    ok(res, { url, qr: await QRCode.toDataURL(url, { margin: 1, width: 260 }) });
+  }));
 
   // ---------------- Temas personalizados ----------------
   app.get('/api/themes', (req, res) => ok(res, repo.listThemes()));

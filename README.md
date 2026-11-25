@@ -178,3 +178,20 @@ test/            testes (npm test)
 
 - **Fase 2 (em andamento)**: importação CSV, contagem regressiva, imagens e vídeos soltos no culto (sem ser fundo).
 - **Fase 3**: saída com fundo transparente para OBS, escala da equipe, relatórios, backup e sincronização na VPS.
+
+## Mídia, apresentações e avisos
+
+- **Abas no topo:** Louvores · Bíblia · Mídia · Apresentações · Avisos. A biblioteca da esquerda muda conforme a aba.
+- **Arrastar e soltar:** solte qualquer arquivo na tela e ele entra no culto aberto.
+  - Vídeo (mp4, webm, mov), imagem (jpg, png, webp) e áudio (mp3, wav, m4a).
+  - PowerPoint (.pptx/.ppt) é convertido em slides pelo próprio PowerPoint do Windows.
+  - PDF é convertido em slides no navegador.
+- **Receber do pregador:** em Apresentações, o botão mostra um QR code. O celular (no mesmo Wi-Fi) abre `/enviar.html`, o pregador põe o nome e escolhe o arquivo, e ele entra direto no culto.
+- **Player:** vídeo e áudio tocam na janela do telão. Embaixo da prévia ficam:
+  - tocar/pausar, do começo e parar;
+  - barra de tempo e volume;
+  - "ao terminar": tema, próximo item, repetir ou parar.
+- **Playback com letra:** no item do louvor no culto, o botão de fone liga um áudio ao louvor. Você passa os slides normalmente e controla o som pelo player.
+- **Avisos:** aviso de texto, ou carrossel de imagens que passa sozinho (segundos por imagem, com repetição).
+
+Se o navegador bloquear o som do telão, clique uma vez na janela do telão.

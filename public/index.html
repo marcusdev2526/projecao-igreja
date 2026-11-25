@@ -10,7 +10,13 @@
 <body>
 <header class="top">
   <div class="brand"><span class="dot"></span>Projeção</div>
-  <div class="seg view-seg" id="viewSeg"><button data-view="culto" class="on">Culto</button><button data-view="biblia">Bíblia</button></div>
+  <div class="seg view-seg tabs" id="viewSeg">
+    <button data-view="louvores" class="on"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Louvores</button>
+    <button data-view="biblia"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M12 7v6M9 10h6"/></svg>Bíblia</button>
+    <button data-view="midia"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/></svg>Mídia</button>
+    <button data-view="apresentacoes"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/></svg>Apresentações</button>
+    <button data-view="avisos"><svg viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1zM16 9a4 4 0 0 1 0 6"/></svg>Avisos</button>
+  </div>
   <div class="seg" id="modes" title="Idioma no telão">
     <button data-mode="pt">PT</button><button data-mode="pt-en">PT + EN</button><button data-mode="en">EN</button><button data-mode="en-pt">EN + PT</button>
   </div>
@@ -55,6 +61,30 @@
     <div class="list" id="songList"></div>
     <div class="panel-f"><span id="songCount"></span><span class="f-acts"><a href="#" class="link" id="dedupeBtn" title="Apaga louvores com a letra repetida">Remover duplicados</a><a href="/api/export" class="link">Baixar backup</a></span></div>
     </div>
+
+    <div id="mediaPane" class="pane" hidden>
+      <div class="panel-h"><h2>Mídia</h2><div class="acts"><button class="btn sm primary" data-pick="media">+ Enviar</button></div></div>
+      <div class="chips-row" id="mediaFilter"><button data-f="" class="on">Todos</button><button data-f="video">Vídeos</button><button data-f="image">Imagens</button><button data-f="audio">Playbacks</button></div>
+      <input class="search" id="mediaSearch" placeholder="Buscar arquivo…" autocomplete="off">
+      <div class="list" id="mediaList"></div>
+      <div class="panel-f"><span class="hint">Arraste vídeos, fotos ou músicas para qualquer lugar da tela</span></div>
+    </div>
+
+    <div id="decksPane" class="pane" hidden>
+      <div class="panel-h"><h2>Apresentações</h2><div class="acts"><button class="btn sm" id="qrBtn" title="O pregador envia pelo celular">Receber do pregador</button><button class="btn sm primary" data-pick="deck">+ Enviar</button></div></div>
+      <div class="list" id="deckList"></div>
+      <div class="panel-f"><span class="hint">PowerPoint (.pptx) ou PDF viram slides sozinhos</span></div>
+    </div>
+
+    <div id="avisosPane" class="pane" hidden>
+      <div class="panel-h"><h2>Avisos</h2></div>
+      <div class="av-new">
+        <button class="av-card" id="avTextBtn"><b>Aviso de texto</b><span>Escreva e projete com o tema</span></button>
+        <button class="av-card" id="avCarBtn"><b>Carrossel de imagens</b><span>Passa sozinho, em repetição</span></button>
+      </div>
+      <div class="list" id="avList"></div>
+    </div>
+    <input type="file" id="fileIn" multiple hidden>
   </section>
 
   </aside>
@@ -65,6 +95,14 @@
       <div class="preview-wrap">
         <iframe id="livePreview" src="/screen.html?embed" title="Prévia do telão"></iframe>
         <div id="liveProg" hidden></div>
+        <div class="player" id="playerBar" hidden>
+          <button class="pl-btn main" id="plToggle" title="Tocar / pausar"><svg viewBox="0 0 24 24" class="i-play"><path d="M7 5v14l12-7z"/></svg><svg viewBox="0 0 24 24" class="i-pause"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg></button>
+          <button class="pl-btn" id="plRestart" title="Do começo"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/></svg></button>
+          <button class="pl-btn" id="plStop" title="Parar"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg></button>
+          <div class="pl-mid"><div class="pl-name" id="plName"></div><input type="range" id="plSeek" min="0" max="100" step="0.1" value="0"><div class="pl-time"><span id="plCur">0:00</span><span id="plDur">0:00</span></div></div>
+          <label class="pl-vol" title="Volume"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6L8 10zM16 9a4 4 0 0 1 0 6"/></svg><input type="range" id="plVol" min="0" max="1" step="0.05" value="1"></label>
+          <select class="sel sm" id="plAfter" title="O que fazer quando terminar"><option value="tema">Ao terminar: tema</option><option value="next">Ao terminar: próximo</option><option value="loop">Repetir</option><option value="stop">Ao terminar: parar</option></select>
+        </div>
       </div>
     </div>
     <div class="panel-h">
@@ -328,6 +366,42 @@
     <div class="en-foot"><span class="muted small" id="enHint"></span><button class="btn primary" id="enGo">Encaixar</button></div>
   </div>
 </dialog>
+
+<dialog id="qrDlg" class="modal">
+  <div class="modal-h"><h2>Receber do pregador</h2><div class="acts"><button class="btn sm" id="qrClose">Fechar</button></div></div>
+  <div class="qr-body">
+    <img id="qrImg" alt="QR code">
+    <div>
+      <p><b>Aponte a câmera do celular para o código.</b></p>
+      <p class="muted">O pregador escolhe o arquivo (PowerPoint, PDF, vídeo ou imagem) e ele entra direto no culto <b id="qrCulto"></b>, com o nome dele.</p>
+      <p class="muted small">O celular precisa estar no mesmo Wi-Fi deste computador.</p>
+      <code id="qrUrl"></code>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="carDlg" class="modal big">
+  <div class="modal-h"><h2>Carrossel de imagens</h2><div class="acts"><button class="btn sm" id="carCancel">Cancelar</button><button class="btn sm primary" id="carGo">Criar e adicionar ao culto</button></div></div>
+  <div class="car-opts">
+    <input class="search" id="carTitle" value="Avisos" placeholder="Nome do carrossel">
+    <label>Cada imagem por <input type="number" id="carSecs" value="8" min="2" max="120"> s</label>
+    <label class="chk"><input type="checkbox" id="carLoop" checked> Repetir</label>
+    <button class="btn sm" data-pick="media">+ Enviar imagens</button>
+  </div>
+  <p class="muted small car-hint">Clique nas imagens na ordem em que devem aparecer.</p>
+  <div class="car-grid" id="carGrid"></div>
+</dialog>
+
+<dialog id="audioDlg" class="modal">
+  <div class="modal-h"><h2>Playback do louvor</h2><div class="acts"><button class="btn sm" id="audClose">Fechar</button></div></div>
+  <div class="aud-body">
+    <p class="muted small">Escolha o áudio que toca junto com a letra. Você passa os slides normalmente e controla o som pelo player.</p>
+    <div class="list" id="audList"></div>
+    <div class="aud-foot"><button class="btn sm" data-pick="audio">+ Enviar áudio</button><button class="btn sm danger" id="audRemove">Tirar playback</button></div>
+  </div>
+</dialog>
+
+<div id="dropOv" hidden><div><b>Solte para adicionar ao culto</b><span>Vídeo, imagem, música, PowerPoint ou PDF</span></div></div>
 
 <dialog id="settings" class="modal">
   <div class="modal-h"><h2>Configurações</h2><div class="acts"><button class="btn sm" id="stClose">Fechar</button><button class="btn primary sm" id="stSave">Salvar</button></div></div>

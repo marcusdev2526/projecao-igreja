@@ -30,7 +30,51 @@
     const html = s.clear || !s.slide ? '' : slideHTML(s.slide, s.mode);
     const key = s.themeId + '|' + s.mode + '|' + html;
     if (key !== lastKey) { stage.show(html); lastKey = key; }
+    applyPlayer(s.player);
   });
+
+  // ---------- Vídeo e áudio ----------
+  // A janela do telão é quem toca (com som). A prévia do painel (embed) mostra o vídeo sem som.
+  const aud = new Audio();
+  aud.preload = 'auto';
+  let pState = null;
+  let applied = -1;
+  const mediaEl = (p) => (p?.type === 'video' ? [...document.querySelectorAll('.content-layer:not(.leave) video')].pop() : aud);
+  function fadeOut(el) {
+    const v0 = el.volume;
+    let k = 0;
+    const t = setInterval(() => { k++; el.volume = Math.max(0, v0 * (1 - k / 12)); if (k >= 12) { clearInterval(t); el.pause(); el.volume = v0; } }, 60);
+  }
+  function applyPlayer(p) {
+    if (!p) { if (!aud.paused) fadeOut(aud); pState = null; return; }
+    if (p.seq === applied && mediaEl(p) === pState?.el) return;
+    applied = p.seq;
+    const el = mediaEl(p);
+    if (p.type === 'audio' && aud.dataset.url !== p.url) { aud.src = p.url; aud.dataset.url = p.url; }
+    if (p.type === 'video' && !aud.paused) fadeOut(aud);
+    pState = { ...p, el };
+    if (!el) return;
+    el.muted = embedded;
+    el.volume = p.volume ?? 1;
+    el.loop = false;
+    if (p.seek != null && isFinite(p.seek)) { try { el.currentTime = p.seek; } catch {} }
+    if (p.status === 'playing') {
+      el.play().catch(() => { if (!embedded) { el.muted = true; el.play().catch(() => {}); socket.emit('player-blocked'); } });
+    } else if (p.status === 'stopped' && p.type === 'audio') { if (!el.paused) fadeOut(el); }
+    else el.pause();
+    if (!embedded && !el._wired) {
+      el._wired = true;
+      let last = 0;
+      el.addEventListener('timeupdate', () => {
+        if (Date.now() - last < 400) return;
+        last = Date.now();
+        socket.emit('player-time', { t: el.currentTime, d: el.duration || 0, seq: pState?.seq });
+      });
+      el.addEventListener('ended', () => socket.emit('player-ended', { seq: pState?.seq }));
+    }
+  }
+  // a prévia acompanha o tempo do telão
+  if (embedded) socket.on('player-time', ({ t }) => { const el = pState && mediaEl(pState); if (el && Math.abs(el.currentTime - t) > 1.2) try { el.currentTime = t; } catch {} });
   document.addEventListener('dblclick', () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen());
   setTimeout(() => (document.getElementById('hint').style.opacity = 0), 6000);
   // depois de uma atualização do sistema, recarrega para pegar a versão nova

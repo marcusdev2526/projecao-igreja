@@ -4,6 +4,8 @@ import { createStage, slideHTML, stripMarkup, niceCase } from '/shared/render.js
 import { THEMES, THEME_CATS, themeById, FONTS, newCustomTheme } from '/shared/themes.js';
 import { BOOKS, parseRef, refText, bookName } from '/shared/bible.js';
 import { initBibleView } from '/operator/bible.js';
+import { initMedia } from '/operator/media.js';
+let MEDIA = null;
 import { renderProgress } from '/shared/progress.js';
 import { autoKeywords, chunksOf, markChunk, wordFreq, applyChunks, missingTranslations, insertTranslations, setEnStatus } from '/shared/enhance.js';
 
@@ -50,6 +52,7 @@ socket.on('state', (s) => {
   const prevItem = live?.itemId;
   const prevMode = live?.mode;
   live = s;
+  MEDIA?.renderPlayer(s);
   if (prevMode !== s.mode && service) renderItems();
   document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === s.mode));
   $('themeName').textContent = themeLabel(s.themeId);
@@ -154,9 +157,10 @@ socket.on('en-error', ({ message }) => toast('Tradução automática: ' + messag
 function renderItems() {
   $('itemList').innerHTML = service.items.length
     ? service.items.map((it, i) => `<div class="item ${selected?.item?.id === it.id ? 'sel' : ''} ${live?.itemId === it.id ? 'live' : ''}" draggable="true" data-id="${it.id}">
-        <div class="n">${i + 1}</div>
+        <div class="n">${MEDIA ? MEDIA.icon(MEDIA.itemKind(it)) : i + 1}</div>
         <div class="info"><div class="t">${esc(it.kind === 'song' ? it.song_title : it.title || 'Aviso')}</div>
-        <div class="a">${it.kind === 'song' ? esc(it.song_artist || '') + (it.has_en ? ' · ' + enBadge(it.has_en) : enPending.has(it.song_id) ? ' · <span class="badge auto pulse">traduzindo…</span>' : wantsEn() ? ' · <span class="badge no-en" data-song="' + it.song_id + '" title="' + (aiState.hasKey ? 'Não deu para traduzir — clique para abrir' : 'Cadastre a chave da IA em Configurações para traduzir sozinho') + '">sem inglês</span>' : '') : it.kind === 'bible' ? 'Bíblia' : 'Aviso / texto'}</div></div>
+        <div class="a">${MEDIA?.itemSub(it) ? esc(MEDIA.itemSub(it)) : it.kind === 'song' ? (MEDIA?.hasAudio(it) ? '<span class="badge pb">playback</span> ' : '') + esc(it.song_artist || '') + (it.has_en ? ' · ' + enBadge(it.has_en) : enPending.has(it.song_id) ? ' · <span class="badge auto pulse">traduzindo…</span>' : wantsEn() ? ' · <span class="badge no-en" data-song="' + it.song_id + '" title="' + (aiState.hasKey ? 'Não deu para traduzir — clique para abrir' : 'Cadastre a chave da IA em Configurações para traduzir sozinho') + '">sem inglês</span>' : '') : it.kind === 'bible' ? 'Bíblia' : 'Aviso / texto'}</div></div>
+        ${it.kind === 'song' ? '<button class="mini aud" data-act="aud" title="Playback (áudio junto com a letra)">' + (MEDIA ? MEDIA.icon('audio') : '♪') + '</button>' : ''}
         <button class="x" title="Remover do culto">×</button></div>`).join('')
     : '<div class="empty">Adicione louvores pelo botão ＋ da lista ao lado</div>';
 
@@ -171,6 +175,7 @@ $('itemList').onclick = async (e) => {
   if (!row) return;
   const id = +row.dataset.id;
   if (e.target.dataset.song) return openEditor(+e.target.dataset.song);
+  if (e.target.closest('[data-act="aud"]')) return MEDIA.openAudioFor(service.items.find((x) => x.id === id));
   if (e.target.classList.contains('x')) {
     await api('/api/items/' + id, { method: 'DELETE' });
     if (selected?.item?.id === id) { selected = null; renderSlides(); }
@@ -232,6 +237,11 @@ async function selectItem(id, { fresh = false } = {}) {
     const r = JSON.parse(item.text || '{}');
     return showBibleChapter(r.book, r.chapter, r.verse, item);
   }
+  if (item.kind === 'media' || item.kind === 'deck') {
+    selected = { item, slides: [], media: true, mode };
+    document.querySelectorAll('.item').forEach((el) => el.classList.toggle('sel', +el.dataset.id === id));
+    return renderSlides();
+  }
   if (item.kind === 'song') {
     const song = await getSong(item.song_id, fresh);
     slides = buildSlides(parseSong(song.source), { maxLines: slideMaxLines(mode) });
@@ -250,6 +260,11 @@ function renderSlides() {
   }
   if (selected.bible) return renderBibleSlides();
   const it = selected.item;
+  if (selected.media) {
+    $('editSelBtn').hidden = true;
+    $('selTitle').textContent = it.title || 'Mídia';
+    return MEDIA.renderSelected(it).then(() => markLiveSlide(true));
+  }
   $('selTitle').textContent = it.kind === 'song' ? it.song_title : it.title || 'Aviso';
   $('slideGrid').innerHTML = selected.slides.length
     ? selected.slides.map((s) => `<div class="slide" data-i="${s.index}" data-type="${esc(s.type || 'verso')}">
@@ -278,8 +293,10 @@ $('slideGrid').onclick = (e) => {
     else cmd({ type: 'bible', book: b.book, chapter: b.chapter, verse: +el.dataset.v });
     return;
   }
-  if (live?.itemId === selected.item.id) cmd({ type: 'goto', index });
-  else cmd({ type: 'item', id: selected.item.id, index });
+  if (live?.itemId === selected.item.id) {
+    if (selected.item.kind === 'media' && live.player) return cmd({ type: 'player', action: live.player.status === 'stopped' ? 'restart' : 'toggle' });
+    cmd({ type: 'goto', index });
+  } else cmd({ type: 'item', id: selected.item.id, index });
 };
 $('editSelBtn').onclick = () => {
   if (!selected) return;
@@ -768,7 +785,7 @@ $('imCommit').onclick = async () => {
 // ---------------- Mídia ----------------
 let mediaList = [];
 async function loadMedia() {
-  mediaList = await api('/api/media');
+  mediaList = (await api('/api/media')).filter((m) => m.type !== 'audio');
   return mediaList;
 }
 async function uploadMedia(files) {
@@ -987,4 +1004,5 @@ loadThemes();
 loadVersions();
 loadAi();
 setTimeout(() => checkUpdate({ silent: true }), 4000);
+MEDIA = initMedia({ api, cmd, toast, esc, socket, getService: () => service, openService, getLive: () => live });
 initBibleView({ api, cmd, toast, esc, getLive: () => live, getService: () => service, openService, loadVersions, onState: (fn) => socket.on('state', fn) });
