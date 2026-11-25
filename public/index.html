@@ -65,9 +65,13 @@
     <div id="mediaPane" class="pane" hidden>
       <div class="panel-h"><h2>Mídia</h2><div class="acts"><button class="btn sm primary" data-pick="media">+ Enviar</button></div></div>
       <div class="chips-row" id="mediaFilter"><button data-f="" class="on">Todos</button><button data-f="video">Vídeos</button><button data-f="image">Imagens</button><button data-f="audio">Playbacks</button></div>
+      <div class="drop-zone" id="mediaDrop">
+        <svg viewBox="0 0 24 24"><path d="M12 15V4M7 9l5-5 5 5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>
+        <div><b>Arraste ou cole aqui (Ctrl+V)</b><span>Do WhatsApp, Telegram ou computador</span></div>
+        <button class="btn sm" data-pick="media">Procurar na pasta</button>
+      </div>
       <input class="search" id="mediaSearch" placeholder="Buscar arquivo…" autocomplete="off">
       <div class="list" id="mediaList"></div>
-      <div class="panel-f"><span class="hint">Arraste vídeos, fotos ou músicas para qualquer lugar da tela</span></div>
     </div>
 
     <div id="decksPane" class="pane" hidden>

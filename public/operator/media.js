@@ -145,7 +145,7 @@ export function initMedia(ctx) {
 
   // ---------- Enviar arquivos (botões, arrastar e soltar) ----------
   const ACCEPT = {
-    media: 'video/*,image/*,audio/*,.mp3,.m4a,.wav',
+    media: 'video/*,image/*,audio/*,.mp3,.m4a,.wav,.opus,.ogg',
     deck: '.pptx,.ppt,.ppsx,.pps,.pdf,image/*',
     audio: 'audio/*,.mp3,.m4a,.wav,.aac,.ogg',
   };
@@ -181,19 +181,57 @@ export function initMedia(ctx) {
     loadDecks();
     return res;
   }
+  // Arrastar (do computador, WhatsApp, Telegram) ou colar (Ctrl+V).
+  // Na aba Mídia vai só para a biblioteca; no resto da tela entra também no culto.
   let dragDepth = 0;
-  const isFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files') && !document.querySelector('dialog[open]');
-  window.addEventListener('dragenter', (e) => { if (!isFiles(e)) return; dragDepth++; $('dropOv').hidden = false; });
+  const inMediaTab = () => !$('mediaPane').hidden;
+  const accepts = (dt) => { const t = [...(dt?.types || [])]; return t.includes('Files') || t.includes('text/uri-list'); };
+  let internal = false; // arrasto que começou dentro do próprio painel (reordenar, miniaturas)
+  window.addEventListener('dragstart', () => (internal = true));
+  window.addEventListener('dragend', () => (internal = false));
+  const isDrop = (e) => !internal && accepts(e.dataTransfer) && !document.querySelector('dialog[open]');
+  function dropText() {
+    const lib = inMediaTab();
+    $('dropOv').querySelector('b').textContent = lib ? 'Solte para guardar na Mídia' : 'Solte para adicionar ao culto';
+  }
+  window.addEventListener('dragenter', (e) => { if (!isDrop(e)) return; dragDepth++; dropText(); $('dropOv').hidden = false; });
   window.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; $('dropOv').hidden = true; } });
-  window.addEventListener('dragover', (e) => { if (isFiles(e)) e.preventDefault(); });
+  window.addEventListener('dragover', (e) => { if (isDrop(e)) e.preventDefault(); });
   window.addEventListener('drop', (e) => {
-    if (!isFiles(e)) return;
+    if (!isDrop(e)) return;
     e.preventDefault();
     dragDepth = 0;
     $('dropOv').hidden = true;
-    if (!getService()) return toast('Abra um culto primeiro');
-    upload(e.dataTransfer.files, { toService: true });
+    receive(e.dataTransfer);
   });
+  window.addEventListener('paste', (e) => {
+    const t = e.target;
+    if (t.closest?.('input, textarea, [contenteditable]') || document.querySelector('dialog[open]')) return;
+    const files = [...(e.clipboardData?.files || [])];
+    const text = (e.clipboardData?.getData('text') || '').trim();
+    if (!files.length && !/^https?:\/\/\S+\.(mp4|webm|mov|jpe?g|png|webp|gif|mp3|m4a|ogg|opus)(\?\S*)?$/i.test(text)) return;
+    e.preventDefault();
+    receive(e.clipboardData);
+  });
+  async function receive(dt) {
+    const toService = !inMediaTab();
+    if (toService && !getService()) return toast('Abra um culto primeiro');
+    // arquivos colados sem nome (ex.: imagem copiada) ganham um nome
+    const files = [...(dt.files || [])].map((f) => (f.name && f.name !== 'image.png' ? f : new File([f], `colado-${Date.now().toString(36)}.${(f.type.split('/')[1] || 'png').replace('jpeg', 'jpg').replace('quicktime', 'mov')}`, { type: f.type })));
+    if (files.length) return upload(files, { toService });
+    const url = (dt.getData('text/uri-list') || dt.getData('text') || '').split('\n').find((l) => /^https?:/i.test(l.trim()));
+    if (!url) return toast(/^blob:/.test(dt.getData('text/uri-list') || '') ? 'Esse arquivo não pode ser arrastado do navegador. Salve no computador e arraste de lá.' : 'Não encontrei um arquivo para adicionar');
+    toast('Baixando…');
+    try {
+      const svc = getService();
+      await api('/api/media/url', { method: 'POST', body: { url: url.trim(), service_id: toService && svc ? svc.id : '' } });
+      toast(toService ? 'Adicionado ao culto' : 'Guardado na Mídia');
+      if (toService && svc) openService(svc.id);
+      loadMedia();
+    } catch (err) {
+      toast(err.message);
+    }
+  }
 
   // ---------- QR do pregador ----------
   $('qrBtn').onclick = async () => {

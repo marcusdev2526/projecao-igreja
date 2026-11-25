@@ -632,7 +632,10 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   app.delete('/api/bible/versions/:code', (req, res) => { repo.deleteVersion(req.params.code); ok(res); });
 
   // ---------------- Mídia (fundos e logos) ----------------
-  const MEDIA_EXT = { jpg: 'image', jpeg: 'image', png: 'image', webp: 'image', gif: 'image', mp4: 'video', webm: 'video', mov: 'video', m4v: 'video', mp3: 'audio', wav: 'audio', m4a: 'audio', aac: 'audio', ogg: 'audio', flac: 'audio' };
+  const MEDIA_EXT = { jpg: 'image', jpeg: 'image', png: 'image', webp: 'image', gif: 'image', mp4: 'video', webm: 'video', mov: 'video', m4v: 'video', mp3: 'audio', wav: 'audio', m4a: 'audio', aac: 'audio', ogg: 'audio', oga: 'audio', opus: 'audio', flac: 'audio' };
+  // arquivos colados ou vindos do WhatsApp/Telegram às vezes chegam sem extensão: usa o tipo informado
+  const MIME_EXT = { 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/ogg': 'ogg', 'audio/opus': 'opus', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/aac': 'aac' };
+  const extOf = (name, mime) => { const e = (String(name).match(/\.([a-z0-9]{2,5})$/i)?.[1] || '').toLowerCase(); return MEDIA_EXT[e] ? e : MIME_EXT[String(mime || '').split(';')[0].trim()] || e; };
   const mediaUpload = multer({
     storage: multer.diskStorage({
       destination: mediaDir,
@@ -663,7 +666,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
 
   // ---------------- Apresentações e envio de arquivos (operador e celular do pregador) ----------------
   const fixName = (n) => Buffer.from(n, 'latin1').toString('utf8');
-  const baseName = (n) => fixName(n).replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim().slice(0, 80) || 'Arquivo';
+  const baseName = (n) => fixName(n).replace(/\.(mp4|webm|mov|m4v|jpe?g|png|webp|gif|mp3|wav|m4a|aac|ogg|oga|opus|flac|pptx?|ppsx?|pps|odp|key|pdf)$/i, '').replace(/[_]+/g, ' ').trim().slice(0, 80) || 'Arquivo';
   const tmpUpload = multer({ dest: tmpDir, limits: { fileSize: 2048 * 1024 * 1024 } });
   const PRES_EXT = /\.(pptx?|ppsx?|pps|odp|key)$/i;
   function addToService(sid, item) {
@@ -675,7 +678,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   }
   function mediaItem(file, author) {
     const orig = fixName(file.originalname);
-    const ext = (orig.split('.').pop() || '').toLowerCase();
+    const ext = extOf(orig, file.mimetype);
     const type = MEDIA_EXT[ext];
     const safe = orig.replace(/\.[^.]+$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9-]+/g, '-').slice(0, 40) || 'midia';
     const name = `${safe}-${Date.now().toString(36)}.${ext}`;
@@ -718,7 +721,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     const results = [];
     for (const f of req.files || []) {
       const orig = fixName(f.originalname);
-      const ext = (orig.split('.').pop() || '').toLowerCase();
+      const ext = extOf(orig, f.mimetype);
       try {
         if (MEDIA_EXT[ext]) {
           const it = mediaItem(f, author);
@@ -749,6 +752,28 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     io.emit('library');
     ok(res, { results });
   }));
+  // Mídia por link (ex.: arrastar uma imagem/vídeo do WhatsApp Web ou Telegram Web)
+  app.post('/api/media/url', wrap(async (req, res) => {
+    const url = String(req.body.url || '').trim();
+    let u;
+    try { u = new URL(url); } catch { throw new Error('Link inválido'); }
+    if (!/^https?:$/.test(u.protocol) || /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1)/i.test(u.hostname)) throw new Error('Esse link não pode ser baixado');
+    const r = await fetch(url, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36' } });
+    if (!r.ok) throw new Error('Não deu para baixar (' + r.status + ')');
+    const mime = r.headers.get('content-type') || '';
+    const ext = extOf(decodeURIComponent(u.pathname.split('/').pop() || ''), mime);
+    if (!MEDIA_EXT[ext]) throw new Error('O link não é um vídeo, imagem ou áudio');
+    const len = +r.headers.get('content-length') || 0;
+    if (len > 1024 * 1024 * 1024) throw new Error('Arquivo grande demais');
+    const tmp = path.join(tmpDir, 'url-' + Date.now().toString(36));
+    fs.writeFileSync(tmp, Buffer.from(await r.arrayBuffer()));
+    const base = decodeURIComponent(u.pathname.split('/').pop() || 'midia').replace(/\.[^.]+$/, '') || 'midia';
+    const it = mediaItem({ path: tmp, originalname: Buffer.from(base + '.' + ext, 'utf8').toString('latin1'), mimetype: mime }, '');
+    const itemId = addToService(req.body.service_id, it);
+    io.emit('library');
+    ok(res, { ok: true, itemId, type: MEDIA_EXT[ext] });
+  }));
+
   // QR code para o celular do pregador enviar arquivos direto para o culto
   app.get('/api/qr', wrap(async (req, res) => {
     const ips = Object.values(os.networkInterfaces()).flat().filter((n) => n && n.family === 'IPv4' && !n.internal).map((n) => n.address);

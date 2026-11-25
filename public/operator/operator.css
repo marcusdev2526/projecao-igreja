@@ -652,3 +652,12 @@ body.light #dropOv > div { background: #fff; }
 .tabs button { padding-left: 11px; padding-right: 11px; }
 @media (max-width: 1800px) { .top .ic span, #focusBtn span { display: none; } #focusBtn { padding: 0 9px; } }
 @media (max-width: 1400px) { .tabs button { padding-left: 8px; padding-right: 8px; font-size: 12.5px; } .brand span { display: none; } }
+
+/* Área de arrastar/colar da aba Mídia */
+.drop-zone { margin: 0 14px 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 14px; border: 1.5px dashed #343b46; border-radius: 12px; background: #13171c; }
+.drop-zone > svg { width: 26px; height: 26px; flex: none; fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.drop-zone > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.drop-zone b { font-size: 13.5px; }
+.drop-zone span { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+.drop-zone .btn { flex: 1 1 100%; justify-content: center; }
+body.light .drop-zone { background: #f8f9fb; border-color: #cfd5dd; }
