@@ -192,8 +192,15 @@
       <div class="im-foot"><button class="btn primary" id="imPreview">Ver prévia</button></div>
     </div>
     <div class="im-step" id="imStep2" hidden>
+      <div class="im-foot im-bar"><button class="btn" id="imBack">Voltar</button>
+        <label class="im-all">Todos:
+          <select class="sel" id="imAll">
+            <option value="new">Selecionar todos (novos)</option>
+            <option value="replace">Todos + substituir existentes</option>
+            <option value="none">Desmarcar todos</option>
+          </select></label>
+        <span id="imSummary" class="muted"></span><button class="btn primary" id="imCommit">Importar</button></div>
       <table class="im-table"><thead><tr><th>Ação</th><th>Título</th><th>Artista</th><th>Slides</th><th>EN</th><th>Origem</th></tr></thead><tbody id="imRows"></tbody></table>
-      <div class="im-foot"><button class="btn" id="imBack">Voltar</button><span id="imSummary" class="muted"></span><button class="btn primary" id="imCommit">Importar</button></div>
     </div>
   </div>
 </dialog>

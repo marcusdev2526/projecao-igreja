@@ -118,6 +118,9 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; backgrou
 .drop input { display: none; }
 .im-foot { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 14px; }
 .im-foot #imSummary { flex: 1; }
+.im-bar { position: sticky; top: 0; z-index: 2; background: var(--panel, #12151c); margin: 0 0 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.im-all { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.im-all .sel { width: auto; }
 .im-table { width: 100%; border-collapse: collapse; }
 .im-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
 .im-table td { padding: 7px 8px; border-bottom: 1px solid #1d222c; }

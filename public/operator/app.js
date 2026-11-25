@@ -627,6 +627,7 @@ function showImportRows() {
         <td><b>${esc(r.title)}</b>${r.duplicateId ? '<div class="dup">Já existe na biblioteca</div>' : ''}</td>
         <td>${esc(r.artist || '—')}</td><td>${r.slides}</td><td>${r.hasEn ? '<span class="badge">EN</span>' : ''}</td><td class="muted small">${esc(r.from)}</td></tr>`).join('');
   $('imRows').querySelectorAll('select').forEach((s) => (s.onchange = () => { imRows[+s.dataset.i].action = s.value; summary(); }));
+  $('imAll').value = 'new';
   summary();
   $('imStep1').hidden = true;
   $('imStep2').hidden = false;
@@ -634,10 +635,28 @@ function showImportRows() {
 function summary() {
   const n = (a) => imRows.filter((r) => r.action === a).length;
   $('imSummary').textContent = `${n('create')} novo(s) · ${n('replace')} substituição(ões) · ${n('skip')} pulado(s)`;
+  const total = n('create') + n('replace');
+  $('imCommit').textContent = total ? `Importar ${total} louvor${total > 1 ? 'es' : ''}` : 'Importar';
+  $('imCommit').disabled = !total;
 }
+$('imAll').onchange = () => {
+  const mode = $('imAll').value;
+  imRows.forEach((r) => {
+    if (r.error) return;
+    if (mode === 'none') r.action = 'skip';
+    else if (r.duplicateId) r.action = mode === 'replace' ? 'replace' : 'skip';
+    else r.action = 'create';
+  });
+  $('imRows').querySelectorAll('select').forEach((s) => (s.value = imRows[+s.dataset.i].action));
+  summary();
+};
 $('imBack').onclick = () => { $('imStep1').hidden = false; $('imStep2').hidden = true; };
 $('imCommit').onclick = async () => {
-  const r = await api('/api/import/commit', { method: 'POST', body: { items: imRows } });
+  const btn = $('imCommit');
+  btn.disabled = true; btn.textContent = 'Importando…';
+  let r;
+  try { r = await api('/api/import/commit', { method: 'POST', body: { items: imRows } }); }
+  catch (e) { summary(); throw e; }
   $('importer').close();
   toast(`Importados: ${r.created} novo(s), ${r.replaced} substituído(s)`);
   songCache.clear();
