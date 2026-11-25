@@ -479,14 +479,50 @@ $('bsList').onclick = async (e) => {
 $('bsFull').onclick = () => document.querySelector('#viewSeg [data-view="biblia"]').click();
 // Modo culto (tela limpa) e painel claro: preferências deste computador
 const pref = { get: (k) => { try { return localStorage.getItem(k) === '1'; } catch { return false; } }, set: (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch {} } };
+// Aparência do painel: preto, grafite e três claros
+const SKINS = [
+  { id: 'preto', name: 'Preto', desc: 'Azul-marinho escuro da ADPC', light: false, sw: ['#060a11', '#0c1320', '#1f6fbf'] },
+  { id: 'grafite', name: 'Grafite', desc: 'Cinza médio, confortável à noite', light: false, sw: ['#2a2c30', '#3c3f44', '#4d5054'] },
+  { id: 'claro', name: 'Claro ADPC', desc: 'Cinza-azulado suave', light: true, sw: ['#eef2f6', '#dde3ea', '#1f6fbf'] },
+  { id: 'areia', name: 'Claro areia', desc: 'Tom quente, cansa menos a vista', light: true, sw: ['#f3f0ea', '#e3ddd3', '#d9cdb9'] },
+  { id: 'gelo', name: 'Claro gelo', desc: 'Cinza neutro, bem limpo', light: true, sw: ['#f4f4f5', '#e4e4e6', '#cfcfd3'] },
+];
+function getSkin() {
+  let v = null;
+  try { v = localStorage.getItem('skin'); } catch {}
+  if (!SKINS.some((x) => x.id === v)) v = pref.get('light') ? 'claro' : 'preto';
+  return v;
+}
 function applyPrefs() {
+  const sk = SKINS.find((x) => x.id === getSkin());
   document.body.classList.toggle('focus', pref.get('focus'));
-  document.body.classList.toggle('light', pref.get('light'));
+  document.body.classList.toggle('light', sk.light);
+  SKINS.forEach((x) => document.body.classList.toggle('skin-' + x.id, x === sk));
   $('focusBtn').classList.toggle('on', pref.get('focus'));
-  $('lightBtn').title = pref.get('light') ? 'Painel escuro' : 'Painel claro';
+  $('lightBtn').title = 'Aparência do painel: ' + sk.name;
 }
 $('focusBtn').onclick = () => { pref.set('focus', !pref.get('focus')); applyPrefs(); };
-$('lightBtn').onclick = () => { pref.set('light', !pref.get('light')); applyPrefs(); };
+$('lightBtn').onclick = (e) => {
+  e.stopPropagation();
+  let pop = document.querySelector('.skin-pop');
+  if (pop) { pop.remove(); return; }
+  pop = document.createElement('div');
+  pop.className = 'skin-pop';
+  const cur = getSkin();
+  pop.innerHTML = '<h4>Aparência do painel</h4>' + SKINS.map((x) => `<button data-skin="${x.id}" class="${x.id === cur ? 'on' : ''}"><span class="sw" style="--a:${x.sw[0]};--b:${x.sw[1]};--c:${x.sw[2]}"><i></i><i></i></span><span><b>${x.name}</b><small>${x.desc}</small></span></button>`).join('');
+  document.body.appendChild(pop);
+  const r = $('lightBtn').getBoundingClientRect();
+  pop.style.top = r.bottom + 8 + 'px';
+  pop.style.left = Math.min(window.innerWidth - 300, Math.max(8, r.right - 290)) + 'px';
+  pop.onclick = (ev) => {
+    const b = ev.target.closest('[data-skin]');
+    if (!b) return;
+    try { localStorage.setItem('skin', b.dataset.skin); } catch {}
+    applyPrefs();
+    pop.querySelectorAll('[data-skin]').forEach((x) => x.classList.toggle('on', x === b));
+  };
+  setTimeout(() => document.addEventListener('click', function close(ev) { if (!pop.contains(ev.target)) { pop.remove(); document.removeEventListener('click', close); } }), 0);
+};
 applyPrefs();
 $('allThemesBtn').onclick = (e) => { e.preventDefault(); $('themeBtn').click(); };
 $('themeBtn').onclick = async () => { await loadThemes(); renderThemeGallery(); $('themes').showModal(); };

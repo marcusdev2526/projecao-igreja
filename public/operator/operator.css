@@ -1143,3 +1143,62 @@ body.light .book.on { background: #eaf2fb; box-shadow: inset 0 3px 0 var(--gc), 
 body.light .badge { background: #dceaf7; color: #1f5c99; }
 body.light .k-song { background: #fbeed6; color: #9a6400; } body.light .k-bible { background: #dceaf7; color: #1f5c99; }
 body.light .cb.next, body.light .btn.primary { color: #fff; }
+
+/* =====================================================================
+   Aparência do painel: Preto (ADPC) · Grafite · Claro ADPC · Claro areia · Claro gelo
+   ===================================================================== */
+/* ---- Grafite (cinza médio, estilo programa de edição) ---- */
+body.skin-grafite {
+  --bg: #2e3034; --panel: #33353a; --panel2: #3c3f44; --line: #484b51; --text: #e7e8ea; --muted: #a2a6ac;
+  --g-top: #2a2c30; --g-card: #3b3e43; --g-hover: #45484e; --g-sel: #4d5156; --g-input: #2b2d31;
+}
+body.skin-grafite, body.skin-grafite .cols, body.skin-grafite .bview { background: #2b2d31; }
+body.skin-grafite .top, body.skin-grafite .live-top, body.skin-grafite .pv-tools, body.skin-grafite .cmdbar, body.skin-grafite .msg-pop, body.skin-grafite .mth, body.skin-grafite .mb-th { background: var(--g-top); }
+body.skin-grafite .left-col, body.skin-grafite .right-col, body.skin-grafite .src-col, body.skin-grafite .panel, body.skin-grafite .bv-left, body.skin-grafite .bv-numcol, body.skin-grafite .modal, body.skin-grafite .pal-box, body.skin-grafite .bv-pop { background: var(--panel); }
+body.skin-grafite .panel.live, body.skin-grafite .bv-main, body.skin-grafite .bv-live { background: #303237; }
+body.skin-grafite .item, body.skin-grafite .slide, body.skin-grafite .book, body.skin-grafite .numgrid button, body.skin-grafite .cb, body.skin-grafite .rc-card, body.skin-grafite .chips button, body.skin-grafite .mrow .mini, body.skin-grafite .av-card, body.skin-grafite .player, body.skin-grafite .blk-grid button, body.skin-grafite .lib-toggle, body.skin-grafite .mb-card, body.skin-grafite .pst, body.skin-grafite .theme-card, body.skin-grafite .drop-zone, body.skin-grafite .aud-ph { background: var(--g-card); }
+body.skin-grafite .btn { background: var(--g-card); border-color: #50545a; }
+body.skin-grafite .btn.ghost { background: transparent; border-color: transparent; }
+body.skin-grafite .btn:hover, body.skin-grafite .btn.ghost:hover, body.skin-grafite .item:hover, body.skin-grafite .vrow:hover, body.skin-grafite .mrow:hover, body.skin-grafite .bs-hit:hover, body.skin-grafite .hitrow:hover, body.skin-grafite .cb:hover, body.skin-grafite .book:hover, body.skin-grafite .numgrid button:hover, body.skin-grafite .src-tabs button:hover, body.skin-grafite .pal-row:hover, body.skin-grafite .pal-row.on { background: var(--g-hover); }
+body.skin-grafite .item.sel, body.skin-grafite .seg button.on:not(#modes button), body.skin-grafite .numgrid button.on, body.skin-grafite .src-tabs button.on { background: var(--g-sel); }
+body.skin-grafite .seg { background: var(--g-top); border-color: var(--line); }
+body.skin-grafite .search, body.skin-grafite .bv-search, body.skin-grafite input, body.skin-grafite textarea, body.skin-grafite select, body.skin-grafite .msgbox input { background: var(--g-input); border-color: #50545a; }
+body.skin-grafite .slide.live { background: #43392c; }
+body.skin-grafite .item.live { background: rgba(var(--live-rgb), .12); }
+body.skin-grafite .slide[data-type="refrao"]:not(.live) { background: #3e3d3a; }
+body.skin-grafite .badge, body.skin-grafite .k-bible { background: #2c4157; color: #a9d6f5; }
+body.skin-grafite .sep { background: var(--line); }
+body.skin-grafite #toast { background: #45484e; }
+
+/* ---- Claros: variações (todos usam a base body.light) ---- */
+body.light.skin-areia {
+  --bg: #e9e4dc; --panel: #f3f0ea; --panel2: #ece7df; --line: #dbd3c7; --text: #2e2a25; --muted: #7b7369;
+  --soft-card: #faf8f4; --soft-hover: #ebe5db; --soft-sel: #e4ddd1;
+}
+body.light.skin-gelo {
+  --bg: #ebebec; --panel: #f4f4f5; --panel2: #eeeeef; --line: #dcdcde; --text: #232427; --muted: #6e7075;
+  --soft-card: #fafafa; --soft-hover: #e8e8ea; --soft-sel: #e1e1e4;
+}
+body.light.skin-areia, body.light.skin-areia .cols, body.light.skin-areia .left-col { background: #e3ddd3; }
+body.light.skin-areia .top { background: #f3f0ea; }
+body.light.skin-areia .live-top, body.light.skin-areia .pv-tools, body.light.skin-areia .bv-live { background: #e8e2d8; }
+body.light.skin-areia .bv-main, body.light.skin-areia .cmdbar { background: #ebe6de; }
+body.light.skin-areia .slide[data-type="refrao"]:not(.live) { background: #f4eee2; }
+body.light.skin-gelo, body.light.skin-gelo .cols, body.light.skin-gelo .left-col { background: #e4e4e6; }
+body.light.skin-gelo .top { background: #f4f4f5; }
+body.light.skin-gelo .live-top, body.light.skin-gelo .pv-tools, body.light.skin-gelo .bv-live { background: #e7e7e9; }
+body.light.skin-gelo .bv-main, body.light.skin-gelo .cmdbar { background: #ebebec; }
+body.light.skin-gelo .slide[data-type="refrao"]:not(.live) { background: #f3f1ec; }
+
+/* Menu de aparência */
+.skin-pop { position: fixed; z-index: 60; width: 290px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px; box-shadow: 0 18px 50px rgba(0,0,0,.35); }
+.skin-pop h4 { margin: 4px 8px 8px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.skin-pop button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 1px solid transparent; border-radius: 9px; background: none; cursor: pointer; text-align: left; color: var(--text); }
+.skin-pop button:hover { background: var(--soft-hover, rgba(255,255,255,.06)); }
+.skin-pop button.on { border-color: var(--accent); }
+.skin-pop .sw { width: 38px; height: 26px; border-radius: 6px; flex: none; border: 1px solid rgba(127,127,127,.35); display: grid; grid-template-rows: 7px 1fr; overflow: hidden; }
+.skin-pop .sw i:first-child { background: var(--a); } .skin-pop .sw i:last-child { background: var(--b); box-shadow: inset 8px 0 0 var(--c); }
+.skin-pop b { font-weight: 600; font-size: 13px; display: block; } .skin-pop small { color: var(--muted); font-size: 11.5px; }
+body.skin-grafite .btn.primary, body.skin-grafite .cb.next { background: linear-gradient(180deg, #2f8fde, var(--adpc-blue)); border-color: var(--adpc-blue); color: #fff; }
+body.skin-grafite .book.on { background: #4a4e55; box-shadow: inset 0 3px 0 var(--gc), 0 0 0 2px var(--accent); }
+body.skin-grafite .numgrid button.live { background: var(--live); border-color: var(--live); color: #1a1206; }
