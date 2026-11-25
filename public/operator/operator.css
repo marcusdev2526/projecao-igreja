@@ -810,3 +810,25 @@ body.is-frozen .preview-wrap iframe { border-color: #3b8be0; box-shadow: 0 0 0 2
 @keyframes frz { 50% { box-shadow: 0 0 0 4px rgba(59,139,224,.25); } }
 body.is-frozen .rc-card .label { color: #8cc4ff; }
 body.is-frozen .slide.live { border-color: #3b8be0; box-shadow: inset 3px 0 0 #3b8be0; }
+
+/* =========== Dois monitores: Preparado e No telão =========== */
+.pv-frame { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.pv-frame.dual { grid-template-columns: 1fr 1fr; }
+.preview-wrap:has(.pv-frame.dual) { width: min(100%, calc(clamp(200px, 36vh, 480px) * var(--ar, 1.7778) * 2 + 14px)); }
+.pv-mon { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pv-lbl { display: flex; align-items: center; gap: 7px; font: 800 11px Inter, system-ui, sans-serif; letter-spacing: .1em; color: #ffb38f; }
+.pv-lbl .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.pv-lbl.live-lbl { color: #8cc4ff; } .pv-lbl.live-lbl .dot { background: #3b8be0; }
+.pv-drop { position: relative; }
+.pv-drop iframe { display: block; width: 100%; aspect-ratio: var(--ar, 1.7778); border: 1px solid #262b34; border-radius: 10px; background: #000; }
+.pv-mon.prep iframe { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.drop-hint { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; border-radius: 10px; border: 2px dashed var(--accent); background: rgba(255, 106, 61, .16); color: #fff; font: 800 16px Inter, system-ui, sans-serif; pointer-events: none; }
+body.dragging-media .drop-hint, .pv-drop.over .drop-hint { display: flex; }
+.pv-drop.over .drop-hint { background: rgba(255, 106, 61, .32); }
+body.drop-pv #dropOv { display: none !important; }
+.pv-go { align-self: stretch; height: 38px; border-radius: 9px; border: 0; background: var(--accent); color: #fff; font: 800 14px Inter, system-ui, sans-serif; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.pv-go kbd { font: 700 10.5px Inter, sans-serif; background: rgba(0,0,0,.22); padding: 2px 6px; border-radius: 4px; }
+.pv-go:hover { filter: brightness(1.08); }
+.pv-frame.dual .frozen-badge { top: 8px; font-size: 10.5px; padding: 4px 10px; }
+.mrow[draggable="true"], .mb-card { cursor: grab; }
+.pv-drop iframe { pointer-events: none; }

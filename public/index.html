@@ -95,7 +95,18 @@
   <section class="panel live">
     <div class="live-top">
       <div class="preview-wrap">
-        <div class="pv-frame"><iframe id="livePreview" src="/screen.html?embed" title="Prévia do telão"></iframe><div class="frozen-badge" id="frozenBadge" hidden><svg viewBox="0 0 24 24"><path d="M12 2v20M4.9 6.5l14.2 11M19.1 6.5 4.9 17.5"/></svg>TELÃO CONGELADO · o público vê isto</div></div>
+        <div class="pv-frame" id="pvFrame">
+          <div class="pv-mon prep" id="prepMon" hidden>
+            <div class="pv-lbl"><span class="dot"></span>PREPARADO · arraste o vídeo ou imagem aqui</div>
+            <div class="pv-drop" data-drop="prep"><iframe id="prepPreview" title="Preparado"></iframe><div class="drop-hint">Solte aqui para preparar</div></div>
+            <button class="pv-go" id="prepGo">▶ Jogar no telão <kbd>Enter</kbd></button>
+          </div>
+          <div class="pv-mon live">
+            <div class="pv-lbl live-lbl" id="liveLbl" hidden><span class="dot"></span>NO TELÃO · congelado</div>
+            <div class="pv-drop" data-drop="live"><iframe id="livePreview" src="/screen.html?embed" title="Prévia do telão"></iframe><div class="drop-hint">Solte aqui para mostrar no telão</div>
+            <div class="frozen-badge" id="frozenBadge" hidden><svg viewBox="0 0 24 24"><path d="M12 2v20M4.9 6.5l14.2 11M19.1 6.5 4.9 17.5"/></svg>TELÃO CONGELADO · o público vê isto</div></div>
+          </div>
+        </div>
         <div id="liveProg" hidden></div>
         <div class="player" id="playerBar" hidden>
           <div class="pl-tl"><span id="plCur">0:00</span><div class="pl-track"><input type="range" id="plSeek" min="0" max="100" step="0.1" value="0"><span class="pl-tip" id="plTip" hidden></span></div><span id="plDur">0:00</span></div>

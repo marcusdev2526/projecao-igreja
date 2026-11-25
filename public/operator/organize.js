@@ -16,6 +16,7 @@ export function initOrganize(ctx) {
   $('waitBtn').onclick = () => cmd({ type: 'waiting' });
   // Congelar: o público continua vendo o que está agora; você prepara o próximo e solta quando quiser
   $('freezeBtn').onclick = () => cmd({ type: 'freeze' });
+  $('prepGo').onclick = () => cmd({ type: 'freeze', value: false });
   document.addEventListener('keydown', (e) => {
     if (e.target.closest('input, textarea, select, dialog[open]') || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === 'f' || e.key === 'F') cmd({ type: 'freeze' });
@@ -57,6 +58,11 @@ export function initOrganize(ctx) {
     $('freezeBtn').classList.toggle('on', !!s.frozen);
     $('freezeBtn').querySelector('span').textContent = s.frozen ? 'Soltar no telão (Enter)' : 'Congelar';
     $('frozenBadge').hidden = !s.frozen;
+    // congelado: aparecem dois monitores — Preparado (o que vai entrar) e No telão (o que o público vê)
+    $('prepMon').hidden = !s.frozen;
+    $('liveLbl').hidden = !s.frozen;
+    $('pvFrame').classList.toggle('dual', !!s.frozen);
+    if (s.frozen && !$('prepPreview').src) $('prepPreview').src = '/screen.html?embed&real';
     document.body.classList.toggle('is-frozen', !!s.frozen);
     const lbl = document.querySelector('#liveTitle')?.previousElementSibling;
     if (lbl) lbl.textContent = s.frozen ? 'Preparado · fora do telão' : 'No ar';

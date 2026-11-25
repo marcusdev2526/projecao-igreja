@@ -19,13 +19,15 @@
 <script type="module">
   import { createStage, slideHTML, logoHTML, waitingHTML, tickWaiting } from '/shared/render.js';
   const embedded = new URLSearchParams(location.search).has('embed');
+  // ?real = mostra o que está preparado (ignora o congelamento) — usado no monitor "Preparado" do painel
+  const realView = new URLSearchParams(location.search).has('real');
   if (embedded) document.body.classList.add('embedded');
   const stage = createStage(document.getElementById('host'), { live: true });
   let lastKey = '';
   const socket = io();
   socket.on('state', (s0) => {
     // congelado: o telão continua mostrando o que estava no ar
-    const s = s0.frozen && s0.screen ? { ...s0, ...s0.screen } : s0;
+    const s = s0.frozen && s0.screen && !realView ? { ...s0, ...s0.screen } : s0;
     stage.setTheme(s.themeId, s.themeDef);
     stage.setBlack(s.black);
     stage.setTransition(s.transition, s.trSpeed);
@@ -91,7 +93,7 @@
     tell();
   }
   // a prévia acompanha o tempo do telão
-  if (embedded) socket.on('player-time', ({ t }) => { const el = pState && mediaEl(pState); if (el && Math.abs(el.currentTime - t) > 1.2) try { el.currentTime = t; } catch {} });
+  if (embedded && !realView) socket.on('player-time', ({ t }) => { const el = pState && mediaEl(pState); if (el && Math.abs(el.currentTime - t) > 1.2) try { el.currentTime = t; } catch {} });
   document.addEventListener('dblclick', () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen());
   setTimeout(() => (document.getElementById('hint').style.opacity = 0), 6000);
   // depois de uma atualização do sistema, recarrega para pegar a versão nova

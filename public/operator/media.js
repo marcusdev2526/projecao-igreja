@@ -61,7 +61,7 @@ export function initMedia(ctx) {
     const q = $('mediaSearch').value.trim().toLowerCase();
     const list = media.filter((m) => (!filter || m.type === filter) && (!q || m.name.toLowerCase().includes(q)));
     $('mediaList').innerHTML = list.length
-      ? list.map((m) => `<div class="mrow" data-n="${esc(m.name)}">
+      ? list.map((m) => `<div class="mrow" draggable="true" data-n="${esc(m.name)}" title="Arraste para o telão">
           <div class="mth">${m.type === 'video' ? `<video src="${esc(m.url)}#t=1" muted preload="metadata"></video>` : m.type === 'image' ? `<img src="${esc(m.url)}" loading="lazy" alt="">` : icon('audio')}</div>
           <div class="info"><div class="t">${esc(pretty(m))}</div><div class="a">${TYPE_LABEL[m.type]} · ${size(m.size)} · ${when(m.mtime)}</div></div>
           <button class="mini" data-act="show" title="Mostrar agora no telão">${icon('play')}</button>
@@ -100,7 +100,7 @@ export function initMedia(ctx) {
   // ---------- Apresentações e carrosséis ----------
   async function loadDecks() {
     decks = await api('/api/decks');
-    const row = (d) => `<div class="mrow" data-id="${d.id}">
+    const row = (d) => `<div class="mrow" draggable="true" data-id="${d.id}" title="Arraste para o telão">
         <div class="mth wide"><img src="${esc(d.thumb)}" loading="lazy" alt=""></div>
         <div class="info"><div class="t">${esc(d.title)}</div><div class="a">${d.author ? esc(d.author) + ' · ' : ''}${d.count} slide${d.count > 1 ? 's' : ''}${d.auto ? ` · ${d.auto} s${d.loop ? ' · repete' : ''}` : ''}</div></div>
         <button class="mini" data-act="show" title="Apresentar agora">${icon('play')}</button>
@@ -405,7 +405,7 @@ export function initMedia(ctx) {
     let list = media.filter((m) => (!mbFilter || m.type === mbFilter) && (!q || pretty(m).toLowerCase().includes(q)));
     list = list.sort((a, b) => sort === 'old' ? a.mtime - b.mtime : sort === 'name' ? pretty(a).localeCompare(pretty(b)) : sort === 'size' ? b.size - a.size : b.mtime - a.mtime);
     $('mbGrid').innerHTML = list.length
-      ? list.map((m) => `<div class="mb-card ${mbSel === m.name ? 'on' : ''}" data-n="${esc(m.name)}">
+      ? list.map((m) => `<div class="mb-card ${mbSel === m.name ? 'on' : ''}" draggable="true" data-n="${esc(m.name)}">
           <div class="mb-th">${m.type === 'video' ? `<video src="${esc(m.url)}#t=1" muted preload="metadata"></video><span class="mb-play">${icon('play')}</span>` : m.type === 'image' ? `<img src="${esc(m.url)}" loading="lazy" alt="">` : `<div class="mb-aud">${icon('audio')}</div>`}<span class="mb-type">${TYPE_LABEL[m.type]}</span></div>
           <div class="mb-t">${esc(pretty(m))}</div><div class="mb-a">${size(m.size)} · ${when(m.mtime)}</div></div>`).join('')
       : '<div class="empty">Nada por aqui. Arraste arquivos ou clique em “+ Enviar”.</div>';
@@ -457,6 +457,58 @@ export function initMedia(ctx) {
     }
   };
   socket.on('library', () => { if ($('mediaBig').open) api('/api/media').then((l) => { media = l; renderBig(); }); });
+
+  // ---------- Arrastar para o telão (ou para o monitor "Preparado" quando congelado) ----------
+  const DT = 'application/x-projecao';
+  document.addEventListener('dragstart', (e) => {
+    const r = e.target.closest?.('#mediaList .mrow, #mbGrid .mb-card, #deckList .mrow, #avList .mrow');
+    if (!r) return;
+    let payload;
+    if (r.dataset.n) {
+      const m = media.find((x) => x.name === r.dataset.n);
+      if (!m) return;
+      payload = { kind: 'media', url: m.url, mtype: m.type, name: pretty(m) };
+    } else payload = { kind: 'deck', id: r.dataset.id };
+    e.dataTransfer.setData(DT, JSON.stringify(payload));
+    e.dataTransfer.effectAllowed = 'copy';
+    document.body.classList.add('dragging-media');
+    if ($('mediaBig').open) setTimeout(() => $('mediaBig').close(), 0); // fecha a biblioteca grande para ver o telão
+  });
+  document.addEventListener('dragend', () => document.body.classList.remove('dragging-media'));
+  const show = (p) => (p.kind === 'deck' ? cmd({ type: 'deck', id: p.id }) : cmd({ type: 'media', url: p.url, mtype: p.mtype, name: p.name }));
+  document.querySelectorAll('.pv-drop').forEach((z) => {
+    z.addEventListener('dragover', (e) => {
+      const t = [...e.dataTransfer.types];
+      if (!t.includes(DT) && !t.includes('Files')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      z.classList.add('over');
+      document.body.classList.add('drop-pv');
+    });
+    z.addEventListener('dragleave', () => { z.classList.remove('over'); document.body.classList.remove('drop-pv'); });
+    z.addEventListener('drop', async (e) => {
+      z.classList.remove('over');
+      document.body.classList.remove('drop-pv', 'dragging-media');
+      const raw = e.dataTransfer.getData(DT);
+      const files = [...e.dataTransfer.files];
+      if (!raw && !files.length) return;
+      e.preventDefault();
+      e.stopPropagation();
+      $('dropOv').hidden = true;
+      // no monitor "No telão" com o telão congelado: solta direto no telão
+      const goLive = z.dataset.drop === 'live' && getLive()?.frozen;
+      if (raw) show(JSON.parse(raw));
+      else {
+        const res = await upload(files, { toService: false });
+        const first = res.find((r) => r.ok && r.url);
+        if (first) show({ kind: 'media', url: first.url, mtype: first.type, name: first.title });
+        else if (res.find((r) => r.ok && r.kind === 'deck')) { const d = (await api('/api/decks'))[0]; if (d) show({ kind: 'deck', id: d.id }); }
+      }
+      if (goLive) setTimeout(() => cmd({ type: 'freeze', value: false }), 150);
+      const frozen = getLive()?.frozen && !goLive;
+      toast(frozen ? 'Preparado. Aperte “Jogar no telão” quando for a hora.' : 'No telão' + (raw && JSON.parse(raw).mtype === 'video' ? ' (pausado: aperte ▶)' : ''));
+    });
+  });
 
   return { icon, itemKind, itemSub, renderSelected, renderPlayer, openAudioFor, showTab, hasAudio: (it) => !!jsonOf(it.text).audio };
 }

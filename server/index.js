@@ -961,7 +961,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
         if (MEDIA_EXT[ext]) {
           const it = mediaItem(f, author);
           const itemId = addToService(req.body.service_id, it);
-          results.push({ name: orig, ok: true, kind: 'media', type: MEDIA_EXT[ext], itemId });
+          results.push({ name: orig, ok: true, kind: 'media', type: MEDIA_EXT[ext], itemId, url: JSON.parse(it.text).url, title: it.title });
         } else if (PRES_EXT.test(orig)) {
           const src = f.path + '.' + ext;
           fs.renameSync(f.path, src);
