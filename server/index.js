@@ -179,6 +179,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     switch (c.type) {
       case 'service':
         live.serviceId = c.id ?? null;
+        queueService(live.serviceId);
         break;
       case 'item': {
         const svc = live.serviceId && repo.getService(live.serviceId);
@@ -260,6 +261,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
         const cur = live.slides[live.index];
         live.mode = c.value;
         repo.setSetting('mode', c.value);
+        queueService(live.serviceId);
         if (live.kind === 'song' && live.songId) {
           const song = repo.getSong(live.songId);
           live.slides = slidesFor('song', song);
@@ -306,8 +308,51 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     }
   }
 
+  // Inglês automático: com a IA cadastrada e o telão em PT+EN/EN, traduz sozinho os louvores do culto
+  const enQueue = new Set();
+  const enFailed = new Set();
+  let enBusy = false;
+  const emitEn = () => io.emit('en-queue', [...enQueue]);
+  function queueEnglish(ids) {
+    if (live.mode === 'pt' || !aiConf().apiKey) return;
+    let added = false;
+    for (const id of ids) {
+      const song = id && repo.getSong(id);
+      if (song && !song.has_en && !enFailed.has(id) && !enQueue.has(id)) { enQueue.add(id); added = true; }
+    }
+    if (added) { emitEn(); runEnglish(); }
+  }
+  const queueService = (sid) => {
+    const svc = sid && repo.getService(sid);
+    if (svc) queueEnglish(svc.items.filter((i) => i.kind === 'song').map((i) => i.song_id));
+  };
+  async function runEnglish() {
+    if (enBusy) return;
+    enBusy = true;
+    while (enQueue.size) {
+      const id = enQueue.values().next().value;
+      try {
+        const song = repo.getSong(id);
+        const src = song && !song.has_en && (await autoTranslateSource(song.source));
+        if (src) {
+          repo.updateSong(id, src, { theme_id: song.theme_id });
+          handleCmd({ type: 'reload-song', id });
+        }
+      } catch (e) {
+        enFailed.add(id);
+        console.log('  Tradução automática falhou:', e.message);
+        io.emit('en-error', { id, message: e.message });
+      }
+      enQueue.delete(id);
+      io.emit('songs-changed', { id });
+      emitEn();
+    }
+    enBusy = false;
+  }
+
   io.on('connection', (socket) => {
     socket.emit('state', publicState());
+    socket.emit('en-queue', [...enQueue]);
     socket.on('cmd', (c) => {
       try {
         handleCmd(c);
@@ -408,7 +453,11 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   });
   app.put('/api/services/:id', wrap((req, res) => { repo.renameService(+req.params.id, req.body.title, req.body.date); ok(res); }));
   app.delete('/api/services/:id', (req, res) => { repo.deleteService(+req.params.id); ok(res); });
-  app.post('/api/services/:id/items', wrap((req, res) => ok(res, { id: repo.addItem(+req.params.id, req.body) })));
+  app.post('/api/services/:id/items', wrap((req, res) => {
+    const id = repo.addItem(+req.params.id, req.body);
+    if (req.body.kind === 'song') queueEnglish([+req.body.song_id]);
+    ok(res, { id });
+  }));
   app.post('/api/services/:id/reorder', wrap((req, res) => { repo.reorderItems(+req.params.id, req.body.ids || []); ok(res); }));
   app.put('/api/items/:id', wrap((req, res) => { repo.updateItem(+req.params.id, req.body); ok(res); }));
   app.delete('/api/items/:id', (req, res) => { repo.deleteItem(+req.params.id); ok(res); });
@@ -505,6 +554,8 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   app.put('/api/settings/ai', wrap((req, res) => {
     if (typeof req.body.key === 'string') repo.setSetting('ai_key', req.body.key.trim());
     if (req.body.model) repo.setSetting('ai_model', String(req.body.model).trim());
+    enFailed.clear();
+    queueService(live.serviceId);
     ok(res);
   }));
   app.post('/api/ai/test', wrap(async (req, res) => {
@@ -553,25 +604,6 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     if (url) english = (await fetchLyrics(url)).split('\n').slice(1).join('\n');
     if (!english.trim()) throw new Error('Cole a letra oficial em inglês ou um link');
     ok(res, { source: await alignSource(req.body.source || '', english) });
-  }));
-  // Prepara o inglês de todos os louvores do culto que ainda não têm (tradução automática, para revisar)
-  app.post('/api/services/:id/prepare-en', wrap(async (req, res) => {
-    if (!aiConf().apiKey) throw new Error('Cadastre a chave da IA em Configurações para traduzir');
-    const svc = repo.getService(+req.params.id);
-    if (!svc) throw new Error('Culto não encontrado');
-    const ids = [...new Set(svc.items.filter((i) => i.kind === 'song' && i.song_id && !i.has_en).map((i) => i.song_id))];
-    let done = 0;
-    const failed = [];
-    for (const id of ids) {
-      const song = repo.getSong(id);
-      try {
-        const src = await autoTranslateSource(song.source);
-        if (src) { repo.updateSong(id, src, { theme_id: song.theme_id }); handleCmd({ type: 'reload-song', id }); done++; }
-      } catch (e) {
-        failed.push(song.title + ': ' + e.message);
-      }
-    }
-    ok(res, { done, total: ids.length, failed });
   }));
   app.post('/api/songs/dedupe', wrap((req, res) => ok(res, repo.dedupeSongs({ dry: !!req.body.dry }))));
   app.post('/api/ai/keywords', wrap(async (req, res) => {

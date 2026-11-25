@@ -41,6 +41,7 @@ async function loadThemes() {
   $('edTheme').innerHTML = '<option value="">Tema do culto (padrão)</option>' +
     [...THEMES, ...customThemes].map((t) => `<option value="${esc(t.id)}">Tema: ${esc(t.name)}</option>`).join('');
   if (live) $('themeName').textContent = themeLabel(live.themeId);
+  renderQuickThemes();
 }
 socket.on('themes', loadThemes);
 
@@ -52,6 +53,7 @@ socket.on('state', (s) => {
   if (prevMode !== s.mode && service) renderItems();
   document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === s.mode));
   $('themeName').textContent = themeLabel(s.themeId);
+  markQuickTheme();
   if ($('bibleMain').options.length) { $('bibleMain').value = s.bibleMain; $('bibleSecond').value = s.bibleSecond || ''; }
   $('blackBtn').classList.toggle('on', s.black);
   $('clearBtn').classList.toggle('on', s.clear);
@@ -122,15 +124,27 @@ $('newServiceBtn').onclick = async () => {
 };
 
 const wantsEn = () => !!live && live.mode !== 'pt';
+let enPending = new Set();
+socket.on('en-queue', (ids) => { enPending = new Set(ids); if (service) renderItems(); });
+let chT;
+socket.on('songs-changed', async ({ id }) => {
+  songCache.delete(id);
+  if (!service?.items.some((it) => it.song_id === id)) return;
+  service = await api('/api/services/' + service.id);
+  renderItems();
+  if (selected?.item?.song_id === id) selectItem(selected.item.id, { fresh: true });
+  clearTimeout(chT); chT = setTimeout(loadSongs, 800);
+});
+socket.on('en-error', ({ message }) => toast('Tradução automática: ' + message));
 function renderItems() {
   $('itemList').innerHTML = service.items.length
     ? service.items.map((it, i) => `<div class="item ${selected?.item?.id === it.id ? 'sel' : ''} ${live?.itemId === it.id ? 'live' : ''}" draggable="true" data-id="${it.id}">
         <div class="n">${i + 1}</div>
         <div class="info"><div class="t">${esc(it.kind === 'song' ? it.song_title : it.title || 'Aviso')}</div>
-        <div class="a">${it.kind === 'song' ? esc(it.song_artist || '') + (it.has_en ? ' · ' + enBadge(it.has_en) : wantsEn() ? ' · <span class="badge no-en" data-song="' + it.song_id + '" title="Abrir o editor para colocar o inglês">sem inglês</span>' : '') : it.kind === 'bible' ? 'Bíblia' : 'Aviso / texto'}</div></div>
+        <div class="a">${it.kind === 'song' ? esc(it.song_artist || '') + (it.has_en ? ' · ' + enBadge(it.has_en) : enPending.has(it.song_id) ? ' · <span class="badge auto pulse">traduzindo…</span>' : wantsEn() ? ' · <span class="badge no-en" data-song="' + it.song_id + '" title="' + (aiState.hasKey ? 'Não deu para traduzir — clique para abrir' : 'Cadastre a chave da IA em Configurações para traduzir sozinho') + '">sem inglês</span>' : '') : it.kind === 'bible' ? 'Bíblia' : 'Aviso / texto'}</div></div>
         <button class="x" title="Remover do culto">×</button></div>`).join('')
     : '<div class="empty">Adicione louvores pelo botão ＋ da lista ao lado</div>';
-  $('prepEnBtn').hidden = !(wantsEn() && service.items.some((it) => it.kind === 'song' && !it.has_en));
+
 }
 async function addSongToService(songId) {
   await api(`/api/services/${service.id}/items`, { method: 'POST', body: { kind: 'song', song_id: songId } });
@@ -315,6 +329,29 @@ function renderThemeGallery() {
     };
   }
 }
+function renderQuickThemes() {
+  const box = $('quickThemes');
+  if (!box) return;
+  const sample = { lines: [{ pt: '*graça*', en: '' }] };
+  const all = [...customThemes.map((t) => ({ ...t, cat: 'igreja' })), ...THEMES];
+  box.innerHTML = '';
+  for (const th of all) {
+    const el = document.createElement('div');
+    el.className = 'qt' + (live?.themeId === th.id ? ' on' : '');
+    el.dataset.id = th.id;
+    el.title = th.desc || th.name;
+    el.innerHTML = `<div class="host"></div><div class="nm">${esc(th.name)}</div>`;
+    box.appendChild(el);
+    const st = createStage(el.querySelector('.host'));
+    st.setTheme(th.id, th.custom ? th : null);
+    st.el.classList.add('static');
+    st.el.querySelectorAll('video').forEach((v) => v.pause());
+    st.show(slideHTML(sample, 'pt'), { animate: false });
+    el.onclick = () => cmd({ type: 'theme', value: th.id });
+  }
+}
+const markQuickTheme = () => document.querySelectorAll('#quickThemes .qt').forEach((q) => q.classList.toggle('on', q.dataset.id === live?.themeId));
+$('allThemesBtn').onclick = (e) => { e.preventDefault(); $('themeBtn').click(); };
 $('themeBtn').onclick = async () => { await loadThemes(); renderThemeGallery(); $('themes').showModal(); };
 $('newThemeBtn').onclick = () => openThemeEditor(newCustomTheme());
 $('thClose').onclick = () => $('themes').close();
@@ -372,7 +409,7 @@ function renderEditorPreview() {
   const slides = buildSlides(p, { maxLines: slideMaxLines(edMode) });
   const order = p.arrangement.join(' → ');
   $('edMeta').innerHTML = `<b>${esc(p.title || 'Sem título')}</b>${p.artist ? ' · ' + esc(p.artist) : ''}${p.key ? ' · Tom ' + esc(p.key) : ''}<br>
-    ${p.sections.length} partes · ${slides.length} slides · ${p.hasEn ? (p.enStatus === 'auto' ? '<span class="ed-en">inglês automático — revise · <a id="edReviewed">marcar como revisado</a></span>' : p.enStatus === 'oficial' ? 'inglês oficial' : 'com tradução EN') : 'sem tradução'}<br>Ordem: ${esc(order || '—')}`;
+    ${p.sections.length} partes · ${slides.length} slides · ${p.hasEn ? (p.enStatus === 'auto' ? '<span class="ed-en">inglês automático (ao salvar, fica como revisado)</span>' : p.enStatus === 'oficial' ? 'inglês oficial' : 'com tradução EN') : 'sem tradução'}<br>Ordem: ${esc(order || '—')}`;
   const themeId = $('edTheme').value || live?.themeId || 'brasa';
   const box = $('edPreviews');
   box.innerHTML = '';
@@ -445,17 +482,14 @@ $('edTr').onclick = async () => {
   }
 };
 $('editor').addEventListener('close', () => { edUndo = []; $('edUndo').disabled = true; });
-$('edMeta').addEventListener('click', (e) => {
-  if (e.target.id === 'edReviewed') edSet(setEnStatus($('edSource').value, ''), 'Inglês marcado como revisado. Clique em Salvar.');
-});
 // Inglês oficial: encaixa a letra original nas linhas em português
 $('edOfficial').onclick = () => {
   $('enUrl').value = '';
   $('enText').value = '';
-  $('enHint').textContent = aiState.hasKey ? 'A IA encaixa cada linha no lugar certo.' : 'Sem a chave da IA: cole uma linha em inglês para cada linha em português, na mesma ordem.';
+  $('enHint').textContent = aiState.hasKey ? 'A IA encaixa cada linha no lugar certo.' : 'Sem a chave da IA: uma linha em inglês para cada linha em português.';
   $('enDlg').showModal();
-  $('enUrl').focus();
 };
+$('enAuto').onclick = () => { $('enDlg').close(); $('edTr').click(); };
 $('enCancel').onclick = () => $('enDlg').close();
 $('enGo').onclick = async () => {
   const btn = $('enGo');
@@ -470,26 +504,6 @@ $('enGo').onclick = async () => {
     toast(e.message);
   } finally {
     btn.disabled = false; btn.textContent = 'Encaixar';
-  }
-};
-// Culto: traduz de uma vez os louvores sem inglês
-$('prepEnBtn').onclick = async () => {
-  if (!aiState.hasKey) { toast('Para traduzir, cadastre a chave da IA em Configurações'); return openSettings(); }
-  const n = new Set(service.items.filter((it) => it.kind === 'song' && !it.has_en).map((it) => it.song_id)).size;
-  if (!confirm(`Traduzir automaticamente ${n} louvor(es) do culto?\nDica: se algum for versão de música em inglês, prefira "Inglês oficial" no editor.`)) return;
-  const btn = $('prepEnBtn');
-  btn.disabled = true; btn.textContent = `Traduzindo ${n}…`;
-  try {
-    const r = await api(`/api/services/${service.id}/prepare-en`, { method: 'POST' });
-    toast(`Inglês pronto em ${r.done} de ${r.total} louvor(es)${r.failed.length ? ' · erro: ' + r.failed[0] : ''}. Marcados como "EN auto" para revisar.`);
-    songCache.clear();
-    await openService(service.id);
-    loadSongs();
-    if (selected?.item) selectItem(selected.item.id);
-  } catch (e) {
-    toast(e.message);
-  } finally {
-    btn.disabled = false; btn.textContent = 'Preparar inglês do culto';
   }
 };
 // Biblioteca: remover duplicados
@@ -596,7 +610,8 @@ $('stTest').onclick = async () => {
 
 $('edCancel').onclick = () => $('editor').close();
 $('edSave').onclick = async () => {
-  const body = { source: $('edSource').value, theme_id: $('edTheme').value };
+  const src0 = $('edSource').value;
+  const body = { source: parseSong(src0).enStatus === 'auto' ? setEnStatus(src0, '') : src0, theme_id: $('edTheme').value };
   try {
     if (edId) await api('/api/songs/' + edId, { method: 'PUT', body });
     else {

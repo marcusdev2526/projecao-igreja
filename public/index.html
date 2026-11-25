@@ -27,6 +27,18 @@
 </header>
 
 <main class="cols">
+  <!-- Esquerda: culto + biblioteca -->
+  <aside class="left-col">
+  <!-- Culto -->
+  <section class="panel" id="service">
+    <div class="panel-h">
+      <select id="serviceSel" class="sel"></select>
+      <div class="acts"><button class="btn sm" id="newServiceBtn" title="Novo culto">+ Culto</button></div>
+    </div>
+    <div class="list" id="itemList"></div>
+    <div class="panel-f"><button class="btn sm" id="addTextBtn">+ Aviso</button><span class="hint">Arraste para reordenar</span></div>
+  </section>
+
   <!-- Biblioteca -->
   <section class="panel" id="library">
     <div id="songsPane" class="pane">
@@ -43,35 +55,14 @@
     </div>
   </section>
 
-  <!-- Culto -->
-  <section class="panel" id="service">
-    <div class="panel-h">
-      <select id="serviceSel" class="sel"></select>
-      <div class="acts"><button class="btn sm" id="newServiceBtn" title="Novo culto">+ Culto</button></div>
-    </div>
-    <div class="list" id="itemList"></div>
-    <div class="panel-f"><button class="btn sm" id="addTextBtn">+ Aviso</button><button class="btn sm warn" id="prepEnBtn" hidden title="Traduz com IA os louvores do culto que ainda não têm inglês">Preparar inglês do culto</button><span class="hint">Arraste para reordenar</span></div>
-  </section>
+  </aside>
 
-  <!-- Ao vivo -->
+  <!-- Centro: telão e slides -->
   <section class="panel live">
     <div class="live-top">
       <div class="preview-wrap">
-        <div class="label">AO VIVO</div>
         <iframe id="livePreview" src="/screen.html?embed" title="Prévia do telão"></iframe>
         <div id="liveProg" hidden></div>
-      </div>
-      <div class="live-info">
-        <div class="label">TOCANDO</div>
-        <div id="liveTitle" class="live-title">—</div>
-        <div id="livePos" class="muted"></div>
-        <div class="label" style="margin-top:14px">PRÓXIMO</div>
-        <div id="liveNext" class="muted next"></div>
-        <div class="msgbox">
-          <input id="msgIn" placeholder="Recado para o retorno (palco)…" maxlength="140">
-          <button class="btn sm" id="msgSend">Enviar</button>
-        </div>
-        <div class="keys">→ / Espaço próximo · ← voltar · B tela preta · C sem letra</div>
       </div>
     </div>
     <div class="panel-h">
@@ -80,6 +71,26 @@
     </div>
     <div class="slides" id="slideGrid"></div>
   </section>
+
+  <!-- Direita: o que está tocando, recado e temas -->
+  <aside class="panel right-col">
+    <div class="live-info">
+      <div class="label">TOCANDO</div>
+      <div id="liveTitle" class="live-title">—</div>
+      <div id="livePos" class="muted"></div>
+      <div class="label" style="margin-top:14px">PRÓXIMO</div>
+      <div id="liveNext" class="muted next"></div>
+      <div class="msgbox">
+        <input id="msgIn" placeholder="Recado para o palco…" maxlength="140">
+        <button class="btn sm" id="msgSend">Enviar</button>
+      </div>
+    </div>
+    <div class="rc-themes">
+      <div class="rc-h"><span class="label">TEMAS</span><a href="#" class="link" id="allThemesBtn">Todos / editar</a></div>
+      <div class="qt-grid" id="quickThemes"></div>
+    </div>
+    <div class="keys">→ / Espaço próximo · ← voltar · B tela preta · C sem letra</div>
+  </aside>
 </main>
 
 <!-- Tela da Bíblia -->
@@ -133,8 +144,8 @@
     <h2 id="edTitle">Novo louvor</h2>
     <div class="acts">
       <button class="btn sm" id="edKw" title="Sugere a palavra-chave de cada slide (estilo do vídeo)">Destacar palavras</button>
-      <button class="btn sm" id="edOfficial" title="Cole a letra original em inglês (ou um link) e o sistema encaixa linha por linha">Inglês oficial</button>
-      <button class="btn sm" id="edTr" title="Sugere a tradução em inglês das linhas sem tradução (precisa da IA)">Traduzir</button>
+      <button class="btn sm" id="edOfficial" title="Colocar o inglês: tradução automática ou letra oficial">Inglês</button>
+      <button class="btn sm" id="edTr" hidden>Traduzir</button>
       <button class="btn sm" id="edUndo" title="Desfazer a última sugestão" disabled>↶ Desfazer</button>
       <select id="edTheme" class="sel" title="Tema padrão deste louvor"></select>
       <div class="seg sm" id="edModes"><button data-mode="pt">PT</button><button data-mode="pt-en">PT+EN</button><button data-mode="en">EN</button></div>
@@ -293,9 +304,10 @@
 
 <!-- Configurações -->
 <dialog id="enDlg" class="modal">
-  <div class="modal-h"><h2>Inglês oficial</h2><div class="acts"><button class="btn sm" id="enCancel">Cancelar</button></div></div>
+  <div class="modal-h"><h2>Inglês deste louvor</h2><div class="acts"><button class="btn sm" id="enCancel">Cancelar</button></div></div>
   <div class="en-body">
-    <p class="muted small">Para louvores que são versão de música em inglês (ex.: "A Bênção" → "The Blessing"). O sistema coloca cada linha oficial embaixo da linha certa em português. A tradução que já existir é trocada.</p>
+    <button class="btn primary en-auto" id="enAuto">Traduzir automaticamente</button>
+    <div class="en-or"><span>ou, se for versão de música em inglês, use a letra oficial</span></div>
     <label class="lbl">Link da letra em inglês (Letras, Genius…)</label>
     <input class="search" id="enUrl" placeholder="https://www.letras.mus.br/…/the-blessing/" autocomplete="off">
     <label class="lbl">ou cole a letra em inglês</label>

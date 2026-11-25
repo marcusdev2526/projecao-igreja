@@ -391,4 +391,31 @@ body { font-size: 14px; letter-spacing: -.005em; }
 .en-body textarea { width: 100%; box-sizing: border-box; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 13px/1.5 Inter, system-ui, sans-serif; resize: vertical; }
 .en-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; }
 .ed-en { color: #ffcf66; } .ed-en a { color: var(--accent2); cursor: pointer; text-decoration: underline; }
-#prepEnBtn:not([hidden]) ~ .hint { display: none; }
+
+/* Layout: culto e biblioteca à esquerda, telão no centro, informações à direita */
+.cols { grid-template-columns: 320px minmax(0, 1fr) 290px; }
+.left-col { display: flex; flex-direction: column; gap: 1px; background: #1c2027; min-height: 0; }
+.left-col > .panel { min-height: 0; }
+.left-col > #service { flex: 0 0 40%; }
+.left-col > #library { flex: 1 1 0; }
+#library > .pane { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.live-top { display: flex; justify-content: center; padding: 16px 16px 12px; background: #101317; }
+.preview-wrap { width: min(100%, calc((100vh - 480px) * 16 / 9)); min-width: 360px; }
+.right-col { overflow-y: auto; padding: 14px; gap: 16px; }
+.right-col .live-info { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.right-col .keys { margin-top: auto; }
+.rc-h { display: flex; justify-content: space-between; align-items: baseline; }
+.rc-h .link { font-size: 12px; }
+.qt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.qt { cursor: pointer; border-radius: 8px; border: 1px solid #222731; background: #181c22; padding: 3px; transition: border-color .15s; }
+.qt:hover { border-color: #3a414d; }
+.qt.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.qt .host { aspect-ratio: 16 / 9; border-radius: 5px; overflow: hidden; position: relative; }
+.qt .nm { font-size: 11.5px; color: var(--muted); padding: 4px 3px 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qt.on .nm { color: var(--text); }
+@media (max-width: 1300px) { .cols { grid-template-columns: 280px minmax(0, 1fr) 250px; } }
+.en-auto { width: 100%; justify-content: center; padding: 10px; }
+.en-or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 10px 0 2px; }
+.en-or::before, .en-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.badge.pulse { animation: enpulse 1.2s ease-in-out infinite; }
+@keyframes enpulse { 50% { opacity: .45; } }
