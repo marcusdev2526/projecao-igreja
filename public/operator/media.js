@@ -13,6 +13,7 @@ const ICONS = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
+  pin: '<path d="M9 4h6l-1 5 3 3v2H7v-2l3-3zM12 14v6"/>',
 };
 export const icon = (k, cls = 'ki') => `<svg class="${cls}" viewBox="0 0 24 24">${ICONS[k] || ICONS.text}</svg>`;
 const jsonOf = (t) => { try { return JSON.parse(t || '{}'); } catch { return {}; } };
@@ -32,10 +33,11 @@ export function initMedia(ctx) {
   let audioItem = null;
 
   // ---------- Abas ----------
-  const PANES = { louvores: 'songsPane', biblia: 'bibleSrcPane', midia: 'mediaPane', apresentacoes: 'decksPane', avisos: 'avisosPane' };
+  const PANES = { louvores: 'songsPane', biblia: 'bibleSrcPane', cartazes: 'postersPane', midia: 'mediaPane', apresentacoes: 'decksPane', avisos: 'avisosPane' };
   function showTab(t) {
     Object.entries(PANES).forEach(([k, id]) => ($(id).hidden = k !== t));
     if (t === 'midia') loadMedia();
+    if (t === 'cartazes') loadPosters();
     if (t === 'apresentacoes' || t === 'avisos') loadDecks();
   }
   window.addEventListener('libtab', (e) => showTab(e.detail));
@@ -65,6 +67,7 @@ export function initMedia(ctx) {
           <div class="mth">${m.type === 'video' ? `<video src="${esc(m.url)}#t=1" muted preload="metadata"></video>` : m.type === 'image' ? `<img src="${esc(m.url)}" loading="lazy" alt="">` : icon('audio')}</div>
           <div class="info"><div class="t">${esc(pretty(m))}</div><div class="a">${TYPE_LABEL[m.type]} · ${size(m.size)} · ${when(m.mtime)}</div></div>
           <button class="mini" data-act="show" title="Mostrar agora no telão">${icon('play')}</button>
+          ${m.type !== 'audio' ? `<button class="mini" data-act="poster" title="Usar como cartaz">${icon('pin')}</button>` : ''}
           <button class="mini" data-act="add" title="Adicionar ao culto">${icon('plus')}</button>
           <button class="mini danger" data-act="del" title="Excluir">${icon('trash')}</button></div>`).join('')
       : `<div class="empty">${media.length ? 'Nada encontrado' : 'Arraste vídeos, imagens ou músicas para cá'}</div>`;
@@ -84,6 +87,7 @@ export function initMedia(ctx) {
     const m = media.find((x) => x.name === row.dataset.n);
     const title = pretty(m);
     if (act === 'show') cmd({ type: 'media', url: m.url, mtype: m.type, name: title });
+    if (act === 'poster') { await api('/api/posters', { method: 'POST', body: { names: [m.name] } }); toast('Adicionado aos Cartazes'); }
     if (act === 'add') {
       const svc = getService();
       if (!svc) return toast('Abra um culto primeiro');
@@ -150,6 +154,7 @@ export function initMedia(ctx) {
     media: 'video/*,image/*,audio/*,.mp3,.m4a,.wav,.opus,.ogg',
     deck: '.pptx,.ppt,.ppsx,.pps,.pdf,image/*',
     audio: 'audio/*,.mp3,.m4a,.wav,.aac,.ogg',
+    poster: 'image/*,video/*',
   };
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-pick]');
@@ -163,6 +168,7 @@ export function initMedia(ctx) {
     $('fileIn').value = '';
     if (!files.length) return;
     if (pickMode === 'audio') return uploadAudioForItem(files[0]);
+    if (pickMode === 'poster') return uploadPosters(files);
     // pelo botão da biblioteca: só guarda na biblioteca (não põe no culto); fotos em Apresentações viram slides
     await upload(files, { toService: false, asDeck: pickMode === 'deck' });
     if (!$('carDlg').hidden && $('carDlg').open) renderCarGrid();
@@ -463,14 +469,14 @@ export function initMedia(ctx) {
   // ---------- Arrastar para o telão (ou para o monitor "Preparado" quando congelado) ----------
   const DT = 'application/x-projecao';
   document.addEventListener('dragstart', (e) => {
-    const r = e.target.closest?.('#mediaList .mrow, #mbGrid .mb-card, #deckList .mrow, #avList .mrow, #songList .song, #bsList .bs-hit, #itemList .item:not(.block)');
+    const r = e.target.closest?.('#posterList .pst, #mediaList .mrow, #mbGrid .mb-card, #deckList .mrow, #avList .mrow, #songList .song, #bsList .bs-hit, #itemList .item:not(.block)');
     if (!r) return;
     let payload;
     if (r.matches('.song')) payload = { kind: 'song', id: +r.dataset.id };
     else if (r.matches('.bs-hit')) payload = { kind: 'bible', book: +r.dataset.b, chapter: +r.dataset.c, verse: +r.dataset.v };
     else if (r.matches('.item')) payload = { kind: 'item', id: +r.dataset.id };
     else if (r.dataset.n) {
-      const m = media.find((x) => x.name === r.dataset.n);
+      const m = media.find((x) => x.name === r.dataset.n) || posters.find((x) => x.name === r.dataset.n);
       if (!m) return;
       payload = { kind: 'media', url: m.url, mtype: m.type, name: pretty(m) };
     } else {
@@ -523,6 +529,68 @@ export function initMedia(ctx) {
       toast(frozen ? 'Preparado. Aperte “Jogar no telão” quando for a hora.' : 'No telão' + (raw && JSON.parse(raw).mtype === 'video' ? ' (pausado: aperte ▶)' : ''));
       document.body.classList.remove('dragging-media');
     });
+  });
+
+  // ---------- Cartazes (tela base fixa) ----------
+  let posters = [];
+  async function loadPosters() {
+    posters = await api('/api/posters');
+    renderPosters();
+  }
+  function renderPosters() {
+    const base = getLive()?.base;
+    $('posterList').innerHTML = posters.length
+      ? posters.map((m) => {
+        const fixed = base?.url === m.url;
+        return `<div class="pst ${fixed ? 'fixed' : ''}" draggable="true" data-n="${esc(m.name)}" title="Clique: fixar e mostrar no telão">
+          <div class="pst-th">${m.type === 'video' ? `<video src="${esc(m.url)}#t=1" muted preload="metadata"></video><span class="pst-motion">motion</span>` : `<img src="${esc(m.url)}" loading="lazy" alt="">`}${fixed ? '<span class="pst-fix">FIXO</span>' : ''}</div>
+          <div class="pst-t">${esc(pretty(m))}</div>
+          <div class="pst-acts"><button data-pa="pin" title="Fixar sem mostrar agora">Fixar</button><button data-pa="del" title="Tirar dos cartazes (o arquivo continua na Mídia)">✕</button></div></div>`;
+      }).join('')
+      : '<div class="empty">Envie as artes do evento (cartaz do congresso, do pregador) ou motions em vídeo. Também dá para arrastar aqui.</div>';
+  }
+  $('posterList').onclick = async (e) => {
+    const c = e.target.closest('.pst');
+    if (!c) return;
+    const m = posters.find((x) => x.name === c.dataset.n);
+    const pa = e.target.closest('[data-pa]')?.dataset.pa;
+    if (pa === 'del') { await api('/api/posters/' + encodeURIComponent(m.name), { method: 'DELETE' }); if (getLive()?.base?.url === m.url) cmd({ type: 'base-set', url: '' }); return loadPosters(); }
+    cmd({ type: 'base-set', url: m.url, mtype: m.type, name: pretty(m), show: pa !== 'pin' });
+    toast(pa === 'pin' ? 'Cartaz fixado. Aperte Esc para mostrar.' : 'Cartaz fixado e no telão');
+  };
+  async function uploadPosters(files) {
+    const res = await upload(files, { toService: false });
+    const names = res.filter((r) => r.ok && r.url).map((r) => decodeURIComponent(r.url.split('/').pop()));
+    if (names.length) await api('/api/posters', { method: 'POST', body: { names } });
+    loadPosters();
+  }
+  // arrastar arquivo para a lista de cartazes
+  $('posterList').addEventListener('dragover', (e) => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); e.stopPropagation(); } });
+  $('posterList').addEventListener('drop', (e) => {
+    if (!e.dataTransfer.files.length) return;
+    e.preventDefault();
+    e.stopPropagation();
+    $('dropOv').hidden = true;
+    uploadPosters([...e.dataTransfer.files]);
+  });
+  // botão Cartaz / Esc
+  $('baseBtn').onclick = () => {
+    if (!getLive()?.base) {
+      document.querySelector('#srcTabs [data-src="cartazes"]')?.click();
+      return toast('Escolha um cartaz para fixar');
+    }
+    cmd({ type: 'base-show' });
+  };
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || document.querySelector('dialog[open]') || e.target.closest('input, textarea, select')) return;
+    $('baseBtn').click();
+  });
+  socket.on('state', (s) => {
+    $('baseBtn').classList.toggle('on', !!s.showBase);
+    $('baseBtn').classList.toggle('has', !!s.base);
+    $('baseThumb').style.backgroundImage = s.base?.mtype === 'image' ? `url("${s.base.url}")` : '';
+    $('baseThumb').classList.toggle('vid', s.base?.mtype === 'video');
+    if (!$('postersPane').hidden) renderPosters();
   });
 
   return { icon, itemKind, itemSub, renderSelected, renderPlayer, openAudioFor, showTab, hasAudio: (it) => !!jsonOf(it.text).audio };

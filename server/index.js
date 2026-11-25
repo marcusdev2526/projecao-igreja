@@ -70,6 +70,8 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     index: -1,
     message: '',
     logo: false, // tela só com a logo da igreja
+    base: (() => { try { return JSON.parse(repo.getSetting('base', 'null')); } catch { return null; } })(), // cartaz fixo
+    showBase: false,
     frozen: false, // telão congelado: o público vê screenSnap enquanto o operador prepara o próximo
     screenSnap: null,
     waiting: false, // tela de espera (logo, contagem regressiva, avisos)
@@ -261,6 +263,8 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       black: live.black,
       logo: live.logo,
       waiting: live.waiting,
+      base: live.base,
+      showBase: live.showBase,
       church: churchInfo(),
       player: live.player,
       transition: live.transition,
@@ -298,6 +302,8 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       message: live.message,
       logo: live.logo,
       waiting: live.waiting,
+      base: live.base,
+      showBase: live.showBase,
       church: churchInfo(),
       timing: live.timing,
       block: currentBlock(),
@@ -334,7 +340,23 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   }
 
   function handleCmd(c = {}) {
+    // no cartaz, a primeira seta só volta para o slide onde estava (não pula)
+    if (live.showBase && (c.type === 'next' || c.type === 'prev')) { live.showBase = false; return broadcast(); }
+    // qualquer conteúdo novo (ou passar slide) sai do cartaz fixo
+    if (['item', 'song', 'bible', 'media', 'deck', 'goto', 'next', 'prev', 'logo', 'waiting'].includes(c.type)) live.showBase = false;
     switch (c.type) {
+      // Cartaz fixo: imagem/vídeo de fundo do evento. ESC volta para ele.
+      case 'base-set':
+        live.base = c.url ? { url: String(c.url), mtype: c.mtype === 'video' ? 'video' : 'image', name: String(c.name || '') } : null;
+        repo.setSetting('base', JSON.stringify(live.base));
+        if (c.show && live.base) live.showBase = true;
+        if (!live.base) live.showBase = false;
+        break;
+      case 'base-show':
+        if (!live.base) return;
+        live.showBase = typeof c.value === 'boolean' ? c.value : true;
+        if (live.showBase) { live.logo = false; live.waiting = false; }
+        break;
       case 'service':
         if (live.serviceId !== (c.id ?? null)) live.timing = { serviceStart: null, blockId: null, blockStart: null };
         live.serviceId = c.id ?? null;
@@ -642,7 +664,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       p.status = 'stopped';
       p.seq++;
       if (p.after === 'next' && p.itemId && p.itemId === live.itemId) return nextItem(1) ?? broadcast();
-      if (p.after === 'tema' && live.kind === 'media' && p.type === 'video') live.clear = true;
+      if (p.after === 'tema' && live.kind === 'media' && p.type === 'video') { if (live.base) live.showBase = true; else live.clear = true; }
       broadcast();
     });
     socket.on('cmd', (c) => {
@@ -987,6 +1009,24 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     io.emit('library');
     ok(res, { results });
   }));
+  // Cartazes: mídias marcadas como cartaz (artes de congresso, do pregador, motions)
+  const posters = () => { try { return JSON.parse(repo.getSetting('posters', '[]')); } catch { return []; } };
+  app.get('/api/posters', (req, res) => {
+    const all = listMedia();
+    ok(res, posters().map((n) => all.find((m) => m.name === n)).filter(Boolean));
+  });
+  app.post('/api/posters', wrap((req, res) => {
+    const add = req.body.names || [];
+    repo.setSetting('posters', JSON.stringify([...add, ...posters().filter((n) => !add.includes(n))]));
+    io.emit('library');
+    ok(res);
+  }));
+  app.delete('/api/posters/:name', (req, res) => {
+    repo.setSetting('posters', JSON.stringify(posters().filter((n) => n !== req.params.name)));
+    io.emit('library');
+    ok(res);
+  });
+
   // Mídia por link (ex.: arrastar uma imagem/vídeo do WhatsApp Web ou Telegram Web)
   app.post('/api/media/url', wrap(async (req, res) => {
     const url = String(req.body.url || '').trim();

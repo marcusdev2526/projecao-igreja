@@ -900,3 +900,34 @@ body.light .bs-hit:hover { background: #f1f3f6; }
 /* arrastando das fontes: o roteiro também recebe */
 body.dragging-media #itemList { outline: 2px dashed rgba(255,106,61,.55); outline-offset: -4px; border-radius: 10px; background: rgba(255,106,61,.04); }
 .song[draggable="true"], .bs-hit { cursor: grab; }
+
+/* =========== Cartazes (tela base fixa) =========== */
+.pst-help { margin: 0 14px 10px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.pst-help kbd, .cb kbd { font: 700 10px Inter, sans-serif; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); padding: 1px 5px; border-radius: 4px; }
+.pst-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 2px 12px 12px; align-content: start; }
+.pst { position: relative; border-radius: 10px; border: 1px solid #232832; background: #14181e; padding: 4px; cursor: pointer; }
+.pst:hover { border-color: #3a414d; }
+.pst.fixed { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.pst-th { position: relative; aspect-ratio: 16 / 9; border-radius: 7px; overflow: hidden; background: #000; }
+.pst-th img, .pst-th video { width: 100%; height: 100%; object-fit: cover; }
+.pst-fix { position: absolute; left: 6px; top: 6px; background: var(--accent); color: #fff; font: 800 10px Inter, sans-serif; letter-spacing: .08em; padding: 2px 7px; border-radius: 5px; }
+.pst-motion { position: absolute; right: 6px; bottom: 6px; background: rgba(0,0,0,.6); color: #fff; font: 700 10px Inter, sans-serif; padding: 2px 6px; border-radius: 5px; }
+.pst-t { font-size: 12px; font-weight: 600; margin: 5px 3px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pst-acts { position: absolute; right: 8px; top: 8px; display: none; gap: 4px; }
+.pst:hover .pst-acts { display: flex; }
+.pst-acts button { background: rgba(0,0,0,.7); border: 1px solid rgba(255,255,255,.2); color: #fff; border-radius: 6px; font: 700 11px Inter, sans-serif; padding: 3px 7px; cursor: pointer; }
+.cb.base .bthumb { width: 26px; height: 16px; border-radius: 3px; background: #2a303a center / cover no-repeat; display: none; }
+.cb.base.has .bthumb { display: inline-block; }
+.cb.base .bthumb.vid { background: linear-gradient(135deg, #3b8be0, #b88cff); }
+.cb.base.on { background: rgba(255, 106, 61, .14); border-color: var(--accent); color: #fff; }
+body.light .pst { background: #fff; border-color: var(--line); }
+.cb.next { min-width: 140px; flex-shrink: 0; }
+.cmdbar { overflow-x: auto; scrollbar-width: none; }
+@media (max-width: 1500px) {
+  .cmdbar { gap: 6px; padding: 10px 14px; }
+  .cb { padding: 0 9px; font-size: 12.5px; height: 38px; }
+  .cb kbd, .cb-sep { display: none; }
+  .cb.next { min-width: 120px; height: 42px; }
+}
+.cb.next { flex: 0 0 auto; width: 200px; min-width: 0; }
+@media (max-width: 1500px) { .cb.next { width: 116px; } }

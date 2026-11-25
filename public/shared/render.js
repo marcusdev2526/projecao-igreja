@@ -101,6 +101,13 @@ function bibleHTML(slide, mode) {
   }</div><div class="bible-ref">${esc((ref || slide.name).replace(/\s*\(\d\/\d\)$/, ''))}${part}${ver ? ` <span>· ${esc(ver)}</span>` : ''}</div>`;
 }
 
+// Cartaz fixo: arte do evento/pregador (imagem) ou motion (vídeo em repetição, sem som)
+export function baseHTML(b = {}) {
+  const u = esc(b.url || '');
+  if (b.mtype === 'video') return `<div class="media-full base"><canvas class="amb" width="48" height="27"></canvas><video class="base-v" src="${u}" autoplay muted loop playsinline></video></div>`;
+  return `<div class="media-full base"><img class="amb" src="${u}" alt="" aria-hidden="true"><img class="main" src="${u}" alt=""></div>`;
+}
+
 // Tela só com a logo (ou o nome) da igreja
 export function logoHTML(c = {}) {
   return `<div class="church-logo">${c.logo ? `<img src="${esc(c.logo)}" alt="">` : `<div class="cname">${esc(c.name || 'Bem-vindos')}</div>`}</div>`;

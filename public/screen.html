@@ -17,7 +17,7 @@
 <div id="hint">Pressione F11 (ou clique duas vezes) para tela cheia · arraste esta janela para o projetor</div>
 <script src="/socket.io/socket.io.js"></script>
 <script type="module">
-  import { createStage, slideHTML, logoHTML, waitingHTML, tickWaiting } from '/shared/render.js';
+  import { createStage, slideHTML, logoHTML, waitingHTML, tickWaiting, baseHTML } from '/shared/render.js';
   const embedded = new URLSearchParams(location.search).has('embed');
   // ?real = mostra o que está preparado (ignora o congelamento) — usado no monitor "Preparado" do painel
   const realView = new URLSearchParams(location.search).has('real');
@@ -31,7 +31,7 @@
     stage.setTheme(s.themeId, s.themeDef);
     stage.setBlack(s.black);
     stage.setTransition(s.transition, s.trSpeed);
-    const html = s.waiting ? waitingHTML(s.church) : s.logo ? logoHTML(s.church) : s.clear || !s.slide ? '' : slideHTML(s.slide, s.mode);
+    const html = s.waiting ? waitingHTML(s.church) : s.logo ? logoHTML(s.church) : s.showBase && s.base ? baseHTML(s.base) : s.clear || !s.slide ? '' : slideHTML(s.slide, s.mode);
     const key = s.themeId + '|' + s.mode + '|' + html;
     if (key !== lastKey) { stage.show(html); lastKey = key; tickWaiting(stage.el); }
     applyPlayer(s.player);
@@ -45,7 +45,7 @@
   aud.preload = 'auto';
   let pState = null;
   let applied = -1;
-  const mediaEl = (p) => (p?.type === 'video' ? [...document.querySelectorAll('.content-layer:not(.leave) video')].pop() : aud);
+  const mediaEl = (p) => (p?.type === 'video' ? [...document.querySelectorAll('.content-layer:not(.leave) video:not(.base-v)')].pop() : aud);
   function fadeOut(el) {
     const v0 = el.volume;
     let k = 0;

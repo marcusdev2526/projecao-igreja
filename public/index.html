@@ -111,6 +111,7 @@
       <span class="cb-sep"></span>
       <button class="cb warn" id="blackBtn" title="Atalho: B">Tela preta</button>
       <button class="cb" id="clearBtn" title="Atalho: C">Sem letra</button>
+      <button class="cb base" id="baseBtn" title="Volta para o cartaz fixo (Esc)"><span class="bthumb" id="baseThumb"></span>Cartaz <kbd>Esc</kbd></button>
       <button class="cb" id="msgBtn" title="Recado para o palco (aparece no retorno)">Recado</button>
       <button class="cb" id="logoBtn" title="Mostra só a logo da igreja (L)">Logo</button>
       <button class="cb" id="waitBtn" title="Tela de espera: contagem regressiva e avisos">Espera</button>
@@ -122,9 +123,14 @@
   <aside class="right-col src-col">
   <section class="panel" id="library">
     <div class="src-tabs" id="srcTabs">
-      <button data-src="louvores" class="on">Louvores</button><button data-src="biblia">Bíblia</button><button data-src="midia">Mídia</button><button data-src="apresentacoes">Apresent.</button><button data-src="avisos">Avisos</button>
+      <button data-src="louvores" class="on">Louvores</button><button data-src="biblia">Bíblia</button><button data-src="cartazes">Cartazes</button><button data-src="midia">Mídia</button><button data-src="apresentacoes">Slides</button><button data-src="avisos">Avisos</button>
     </div>
     <button class="lib-toggle" id="libToggle" hidden></button>
+    <div id="postersPane" class="pane" hidden>
+      <div class="panel-h"><h2>Cartazes</h2><div class="acts"><button class="btn sm primary" data-pick="poster">+ Enviar</button></div></div>
+      <p class="pst-help">O cartaz <b>fixo</b> é a tela base do evento: aperte <kbd>Esc</kbd> e o telão volta para ele. Clique num cartaz para fixar e mostrar.</p>
+      <div class="pst-grid list" id="posterList"></div>
+    </div>
     <div id="bibleSrcPane" class="pane" hidden>
       <div class="bs-top">
         <input class="search" id="bsQ" placeholder="João 3:16  ou  palavras do versículo" autocomplete="off">
