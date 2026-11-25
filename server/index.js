@@ -392,6 +392,16 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
           if (m.type === 'video' || m.type === 'audio') {
             if (live.player?.itemId !== item.id || live.player.status === 'stopped') setPlayer({ url: m.url, type: m.type, name: live.title, status: 'paused', after: m.after || 'tema', itemId: item.id, seek: 0 });
           }
+        } else if (item.kind === 'seq') {
+          // Sequência: imagens e vídeos na ordem que o pregador pediu
+          const j = jsonOf(item.text);
+          live.kind = 'seq';
+          live.songId = null;
+          live.itemId = item.id;
+          live.title = item.title || 'Sequência';
+          live.slides = (j.items || []).map((m, i) => ({ index: i, kind: 'media', mtype: m.type, url: m.url, name: m.name || `${i + 1}`, code: 'M', lines: [] }));
+          live.index = Math.min(c.index || 0, Math.max(0, live.slides.length - 1));
+          live.clear = false;
         } else if (item.kind === 'deck') {
           const d = decks.get(jsonOf(item.text).deck);
           if (!d) return;
@@ -583,7 +593,18 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       default:
         return;
     }
+    syncSeqPlayer();
     broadcast();
+  }
+  // Na sequência, o player acompanha o slide: vídeo entra pausado (▶ para tocar); imagem para o vídeo anterior
+  function syncSeqPlayer() {
+    if (live.kind !== 'seq') return;
+    const sl = live.slides[live.index];
+    if (sl?.mtype === 'video') {
+      if (live.player?.url !== sl.url || live.player?.itemId !== live.itemId || live.player.seqIndex !== live.index) {
+        setPlayer({ url: sl.url, type: 'video', name: sl.name, status: 'paused', after: 'next', itemId: live.itemId, seqIndex: live.index, seek: 0 });
+      }
+    } else if (live.player?.type === 'video' && live.player.status !== 'stopped') setPlayer(null);
   }
 
   // Avança para o próximo/anterior item do culto
@@ -663,6 +684,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       if (p.after === 'loop') { p.seek = 0; p.seq++; return broadcast(); }
       p.status = 'stopped';
       p.seq++;
+      if (p.after === 'next' && live.kind === 'seq' && p.itemId === live.itemId) return handleCmd({ type: 'next' });
       if (p.after === 'next' && p.itemId && p.itemId === live.itemId) return nextItem(1) ?? broadcast();
       if (p.after === 'tema' && live.kind === 'media' && p.type === 'video') { if (live.base) live.showBase = true; else live.clear = true; }
       broadcast();

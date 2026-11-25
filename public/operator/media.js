@@ -9,6 +9,7 @@ const ICONS = {
   image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
   audio: '<path d="M3 14v-2a9 9 0 0 1 18 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/>',
   deck: '<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/>',
+  seq: '<rect x="3" y="5" width="8" height="6" rx="1"/><rect x="13" y="5" width="8" height="6" rx="1"/><rect x="3" y="13" width="8" height="6" rx="1"/><path d="m15.5 14.5 3 1.5-3 1.5z"/>',
   play: '<path d="M7 5v14l12-7z"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
@@ -51,6 +52,7 @@ export function initMedia(ctx) {
     const j = jsonOf(it.text);
     if (it.kind === 'media') return TYPE_LABEL[j.type] || 'Mídia';
     if (it.kind === 'deck') return 'Apresentação' + (j.count ? ` · ${j.count} slides` : '');
+    if (it.kind === 'seq') { const v = (j.items || []).filter((x) => x.type === 'video').length; const n = (j.items || []).length; return `Sequência · ${n} ${n === 1 ? 'item' : 'itens'}${v ? ` (${v} vídeo${v > 1 ? 's' : ''})` : ''}`; }
     return null;
   }
 
@@ -325,6 +327,10 @@ export function initMedia(ctx) {
   // ---------- Item selecionado: slides da apresentação / mídia ----------
   async function renderSelected(item) {
     const j = jsonOf(item.text);
+    if (item.kind === 'seq') {
+      $('slideGrid').innerHTML = (j.items || []).map((m, i) => `<div class="slide thumb" data-i="${i}">${m.type === 'video' ? `<video src="${esc(m.url)}#t=1" muted preload="metadata"></video><span class="mb-play">${icon('play')}</span>` : `<img src="${esc(m.url)}" loading="lazy" alt="">`}<span class="num">${i + 1}${m.type === 'video' ? ' · vídeo' : ''}</span></div>`).join('') || '<div class="empty">Sequência vazia</div>';
+      return;
+    }
     if (item.kind === 'deck') {
       const d = await api('/api/decks/' + j.deck);
       if (!d) { $('slideGrid').innerHTML = '<div class="empty">Apresentação não encontrada</div>'; return; }
@@ -342,7 +348,7 @@ export function initMedia(ctx) {
   function renderPlayer(s) {
     const p = s.player;
     // só mostra o player se o vídeo/áudio é do que está no ar (ou se está tocando)
-    const onAir = p && ((p.itemId && p.itemId === s.itemId) || (s.kind === 'media' && s.slide?.url === p.url));
+    const onAir = p && ((p.itemId && p.itemId === s.itemId && (s.kind !== 'seq' || s.slide?.url === p.url)) || (s.kind === 'media' && s.slide?.url === p.url));
     const show = !!p && (p.status === 'playing' || onAir);
     $('playerBar').hidden = !show;
     if (!show) return;
@@ -402,6 +408,19 @@ export function initMedia(ctx) {
   // ---------- Biblioteca grande (Expandir) ----------
   let mbFilter = '';
   let mbSel = null;
+  let selMode = false;
+  let picked = []; // nomes na ordem em que foram clicados
+  function updSel() {
+    $('mbSelBar').hidden = !selMode;
+    $('mbSelMode').classList.toggle('on', selMode);
+    $('mbSelMode').textContent = selMode ? 'Sair da seleção' : 'Selecionar';
+    $('mbSelCount').textContent = picked.length + (picked.length === 1 ? ' selecionado' : ' selecionados');
+    $('mbDelSel').disabled = $('mbSeq').disabled = !picked.length;
+  }
+  const visibleList = () => {
+    const q = $('mbSearch').value.trim().toLowerCase();
+    return media.filter((m) => (!mbFilter || m.type === mbFilter) && (!q || pretty(m).toLowerCase().includes(q)));
+  };
   async function openBig() {
     media = await api('/api/media');
     renderBig();
@@ -410,12 +429,13 @@ export function initMedia(ctx) {
   function renderBig() {
     const q = $('mbSearch').value.trim().toLowerCase();
     const sort = $('mbSort').value;
-    let list = media.filter((m) => (!mbFilter || m.type === mbFilter) && (!q || pretty(m).toLowerCase().includes(q)));
+    let list = visibleList();
     list = list.sort((a, b) => sort === 'old' ? a.mtime - b.mtime : sort === 'name' ? pretty(a).localeCompare(pretty(b)) : sort === 'size' ? b.size - a.size : b.mtime - a.mtime);
     $('mbGrid').innerHTML = list.length
-      ? list.map((m) => `<div class="mb-card ${mbSel === m.name ? 'on' : ''}" draggable="true" data-n="${esc(m.name)}">
+      ? list.map((m) => { const k = picked.indexOf(m.name); return `<div class="mb-card ${mbSel === m.name && !selMode ? 'on' : ''} ${k >= 0 ? 'picked' : ''} ${selMode ? 'sel-mode' : ''}" draggable="true" data-n="${esc(m.name)}">
+          <span class="mb-check" title="Selecionar">${k >= 0 ? k + 1 : ''}</span>
           <div class="mb-th">${m.type === 'video' ? `<video src="${esc(m.url)}#t=1" muted preload="metadata"></video><span class="mb-play">${icon('play')}</span>` : m.type === 'image' ? `<img src="${esc(m.url)}" loading="lazy" alt="">` : `<div class="mb-aud">${icon('audio')}</div>`}<span class="mb-type">${TYPE_LABEL[m.type]}</span></div>
-          <div class="mb-t">${esc(pretty(m))}</div><div class="mb-a">${size(m.size)} · ${when(m.mtime)}</div></div>`).join('')
+          <div class="mb-t">${esc(pretty(m))}</div><div class="mb-a">${size(m.size)} · ${when(m.mtime)}</div></div>`; }).join('')
       : '<div class="empty">Nada por aqui. Arraste arquivos ou clique em “+ Enviar”.</div>';
     renderSide();
   }
@@ -436,7 +456,50 @@ export function initMedia(ctx) {
   $('mbFilter').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; mbFilter = b.dataset.f; $('mbFilter').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); renderBig(); };
   $('mbSearch').oninput = renderBig;
   $('mbSort').onchange = renderBig;
-  $('mbGrid').onclick = (e) => { const c = e.target.closest('.mb-card'); if (!c) return; mbSel = c.dataset.n; renderBig(); };
+  $('mbGrid').onclick = (e) => {
+    const c = e.target.closest('.mb-card');
+    if (!c) return;
+    if (selMode || e.target.closest('.mb-check')) {
+      if (!selMode) { selMode = true; }
+      const n = c.dataset.n;
+      const k = picked.indexOf(n);
+      if (k >= 0) picked.splice(k, 1); else picked.push(n);
+      updSel();
+      return renderBig();
+    }
+    mbSel = c.dataset.n;
+    renderBig();
+  };
+  $('mbSelMode').onclick = () => { selMode = !selMode; if (!selMode) picked = []; updSel(); renderBig(); };
+  $('mbSelAll').onclick = () => { visibleList().forEach((m) => { if (!picked.includes(m.name)) picked.push(m.name); }); updSel(); renderBig(); };
+  $('mbSelNone').onclick = () => { picked = []; updSel(); renderBig(); };
+  $('mbDelSel').onclick = async () => {
+    if (!picked.length || !confirm(`Excluir ${picked.length} arquivo(s)? Não dá para desfazer.`)) return;
+    for (const n of picked) await api('/api/media/' + encodeURIComponent(n), { method: 'DELETE' });
+    toast(picked.length + ' arquivo(s) excluído(s)');
+    picked = [];
+    mbSel = null;
+    media = await api('/api/media');
+    updSel();
+    renderBig();
+    loadMedia();
+  };
+  // Sequência: várias imagens e vídeos, na ordem clicada, como um item só do culto
+  $('mbSeq').onclick = async () => {
+    const svc = getService();
+    if (!svc) return toast('Abra um culto primeiro');
+    const items = picked.map((n) => media.find((m) => m.name === n)).filter((m) => m && m.type !== 'audio').map((m) => ({ url: m.url, type: m.type, name: pretty(m) }));
+    if (!items.length) return toast('Escolha imagens ou vídeos');
+    const title = prompt('Nome da sequência (ex.: Imagens do Pr. João):', 'Imagens da pregação');
+    if (title == null) return;
+    await api(`/api/services/${svc.id}/items`, { method: 'POST', body: { kind: 'seq', title: title.trim() || 'Sequência', text: JSON.stringify({ items }) } });
+    await openService(svc.id);
+    picked = [];
+    selMode = false;
+    updSel();
+    $('mediaBig').close();
+    toast(`Sequência com ${items.length} itens adicionada ao culto. Use → para passar; vídeo entra pausado.`);
+  };
   $('mbGrid').ondblclick = (e) => { const c = e.target.closest('.mb-card'); if (c) $('mbSide').querySelector('[data-b="show"]')?.click(); };
   $('mbSide').onclick = async (e) => {
     const b = e.target.closest('[data-b]')?.dataset.b;

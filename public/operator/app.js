@@ -279,7 +279,7 @@ async function selectItem(id, { fresh = false } = {}) {
     const r = JSON.parse(item.text || '{}');
     return showBibleChapter(r.book, r.chapter, r.verse, item);
   }
-  if (item.kind === 'media' || item.kind === 'deck') {
+  if (item.kind === 'media' || item.kind === 'deck' || item.kind === 'seq') {
     selected = { item, slides: [], media: true, mode };
     document.querySelectorAll('.item').forEach((el) => el.classList.toggle('sel', +el.dataset.id === id));
     return renderSlides();
@@ -337,6 +337,7 @@ $('slideGrid').onclick = (e) => {
   }
   if (live?.itemId === selected.item.id) {
     if (selected.item.kind === 'media' && live.player) return cmd({ type: 'player', action: live.player.status === 'stopped' ? 'restart' : 'toggle' });
+    if (selected.item.kind === 'seq' && live.index === index && live.player?.seqIndex === index) return cmd({ type: 'player', action: live.player.status === 'stopped' ? 'restart' : 'toggle' });
     cmd({ type: 'goto', index });
   } else cmd({ type: 'item', id: selected.item.id, index });
 };

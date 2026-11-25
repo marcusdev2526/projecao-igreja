@@ -430,9 +430,19 @@
       <div class="chips-row" id="mbFilter"><button data-f="" class="on">Todos</button><button data-f="video">Vídeos</button><button data-f="image">Imagens</button><button data-f="audio">Playbacks</button></div>
       <input class="search" id="mbSearch" placeholder="Buscar…" autocomplete="off">
       <select class="sel sm" id="mbSort"><option value="new">Mais novos</option><option value="old">Mais antigos</option><option value="name">Nome</option><option value="size">Tamanho</option></select>
+      <button class="btn sm" id="mbSelMode" title="Escolher várias mídias">Selecionar</button>
       <button class="btn sm primary" data-pick="media">+ Enviar</button>
       <button class="btn sm" id="mbClose">Fechar</button>
     </div>
+  </div>
+  <div class="mb-selbar" id="mbSelBar" hidden>
+    <span id="mbSelCount">0 selecionados</span>
+    <button class="link" id="mbSelAll">Selecionar todos</button>
+    <button class="link" id="mbSelNone">Limpar</button>
+    <span class="mb-sel-hint">A ordem em que você clica é a ordem da sequência</span>
+    <span class="sp"></span>
+    <button class="btn sm danger" id="mbDelSel">Excluir selecionados</button>
+    <button class="btn sm primary" id="mbSeq">Criar sequência no culto</button>
   </div>
   <div class="mb-body">
     <div class="mb-grid" id="mbGrid"></div>
