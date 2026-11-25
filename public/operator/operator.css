@@ -1309,3 +1309,63 @@ body.light .cmdbar .cb.on, body.light .cmdbar .cb.base.on, body.light .cmdbar .c
   color: #fff !important; border-color: rgba(255,255,255,.35) !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -2px 6px rgba(10,40,90,.35), 0 4px 14px rgba(31,111,191,.45) !important;
 }
+
+/* =====================================================================
+   Mídia no ar: layout com mais espaço
+   - player numa faixa só (estilo vidro), sem repetir o nome
+   - prévia um pouco menor só enquanto o player aparece
+   - miniatura única cabe inteira, sem rolagem
+   ===================================================================== */
+.live-top:has(#playerBar:not([hidden])) .preview-wrap { width: min(100%, calc(clamp(200px, 38vh, 560px) * var(--ar, 1.7778))); }
+.live-top:has(#playerBar:not([hidden])) { padding-bottom: 10px; }
+#playerBar {
+  --plw: min(880px, calc(100vw - 700px));
+  width: max(100%, var(--plw)); margin-left: calc((100% - max(100%, var(--plw))) / 2);
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "ctl tl right"; align-items: center; gap: 14px;
+  margin-top: 10px; padding: 8px 12px; border-radius: 999px;
+  background: var(--glass-bg); border: 1px solid var(--glass-border); box-shadow: var(--glass-hi), var(--glass-drop);
+  backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%);
+}
+#playerBar[hidden] { display: none; }
+#playerBar .pl-row { display: contents; }
+#playerBar .pl-name { display: none; }
+#playerBar .pl-ctl { grid-area: ctl; gap: 4px; }
+#playerBar .pl-tl { grid-area: tl; min-width: 0; }
+#playerBar .pl-right { grid-area: right; gap: 6px; }
+#playerBar .pl-btn { width: 32px; height: 32px; border: 1px solid transparent; background: transparent; color: var(--glass-txt); transition: background .2s, transform .15s; }
+#playerBar .pl-btn:hover { background: rgba(255,255,255,.1); }
+body.light #playerBar .pl-btn:hover { background: rgba(20,40,70,.07); }
+#playerBar .pl-btn:active { transform: scale(.92); }
+#playerBar .pl-btn.main { width: 40px; height: 40px; color: #fff; border-color: rgba(255,255,255,.35);
+  background: linear-gradient(180deg, rgba(110,185,240,.95), rgba(43,138,217,.95) 45%, rgba(31,111,191,1));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -2px 6px rgba(10,40,90,.35), 0 4px 12px rgba(31,111,191,.45); }
+#playerBar .sel.sm { border-radius: 999px; padding: 5px 10px; background: rgba(255,255,255,.06); border-color: var(--glass-border); }
+body.light #playerBar .sel.sm { background: rgba(255,255,255,.7); }
+#playerBar .pl-track input[type=range] { height: 5px; }
+@media (max-width: 1500px) {
+  #playerBar { gap: 10px; padding: 6px 10px; }
+  #playerBar #plBack, #playerBar #plFwd { display: none; }
+  #playerBar #plVol { display: none; }
+  #plAfter { max-width: 120px; }
+}
+
+/* Miniatura única (vídeo/imagem/áudio): ocupa a altura disponível, sem rolagem */
+.slides:has(> .slide.thumb.big) { display: flex; justify-content: center; align-items: stretch; overflow: hidden; padding-top: 2px; position: relative; }
+.slides > .slide.thumb.big { height: 100%; max-height: 420px; width: auto; max-width: 100%; aspect-ratio: 16 / 9; flex: none; border-radius: 12px; grid-column: auto; }
+.slides:has(> .slide.thumb.big) > .media-hint { display: none; }
+.slide.thumb { border-radius: 10px; }
+
+/* Barras de rolagem discretas em todo o painel (nada de barra branca) */
+* { scrollbar-width: thin; scrollbar-color: rgba(140,155,175,.35) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(140,155,175,.3); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: rgba(140,155,175,.55); }
+::-webkit-scrollbar-button { display: none; height: 0; width: 0; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* Barra de comandos com folga para o vidro não cortar */
+.cmdbar { padding-top: 12px; padding-bottom: 12px; min-height: 66px; }
+.slides:has(> .slide.thumb.big) { padding-top: 6px; padding-bottom: 12px; }
+@media (max-height: 760px) { .live-top:has(#playerBar:not([hidden])) .preview-wrap { width: min(100%, calc(clamp(180px, 33vh, 560px) * var(--ar, 1.7778))); } }
+@media (max-width: 1440px) { .cmdbar { gap: 5px; padding-left: 12px; padding-right: 12px; } .cmdbar .cb { padding: 0 11px; font-size: 13px; } .cmdbar .cb.next { min-width: 0; padding: 0 22px; } }
