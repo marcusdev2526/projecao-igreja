@@ -18,6 +18,8 @@ export const icon = (k, cls = 'ki') => `<svg class="${cls}" viewBox="0 0 24 24">
 const jsonOf = (t) => { try { return JSON.parse(t || '{}'); } catch { return {}; } };
 const fmt = (t) => { t = Math.max(0, Math.floor(t || 0)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
 const size = (b) => (b < 1048576 ? Math.max(1, Math.round(b / 1024)) + ' KB' : (b / 1048576).toFixed(1) + ' MB');
+const pretty = (m) => m.title || m.name.replace(/-[a-z0-9]{6,}\.\w+$/, '').replace(/\.\w+$/, '').replace(/-/g, ' ');
+const when = (t) => { const d = new Date(t); const today = new Date().toDateString() === d.toDateString(); return today ? 'hoje ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString('pt-BR'); };
 const TYPE_LABEL = { video: 'Vídeo', image: 'Imagem', audio: 'Áudio' };
 
 export function initMedia(ctx) {
@@ -61,7 +63,7 @@ export function initMedia(ctx) {
     $('mediaList').innerHTML = list.length
       ? list.map((m) => `<div class="mrow" data-n="${esc(m.name)}">
           <div class="mth">${m.type === 'video' ? `<video src="${esc(m.url)}#t=1" muted preload="metadata"></video>` : m.type === 'image' ? `<img src="${esc(m.url)}" loading="lazy" alt="">` : icon('audio')}</div>
-          <div class="info"><div class="t">${esc(m.name.replace(/-[a-z0-9]{6,}\.\w+$/, '').replace(/-/g, ' '))}</div><div class="a">${TYPE_LABEL[m.type]} · ${size(m.size)}</div></div>
+          <div class="info"><div class="t">${esc(pretty(m))}</div><div class="a">${TYPE_LABEL[m.type]} · ${size(m.size)} · ${when(m.mtime)}</div></div>
           <button class="mini" data-act="show" title="Mostrar agora no telão">${icon('play')}</button>
           <button class="mini" data-act="add" title="Adicionar ao culto">${icon('plus')}</button>
           <button class="mini danger" data-act="del" title="Excluir">${icon('trash')}</button></div>`).join('')
@@ -80,7 +82,7 @@ export function initMedia(ctx) {
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (!row || !act) return;
     const m = media.find((x) => x.name === row.dataset.n);
-    const title = row.querySelector('.t').textContent;
+    const title = pretty(m);
     if (act === 'show') cmd({ type: 'media', url: m.url, mtype: m.type, name: title });
     if (act === 'add') {
       const svc = getService();
@@ -184,12 +186,13 @@ export function initMedia(ctx) {
   // Arrastar (do computador, WhatsApp, Telegram) ou colar (Ctrl+V).
   // Na aba Mídia vai só para a biblioteca; no resto da tela entra também no culto.
   let dragDepth = 0;
-  const inMediaTab = () => !$('mediaPane').hidden;
+  const inMediaTab = () => !$('mediaPane').hidden || $('mediaBig').open;
+  const otherDialog = () => [...document.querySelectorAll('dialog[open]')].some((d) => d.id !== 'mediaBig');
   const accepts = (dt) => { const t = [...(dt?.types || [])]; return t.includes('Files') || t.includes('text/uri-list'); };
   let internal = false; // arrasto que começou dentro do próprio painel (reordenar, miniaturas)
   window.addEventListener('dragstart', () => (internal = true));
   window.addEventListener('dragend', () => (internal = false));
-  const isDrop = (e) => !internal && accepts(e.dataTransfer) && !document.querySelector('dialog[open]');
+  const isDrop = (e) => !internal && accepts(e.dataTransfer) && !otherDialog();
   function dropText() {
     const lib = inMediaTab();
     $('dropOv').querySelector('b').textContent = lib ? 'Solte para guardar na Mídia' : 'Solte para adicionar ao culto';
@@ -206,7 +209,7 @@ export function initMedia(ctx) {
   });
   window.addEventListener('paste', (e) => {
     const t = e.target;
-    if (t.closest?.('input, textarea, [contenteditable]') || document.querySelector('dialog[open]')) return;
+    if (t.closest?.('input, textarea, [contenteditable]') || otherDialog()) return;
     const files = [...(e.clipboardData?.files || [])];
     const text = (e.clipboardData?.getData('text') || '').trim();
     if (!files.length && !/^https?:\/\/\S+\.(mp4|webm|mov|jpe?g|png|webp|gif|mp3|m4a|ogg|opus)(\?\S*)?$/i.test(text)) return;
@@ -326,35 +329,134 @@ export function initMedia(ctx) {
     }
   }
 
-  // ---------- Player (vídeo e áudio) ----------
+  // ---------- Player (vídeo e áudio), no estilo do player do Windows ----------
   let seeking = false;
+  let lastVol = 1;
+  let dur = 0;
   function renderPlayer(s) {
     const p = s.player;
-    const show = !!p && (p.status !== 'stopped' || (p.itemId && p.itemId === s.itemId));
+    const show = !!p && (p.status !== 'stopped' || (p.itemId && p.itemId === s.itemId) || s.kind === 'media');
     $('playerBar').hidden = !show;
     if (!show) return;
     $('playerBar').classList.toggle('playing', p.status === 'playing');
+    $('playerBar').classList.toggle('is-audio', p.type === 'audio');
     $('plName').textContent = (p.type === 'audio' && p.name === 'Playback' ? 'Playback · ' + s.title : p.name) || '';
     if (document.activeElement !== $('plVol')) $('plVol').value = p.volume ?? 1;
+    $('playerBar').classList.toggle('muted', (p.volume ?? 1) === 0);
     $('plAfter').value = p.after || 'tema';
     $('plAfter').querySelector('[value="next"]').hidden = !p.itemId;
+    $('plRate').value = String(p.rate || 1);
     if (p.status === 'stopped') { $('plSeek').value = 0; $('plCur').textContent = '0:00'; }
   }
   socket.on('player-time', ({ t, d }) => {
     if (seeking) return;
-    $('plSeek').max = d || 100;
+    dur = d || dur;
+    $('plSeek').max = dur || 100;
     $('plSeek').value = t;
     $('plCur').textContent = fmt(t);
-    $('plDur').textContent = fmt(d);
+    $('plDur').textContent = fmt(dur);
+    $('plSeek').style.setProperty('--pct', dur ? (t / dur) * 100 + '%' : '0%');
   });
   socket.on('player-blocked', () => toast('O navegador bloqueou o som: clique uma vez na janela do telão para liberar'));
-  $('plToggle').onclick = () => cmd({ type: 'player', action: 'toggle' });
-  $('plRestart').onclick = () => cmd({ type: 'player', action: 'restart' });
-  $('plStop').onclick = () => cmd({ type: 'player', action: 'stop' });
-  $('plSeek').oninput = () => { seeking = true; $('plCur').textContent = fmt(+$('plSeek').value); };
-  $('plSeek').onchange = () => { cmd({ type: 'player', action: 'seek', value: +$('plSeek').value }); setTimeout(() => (seeking = false), 600); };
-  $('plVol').oninput = () => cmd({ type: 'player', action: 'volume', value: +$('plVol').value });
-  $('plAfter').onchange = () => cmd({ type: 'player', action: 'after', value: $('plAfter').value });
+  const pc = (action, value) => cmd({ type: 'player', action, value });
+  $('plToggle').onclick = () => pc(getLive()?.player?.status === 'stopped' ? 'restart' : 'toggle');
+  $('plRestart').onclick = () => pc('restart');
+  $('plStop').onclick = () => pc('stop');
+  $('plBack').onclick = () => pc('skip', -10);
+  $('plFwd').onclick = () => pc('skip', 10);
+  $('plPrevItem').onclick = () => cmd({ type: 'prev' });
+  $('plNextItem').onclick = () => cmd({ type: 'next' });
+  $('plSeek').oninput = () => { seeking = true; $('plCur').textContent = fmt(+$('plSeek').value); $('plSeek').style.setProperty('--pct', dur ? (+$('plSeek').value / dur) * 100 + '%' : '0%'); };
+  $('plSeek').onchange = () => { pc('seek', +$('plSeek').value); setTimeout(() => (seeking = false), 600); };
+  // mostra o tempo onde o mouse está na linha do tempo
+  $('plSeek').addEventListener('mousemove', (e) => {
+    if (!dur) return;
+    const r = e.target.getBoundingClientRect();
+    const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    $('plTip').hidden = false;
+    $('plTip').textContent = fmt(x * dur);
+    $('plTip').style.left = x * 100 + '%';
+  });
+  $('plSeek').addEventListener('mouseleave', () => ($('plTip').hidden = true));
+  $('plVol').oninput = () => pc('volume', +$('plVol').value);
+  $('plMute').onclick = () => {
+    const v = getLive()?.player?.volume ?? 1;
+    if (v > 0) { lastVol = v; pc('volume', 0); } else pc('volume', lastVol || 1);
+  };
+  $('plRate').onchange = () => pc('rate', +$('plRate').value);
+  $('plAfter').onchange = () => pc('after', $('plAfter').value);
+  // P = tocar/pausar quando tem vídeo ou áudio
+  document.addEventListener('keydown', (e) => {
+    if (e.target.closest('input, textarea, select, dialog[open]') || e.ctrlKey || e.metaKey) return;
+    if ((e.key === 'p' || e.key === 'P') && getLive()?.player) $('plToggle').click();
+  });
+
+  // ---------- Biblioteca grande (Expandir) ----------
+  let mbFilter = '';
+  let mbSel = null;
+  async function openBig() {
+    media = await api('/api/media');
+    renderBig();
+    $('mediaBig').showModal();
+  }
+  function renderBig() {
+    const q = $('mbSearch').value.trim().toLowerCase();
+    const sort = $('mbSort').value;
+    let list = media.filter((m) => (!mbFilter || m.type === mbFilter) && (!q || pretty(m).toLowerCase().includes(q)));
+    list = list.sort((a, b) => sort === 'old' ? a.mtime - b.mtime : sort === 'name' ? pretty(a).localeCompare(pretty(b)) : sort === 'size' ? b.size - a.size : b.mtime - a.mtime);
+    $('mbGrid').innerHTML = list.length
+      ? list.map((m) => `<div class="mb-card ${mbSel === m.name ? 'on' : ''}" data-n="${esc(m.name)}">
+          <div class="mb-th">${m.type === 'video' ? `<video src="${esc(m.url)}#t=1" muted preload="metadata"></video><span class="mb-play">${icon('play')}</span>` : m.type === 'image' ? `<img src="${esc(m.url)}" loading="lazy" alt="">` : `<div class="mb-aud">${icon('audio')}</div>`}<span class="mb-type">${TYPE_LABEL[m.type]}</span></div>
+          <div class="mb-t">${esc(pretty(m))}</div><div class="mb-a">${size(m.size)} · ${when(m.mtime)}</div></div>`).join('')
+      : '<div class="empty">Nada por aqui. Arraste arquivos ou clique em “+ Enviar”.</div>';
+    renderSide();
+  }
+  function renderSide() {
+    const m = media.find((x) => x.name === mbSel);
+    if (!m) { $('mbSide').innerHTML = '<div class="empty">Clique numa mídia para ver aqui</div>'; return; }
+    $('mbSide').innerHTML = `<div class="mb-pv">${m.type === 'video' ? `<video src="${esc(m.url)}#t=0.5" controls preload="metadata"></video>` : m.type === 'image' ? `<img src="${esc(m.url)}" alt="">` : `<div class="mb-aud big">${icon('audio')}</div><audio src="${esc(m.url)}" controls></audio>`}</div>
+      <div class="mb-info"><b>${esc(pretty(m))}</b><span>${TYPE_LABEL[m.type]} · ${size(m.size)} · enviado ${when(m.mtime)}</span></div>
+      <div class="mb-acts">
+        <button class="btn primary" data-b="show">${icon('play')} Mostrar no telão</button>
+        <button class="btn" data-b="add">${icon('plus')} Adicionar ao culto</button>
+        <button class="btn" data-b="ren">${icon('edit')} Renomear</button>
+        <button class="btn danger" data-b="del">${icon('trash')} Excluir</button>
+      </div>`;
+  }
+  $('mediaExpand').onclick = openBig;
+  $('mbClose').onclick = () => { $('mbSide').querySelectorAll('video,audio').forEach((v) => v.pause()); $('mediaBig').close(); loadMedia(); };
+  $('mbFilter').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; mbFilter = b.dataset.f; $('mbFilter').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); renderBig(); };
+  $('mbSearch').oninput = renderBig;
+  $('mbSort').onchange = renderBig;
+  $('mbGrid').onclick = (e) => { const c = e.target.closest('.mb-card'); if (!c) return; mbSel = c.dataset.n; renderBig(); };
+  $('mbGrid').ondblclick = (e) => { const c = e.target.closest('.mb-card'); if (c) $('mbSide').querySelector('[data-b="show"]')?.click(); };
+  $('mbSide').onclick = async (e) => {
+    const b = e.target.closest('[data-b]')?.dataset.b;
+    const m = media.find((x) => x.name === mbSel);
+    if (!b || !m) return;
+    if (b === 'show') { cmd({ type: 'media', url: m.url, mtype: m.type, name: pretty(m) }); toast(m.type === 'image' ? 'No telão' : 'No telão, pausado: aperte play no player'); }
+    if (b === 'add') {
+      const svc = getService();
+      if (!svc) return toast('Abra um culto primeiro');
+      await api(`/api/services/${svc.id}/items`, { method: 'POST', body: { kind: 'media', title: pretty(m), text: JSON.stringify({ type: m.type, url: m.url, name: pretty(m), after: m.type === 'video' ? 'tema' : 'stop' }) } });
+      await openService(svc.id);
+      toast('Adicionado ao culto');
+    }
+    if (b === 'ren') {
+      const t = prompt('Nome da mídia:', pretty(m));
+      if (t == null) return;
+      await api('/api/media/' + encodeURIComponent(m.name), { method: 'PUT', body: { title: t } });
+      media = await api('/api/media');
+      renderBig();
+    }
+    if (b === 'del' && confirm(`Excluir "${pretty(m)}"?`)) {
+      await api('/api/media/' + encodeURIComponent(m.name), { method: 'DELETE' });
+      mbSel = null;
+      media = await api('/api/media');
+      renderBig();
+    }
+  };
+  socket.on('library', () => { if ($('mediaBig').open) api('/api/media').then((l) => { media = l; renderBig(); }); });
 
   return { icon, itemKind, itemSub, renderSelected, renderPlayer, openAudioFor, showTab, hasAudio: (it) => !!jsonOf(it.text).audio };
 }

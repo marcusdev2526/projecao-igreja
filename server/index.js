@@ -338,7 +338,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
           live.index = 0;
           live.clear = false;
           if (m.type === 'video' || m.type === 'audio') {
-            if (live.player?.itemId !== item.id || live.player.status === 'stopped') setPlayer({ url: m.url, type: m.type, name: live.title, status: 'playing', after: m.after || 'tema', itemId: item.id, seek: 0 });
+            if (live.player?.itemId !== item.id || live.player.status === 'stopped') setPlayer({ url: m.url, type: m.type, name: live.title, status: 'paused', after: m.after || 'tema', itemId: item.id, seek: 0 });
           }
         } else if (item.kind === 'deck') {
           const d = decks.get(jsonOf(item.text).deck);
@@ -383,7 +383,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
         live.slides = [{ index: 0, kind: 'media', mtype: c.mtype, url: c.url, name: live.title, code: 'M', lines: [] }];
         live.index = 0;
         live.clear = false;
-        if (c.mtype === 'video' || c.mtype === 'audio') setPlayer({ url: c.url, type: c.mtype, name: live.title, status: 'playing', after: 'tema', itemId: null, seek: 0 });
+        if (c.mtype === 'video' || c.mtype === 'audio') setPlayer({ url: c.url, type: c.mtype, name: live.title, status: 'paused', after: 'tema', itemId: null, seek: 0 });
         break;
       }
       case 'deck': {
@@ -411,10 +411,12 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
         else if (a === 'stop') { p.status = 'stopped'; p.seek = 0; }
         else if (a === 'restart') { p.status = 'playing'; p.seek = 0; }
         else if (a === 'seek') p.seek = Math.max(0, +c.value || 0);
+        else if (a === 'skip') p.seek = Math.max(0, (live.playerT || 0) + (+c.value || 0));
+        else if (a === 'rate') p.rate = Math.min(2, Math.max(0.25, +c.value || 1));
         else if (a === 'volume') p.volume = Math.min(1, Math.max(0, +c.value));
         else if (a === 'after') { if (['tema', 'next', 'loop', 'stop'].includes(c.value)) p.after = c.value; }
         else return;
-        if (a !== 'seek' && a !== 'stop' && a !== 'restart') delete p.seek;
+        if (a !== 'seek' && a !== 'skip' && a !== 'stop' && a !== 'restart') delete p.seek;
         p.seq++;
         break;
       }
@@ -587,7 +589,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     socket.emit('state', publicState());
     socket.emit('en-queue', [...enQueue]);
     // O telão avisa o tempo do vídeo/áudio e quando terminou
-    socket.on('player-time', (t) => socket.broadcast.volatile.emit('player-time', t));
+    socket.on('player-time', (t) => { if (t && isFinite(t.t)) live.playerT = +t.t; socket.broadcast.volatile.emit('player-time', t); });
     socket.on('player-blocked', () => io.emit('player-blocked'));
     socket.on('screen-aspect', (ar) => {
       ar = Math.min(3.6, Math.max(1.3, +ar || 0));
@@ -829,10 +831,26 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     fileFilter: (req, f, cb) => cb(null, !!MEDIA_EXT[(f.originalname.split('.').pop() || '').toLowerCase()]),
     limits: { fileSize: 1024 * 1024 * 1024 },
   });
-  const listMedia = () => fs.readdirSync(mediaDir)
-    .filter((f) => MEDIA_EXT[(f.split('.').pop() || '').toLowerCase()])
-    .map((f) => ({ name: f, url: '/media/' + encodeURIComponent(f), type: MEDIA_EXT[f.split('.').pop().toLowerCase()], size: fs.statSync(path.join(mediaDir, f)).size }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  // nomes amigáveis dados pelo operador (o arquivo continua com o nome original)
+  const mediaTitles = () => { try { return JSON.parse(repo.getSetting('media_titles', '{}')); } catch { return {}; } };
+  const listMedia = () => {
+    const titles = mediaTitles();
+    return fs.readdirSync(mediaDir)
+      .filter((f) => MEDIA_EXT[(f.split('.').pop() || '').toLowerCase()])
+      .map((f) => {
+        const st = fs.statSync(path.join(mediaDir, f));
+        return { name: f, title: titles[f] || '', url: '/media/' + encodeURIComponent(f), type: MEDIA_EXT[f.split('.').pop().toLowerCase()], size: st.size, mtime: st.mtimeMs };
+      })
+      .sort((a, b) => b.mtime - a.mtime); // mais novos primeiro
+  };
+  app.put('/api/media/:name', wrap((req, res) => {
+    const t = mediaTitles();
+    const n = path.basename(req.params.name);
+    const title = String(req.body.title || '').trim().slice(0, 80);
+    if (title) t[n] = title; else delete t[n];
+    repo.setSetting('media_titles', JSON.stringify(t));
+    ok(res);
+  }));
   app.get('/api/media', (req, res) => ok(res, listMedia()));
   app.post('/api/media', mediaUpload.array('files', 50), wrap((req, res) => {
     if (!req.files?.length) throw new Error('Formato não aceito. Use imagem (jpg, png, webp), vídeo (mp4, webm, mov) ou áudio (mp3, wav, m4a)');

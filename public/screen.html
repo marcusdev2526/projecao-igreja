@@ -58,12 +58,13 @@
     if (!el) return;
     el.muted = embedded;
     el.volume = p.volume ?? 1;
+    el.playbackRate = p.rate || 1;
     el.loop = false;
     if (p.seek != null && isFinite(p.seek)) { try { el.currentTime = p.seek; } catch {} }
     if (p.status === 'playing') {
       el.play().catch(() => { if (!embedded) { el.muted = true; el.play().catch(() => {}); socket.emit('player-blocked'); } });
     } else if (p.status === 'stopped' && p.type === 'audio') { if (!el.paused) fadeOut(el); }
-    else el.pause();
+    else { el.pause(); if (p.type === 'video' && el.currentTime === 0 && el.readyState < 2) el.addEventListener('loadeddata', () => { try { el.currentTime = 0.05; } catch {} }, { once: true }); }
     if (!embedded && !el._wired) {
       el._wired = true;
       let last = 0;
@@ -73,6 +74,10 @@
         socket.emit('player-time', { t: el.currentTime, d: el.duration || 0, seq: pState?.seq });
       });
       el.addEventListener('ended', () => socket.emit('player-ended', { seq: pState?.seq }));
+      const rep = () => socket.emit('player-time', { t: el.currentTime, d: el.duration || 0, seq: pState?.seq });
+      el.addEventListener('loadedmetadata', rep);
+      el.addEventListener('seeked', rep);
+      el.addEventListener('pause', rep);
     }
   }
   // O painel mostra a prévia no mesmo formato da tela do telão (16:9, ultrawide…)
