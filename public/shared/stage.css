@@ -271,10 +271,6 @@
 .bible.mode-bi .verse { font-size: 58px; }
 .bible-ref { position: absolute; left: 72px; bottom: 58px; font-family: var(--kw-font); font-weight: 600; font-size: 26px; letter-spacing: .14em; text-transform: uppercase; color: var(--sub); opacity: .9; }
 .bible-ref span { opacity: .65; font-size: .82em; }
-/* versículo grande: fundo escurece e para de se mexer */
-.stage .bg { transition: filter 1.2s ease; }
-.stage:has(.content-layer:not(.leave) .bible.long) .bg { filter: brightness(.45) saturate(.75); }
-.stage:has(.content-layer:not(.leave) .bible.long) .bg * { animation-play-state: paused !important; }
 /* área segura: uma sombra suave atrás da letra separa o texto dos enfeites do tema */
 .content-layer:has(> .slide-content)::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 46% 50% at 50% 50%, rgba(0,0,0,var(--scrim, .3)), transparent 72%); }
 .content-layer > .slide-content { position: relative; }
