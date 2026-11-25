@@ -67,29 +67,32 @@
     </div>
     <div class="panel-h">
       <h2 id="selTitle">Selecione um item do culto</h2>
+      <span class="keys-hint" title="→ ou Espaço: próximo · ←: voltar · B: tela preta · C: sem letra">Atalhos ⌨</span>
       <div class="acts"><button class="btn sm" id="addBibleBtn" hidden>+ Adicionar ao culto</button><button class="btn sm" id="editSelBtn" hidden>Editar letra</button></div>
     </div>
     <div class="slides" id="slideGrid"></div>
   </section>
 
-  <!-- Direita: o que está tocando, recado e temas -->
+  <!-- Direita: no ar, próximo, recado e temas -->
   <aside class="panel right-col">
-    <div class="live-info">
-      <div class="label">TOCANDO</div>
+    <div class="rc-card">
+      <div class="label">No ar</div>
       <div id="liveTitle" class="live-title">—</div>
-      <div id="livePos" class="muted"></div>
-      <div class="label" style="margin-top:14px">PRÓXIMO</div>
+      <div id="livePos" class="muted small"></div>
+    </div>
+    <div class="rc-card">
+      <div class="label">Próximo</div>
+      <div class="next-pv" id="nextPv"></div>
       <div id="liveNext" class="muted next"></div>
-      <div class="msgbox">
-        <input id="msgIn" placeholder="Recado para o palco…" maxlength="140">
-        <button class="btn sm" id="msgSend">Enviar</button>
-      </div>
+    </div>
+    <div class="msgbox">
+      <input id="msgIn" placeholder="Recado para o palco…" maxlength="140">
+      <button class="btn sm" id="msgSend">Enviar</button>
     </div>
     <div class="rc-themes">
-      <div class="rc-h"><span class="label">TEMAS</span><a href="#" class="link" id="allThemesBtn">Todos / editar</a></div>
+      <div class="rc-h"><span class="label">Temas</span><a href="#" class="link" id="allThemesBtn">Ver todos</a></div>
       <div class="qt-grid" id="quickThemes"></div>
     </div>
-    <div class="keys">→ / Espaço próximo · ← voltar · B tela preta · C sem letra</div>
   </aside>
 </main>
 

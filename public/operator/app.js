@@ -62,7 +62,8 @@ socket.on('state', (s) => {
   renderProgress($('liveProg'), prog);
   renderProgress($('bvProg'), prog);
   $('livePos').textContent = s.total ? `Slide ${s.index + 1} de ${s.total}${s.slide ? ' · ' + s.slide.name : ''}` : '';
-  $('liveNext').textContent = s.next ? s.next.lines.map((l) => stripMarkup(l.pt)).join(' / ') : s.total ? 'Fim — próximo item do culto' : '';
+  $('liveNext').textContent = s.next ? '' : s.total ? 'Fim — próximo item do culto' : '';
+  renderNextPreview(s);
   document.querySelectorAll('.item').forEach((el) => el.classList.toggle('live', +el.dataset.id === s.itemId));
   // seleção acompanha o que está no ar (ex.: avançou pelo celular para o próximo louvor)
   if (s.itemId && s.itemId !== prevItem && service?.items.some((i) => i.id === s.itemId)) selectItem(s.itemId, { keepScroll: false });
@@ -123,6 +124,18 @@ $('newServiceBtn').onclick = async () => {
   loadServices(id);
 };
 
+let nextStage = null;
+function renderNextPreview(s) {
+  const host = $('nextPv');
+  host.hidden = !s.next;
+  if (!s.next) return;
+  if (!nextStage) { nextStage = createStage(host); nextStage.el.classList.add('static'); }
+  nextStage.setTheme(s.themeId, themeDefOf(s.themeId));
+  nextStage.el.querySelectorAll('video').forEach((v) => v.pause());
+  nextStage.resize();
+  nextStage.show(slideHTML(s.next, s.mode), { animate: false });
+}
+window.addEventListener('resize', () => nextStage?.resize());
 const wantsEn = () => !!live && live.mode !== 'pt';
 let enPending = new Set();
 socket.on('en-queue', (ids) => { enPending = new Set(ids); if (service) renderItems(); });
