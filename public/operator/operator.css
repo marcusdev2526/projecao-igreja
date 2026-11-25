@@ -1,4 +1,5 @@
 @import url('/fonts/inter/400.css');
+[hidden] { display: none !important; }
 @import url('/fonts/inter/600.css');
 @import url('/fonts/inter/700.css');
 
