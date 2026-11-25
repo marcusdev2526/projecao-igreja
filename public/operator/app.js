@@ -54,6 +54,8 @@ socket.on('state', (s) => {
   document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === s.mode));
   $('themeName').textContent = themeLabel(s.themeId);
   markQuickTheme();
+  document.querySelectorAll('#trChips button').forEach((b) => b.classList.toggle('on', b.dataset.tr === s.transition));
+  document.querySelectorAll('#trSpeed button').forEach((b) => b.classList.toggle('on', b.dataset.sp === s.trSpeed));
   if ($('bibleMain').options.length) { $('bibleMain').value = s.bibleMain; $('bibleSecond').value = s.bibleSecond || ''; }
   $('blackBtn').classList.toggle('on', s.black);
   $('clearBtn').classList.toggle('on', s.clear);
@@ -364,6 +366,8 @@ function renderQuickThemes() {
   }
 }
 const markQuickTheme = () => document.querySelectorAll('#quickThemes .qt').forEach((q) => q.classList.toggle('on', q.dataset.id === live?.themeId));
+$('trChips').onclick = (e) => { const b = e.target.closest('button'); if (b) cmd({ type: 'transition', value: b.dataset.tr }); };
+$('trSpeed').onclick = (e) => { const b = e.target.closest('button'); if (b) cmd({ type: 'transition', speed: b.dataset.sp }); };
 $('allThemesBtn').onclick = (e) => { e.preventDefault(); $('themeBtn').click(); };
 $('themeBtn').onclick = async () => { await loadThemes(); renderThemeGallery(); $('themes').showModal(); };
 $('newThemeBtn').onclick = () => openThemeEditor(newCustomTheme());

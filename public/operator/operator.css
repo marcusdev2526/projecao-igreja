@@ -458,3 +458,11 @@ body { font-size: 14px; letter-spacing: -.005em; }
 .song .mini { display: none; opacity: 1; }
 .song:hover .mini { display: inline-flex; align-items: center; justify-content: center; }
 .song:hover .badge { display: none; }
+
+/* Transição */
+.chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.chips button { background: #161a20; border: 1px solid #232832; color: #aab2bd; border-radius: 7px; padding: 6px 4px; font: 600 12px Inter, system-ui, sans-serif; cursor: pointer; transition: all .15s; }
+.chips button:hover { border-color: #3a414d; color: #fff; }
+.chips button.on { background: rgba(255, 106, 61, .12); border-color: var(--accent); color: #fff; }
+.tr-speed { margin-top: 6px; display: flex; }
+.tr-speed button { flex: 1; }

@@ -50,6 +50,8 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   const live = {
     mode: repo.getSetting('mode', 'pt'),
     themeId: repo.getSetting('theme', 'brasa'),
+    transition: repo.getSetting('transition', 'suave'),
+    trSpeed: repo.getSetting('tr_speed', 'normal'),
     black: false,
     clear: false,
     serviceId: null,
@@ -149,6 +151,8 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       slides: live.slides.map((s) => ({ index: s.index, name: s.name, code: s.code, part: s.part, parts: s.parts, preview: preview(s) })),
       message: live.message,
       themeDef: themeDef(live.themeId),
+      transition: live.transition,
+      trSpeed: live.trSpeed,
       bibleMain: live.bibleMain,
       bibleSecond: live.bibleSecond,
       bible: live.bible,
@@ -278,6 +282,10 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       case 'theme':
         live.themeId = c.value;
         repo.setSetting('theme', c.value);
+        break;
+      case 'transition':
+        if (['suave', 'desfoque', 'subir', 'zoom', 'tema', 'nenhuma'].includes(c.value)) { live.transition = c.value; repo.setSetting('transition', c.value); }
+        if (['lenta', 'normal', 'rapida'].includes(c.speed)) { live.trSpeed = c.speed; repo.setSetting('tr_speed', c.speed); }
         break;
       case 'message':
         live.message = String(c.value || '').slice(0, 140);

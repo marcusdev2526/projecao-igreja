@@ -26,6 +26,7 @@
   socket.on('state', (s) => {
     stage.setTheme(s.themeId, s.themeDef);
     stage.setBlack(s.black);
+    stage.setTransition(s.transition, s.trSpeed);
     const html = s.clear || !s.slide ? '' : slideHTML(s.slide, s.mode);
     const key = s.themeId + '|' + s.mode + '|' + html;
     if (key !== lastKey) { stage.show(html); lastKey = key; }

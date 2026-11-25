@@ -89,6 +89,14 @@
       <input id="msgIn" placeholder="Recado para o palco…" maxlength="140">
       <button class="btn sm" id="msgSend">Enviar</button>
     </div>
+    <div class="rc-tr">
+      <div class="rc-h"><span class="label">Transição</span></div>
+      <div class="chips" id="trChips">
+        <button data-tr="suave">Suave</button><button data-tr="desfoque">Desfoque</button><button data-tr="subir">Subir</button>
+        <button data-tr="zoom">Zoom</button><button data-tr="tema">Do tema</button><button data-tr="nenhuma">Corte</button>
+      </div>
+      <div class="seg sm tr-speed" id="trSpeed"><button data-sp="lenta">Lenta</button><button data-sp="normal">Normal</button><button data-sp="rapida">Rápida</button></div>
+    </div>
     <div class="rc-themes">
       <div class="rc-h"><span class="label">Temas</span><a href="#" class="link" id="allThemesBtn">Ver todos</a></div>
       <div class="qt-grid" id="quickThemes"></div>

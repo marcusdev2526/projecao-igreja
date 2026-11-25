@@ -113,11 +113,19 @@ export function createStage(container, { live = false } = {}) {
       layers.appendChild(layer);
       fit(layer);
       old.forEach((o) => {
-        if (animate) {
+        if (animate && stage.dataset.tr !== 'nenhuma') {
           o.classList.add('leave');
-          setTimeout(() => o.remove(), 450);
+          let done = false;
+          const rm = () => { if (!done) { done = true; o.remove(); } };
+          o.addEventListener('animationend', (e) => e.target === o && rm());
+          setTimeout(rm, 3000);
         } else o.remove();
       });
+    },
+    // Transição escolhida no painel (vale para todos os temas). 'tema' usa a do próprio tema.
+    setTransition(name = 'suave', speed = 'normal') {
+      stage.dataset.tr = name;
+      stage.style.setProperty('--trk', { lenta: 1.6, normal: 1, rapida: 0.55 }[speed] || 1);
     },
     setBlack(on) {
       stage.classList.toggle('is-black', !!on);
