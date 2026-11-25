@@ -1430,3 +1430,22 @@ body.light .chips-row button.on { color: var(--text); }
 .mbk-acts { grid-template-columns: 1fr 1fr 38px; }
 .mbk-acts .btn.ic { padding: 0; }
 .mbk-top > span:last-child { white-space: nowrap; flex: none; }
+
+/* Filtro da biblioteca de mídia */
+.search-row { position: relative; display: flex; gap: 6px; align-items: stretch; margin: 0 12px 8px; }
+.search-row .search { margin: 0; flex: 1; min-width: 0; }
+.filt-btn { flex: none; height: auto; gap: 6px; padding: 0 10px; color: var(--muted); }
+.filt-btn .bi { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linejoin: round; }
+.filt-btn.on { color: var(--text); background: rgba(var(--accent-rgb), .16); border-color: var(--accent); }
+.filt-pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; width: min(320px, 100%); padding: 12px; border-radius: var(--ds-r-lg);
+  background: var(--panel); border: 1px solid var(--ds-border-strong); box-shadow: 0 16px 40px rgba(0,0,0,.35); }
+body.light .filt-pop { box-shadow: 0 16px 40px rgba(16,24,40,.16); }
+.filt-pop[hidden] { display: none; }
+.fp-h { font: 700 10.5px Inter, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 2px 2px 7px; }
+.fp-h:not(:first-child) { margin-top: 12px; }
+.fp-opts { display: flex; flex-wrap: wrap; gap: 5px; }
+.fp-opts button { border: 1px solid var(--ds-border); background: var(--ds-raised); color: var(--text); border-radius: var(--ds-r-sm); padding: 5px 9px; font: 500 12px Inter, system-ui, sans-serif; cursor: pointer; }
+.fp-opts button:hover { background: var(--ds-hover); }
+.fp-opts button.on { border-color: var(--accent); background: rgba(var(--accent-rgb), .16); font-weight: 600; }
+.fp-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--ds-border); font-size: 11.5px; color: var(--muted); }
+.fp-foot .lnk { background: none; border: 0; color: var(--accent2); font: 600 12px Inter, system-ui, sans-serif; cursor: pointer; padding: 0; }

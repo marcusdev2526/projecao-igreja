@@ -66,9 +66,44 @@ export function initMedia(ctx) {
   }
   let sidePick = [];
   let sideSel = false;
+  const filt = { sort: 'new', when: '', src: '' };
+  try { Object.assign(filt, JSON.parse(localStorage.getItem('mediaFilt') || '{}')); } catch {}
+  const DAY = 86400000;
+  const SRC = { whats: /whats ?app|wa\d{4}|img-\d{8}-wa/i, tela: /captura|gravac|screen|screenshot|grava/i, colado: /^colado/i };
+  function applyFilt(list) {
+    const now = Date.now();
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    list = list.filter((m) => {
+      if (filt.when === '1' && m.mtime < start.getTime()) return false;
+      if ((filt.when === '7' || filt.when === '30') && now - m.mtime > +filt.when * DAY) return false;
+      if (filt.when === 'old' && now - m.mtime <= 30 * DAY) return false;
+      if (filt.src && !SRC[filt.src].test(m.name + ' ' + pretty(m))) return false;
+      return true;
+    });
+    const by = { new: (a, b) => b.mtime - a.mtime, old: (a, b) => a.mtime - b.mtime, name: (a, b) => pretty(a).localeCompare(pretty(b), 'pt-BR', { numeric: true }), big: (a, b) => b.size - a.size, small: (a, b) => a.size - b.size };
+    return list.sort(by[filt.sort] || by.new);
+  }
+  function syncFiltUI() {
+    $('mediaFiltPop').querySelectorAll('.fp-opts').forEach((g) => g.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === filt[g.dataset.g])));
+    const n = (filt.sort !== 'new') + !!filt.when + !!filt.src;
+    $('mediaFiltBtn').classList.toggle('on', n > 0);
+    $('mediaFiltLbl').textContent = n ? `Filtro · ${n}` : 'Filtro';
+  }
+  $('mediaFiltBtn').onclick = (e) => { e.stopPropagation(); $('mediaFiltPop').hidden = !$('mediaFiltPop').hidden; };
+  $('mediaFiltPop').onclick = (e) => {
+    e.stopPropagation();
+    const b = e.target.closest('.fp-opts button');
+    if (b) { filt[b.closest('.fp-opts').dataset.g] = b.dataset.v; }
+    if (e.target.id === 'mediaFiltReset') Object.assign(filt, { sort: 'new', when: '', src: '' });
+    try { localStorage.setItem('mediaFilt', JSON.stringify(filt)); } catch {}
+    renderMedia();
+  };
+  document.addEventListener('click', () => { if ($('mediaFiltPop')) $('mediaFiltPop').hidden = true; });
   function renderMedia() {
     const q = $('mediaSearch').value.trim().toLowerCase();
-    const list = media.filter((m) => (!filter || m.type === filter) && (!q || m.name.toLowerCase().includes(q) || pretty(m).toLowerCase().includes(q)));
+    const list = applyFilt(media.filter((m) => (!filter || m.type === filter) && (!q || m.name.toLowerCase().includes(q) || pretty(m).toLowerCase().includes(q))));
+    syncFiltUI();
+    $('mediaFiltCount').textContent = `${list.length} de ${media.length} arquivos`;
     $('mediaList').classList.toggle('picking', sideSel);
     $('mediaList').innerHTML = list.length
       ? list.map((m) => { const k = sidePick.indexOf(m.name); return `<div class="mrow ${k >= 0 ? 'picked' : ''}" draggable="${!sideSel}" data-n="${esc(m.name)}" title="${sideSel ? 'Clique para marcar' : 'Arraste para o telão ou para o culto'}">
@@ -87,7 +122,7 @@ export function initMedia(ctx) {
     $('mediaSelBtn').classList.toggle('on', sideSel);
     $('mediaSelBtn').lastChild.textContent = sideSel ? 'Concluir' : 'Em lote';
   }
-  const sideVisible = () => { const q = $('mediaSearch').value.trim().toLowerCase(); return media.filter((m) => (!filter || m.type === filter) && (!q || m.name.toLowerCase().includes(q) || pretty(m).toLowerCase().includes(q))); };
+  const sideVisible = () => { const q = $('mediaSearch').value.trim().toLowerCase(); return applyFilt(media.filter((m) => (!filter || m.type === filter) && (!q || m.name.toLowerCase().includes(q) || pretty(m).toLowerCase().includes(q)))); };
   $('mediaSelBtn').onclick = () => { sideSel = !sideSel; if (!sideSel) sidePick = []; renderMedia(); };
   $('mediaBulk').onclick = async (e) => {
     const b = e.target.closest('[data-bk]')?.dataset.bk;

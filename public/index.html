@@ -167,7 +167,19 @@
         <div><b>Arraste ou cole aqui (Ctrl+V)</b><span>Do WhatsApp, Telegram ou computador</span></div>
         <button class="btn sm" data-pick="media">Procurar na pasta</button>
       </div>
-      <input class="search" id="mediaSearch" placeholder="Buscar arquivo…" autocomplete="off">
+      <div class="search-row">
+        <input class="search" id="mediaSearch" placeholder="Buscar arquivo…" autocomplete="off">
+        <button class="btn sm filt-btn" id="mediaFiltBtn" title="Filtrar e ordenar"><svg viewBox="0 0 24 24" class="bi"><path d="M4 5h16l-6 7.5V19l-4 1.5v-8z"/></svg><span id="mediaFiltLbl">Filtro</span></button>
+        <div class="filt-pop" id="mediaFiltPop" hidden>
+          <div class="fp-h">Ordenar por</div>
+          <div class="fp-opts" data-g="sort"><button data-v="new" class="on">Mais recentes</button><button data-v="old">Mais antigos</button><button data-v="name">Nome (A–Z)</button><button data-v="big">Maiores</button><button data-v="small">Menores</button></div>
+          <div class="fp-h">Enviado</div>
+          <div class="fp-opts" data-g="when"><button data-v="" class="on">Qualquer data</button><button data-v="1">Hoje</button><button data-v="7">Últimos 7 dias</button><button data-v="30">Últimos 30 dias</button><button data-v="old">Mais de 30 dias</button></div>
+          <div class="fp-h">Origem</div>
+          <div class="fp-opts" data-g="src"><button data-v="" class="on">Todas</button><button data-v="whats">WhatsApp</button><button data-v="tela">Capturas e gravações</button><button data-v="colado">Colados (Ctrl+V)</button></div>
+          <div class="fp-foot"><button class="lnk" id="mediaFiltReset">Limpar filtros</button><span id="mediaFiltCount"></span></div>
+        </div>
+      </div>
       <div class="list" id="mediaList"></div>
       <div class="media-bulk" id="mediaBulk" hidden>
         <div class="mbk-top"><span id="mbkCount"></span><span><button class="lnk" data-bk="all">Todos</button><button class="lnk" data-bk="none">Limpar</button></span></div>
