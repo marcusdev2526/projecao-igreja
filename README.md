@@ -195,3 +195,13 @@ test/            testes (npm test)
 - **Avisos:** aviso de texto, ou carrossel de imagens que passa sozinho (segundos por imagem, com repetição).
 
 Se o navegador bloquear o som do telão, clique uma vez na janela do telão.
+
+## Organização do culto
+
+- **Blocos:** "+ Bloco" cria Abertura, Louvor, Palavra, Ofertas, Avisos (ou outro nome), com tempo previsto. Arraste o bloco: os itens abaixo dele fazem parte dele.
+- **Cronômetro:** fica no topo da coluna da direita, com o relógio, o tempo de culto e o tempo do bloco atual (fica vermelho quando passa). O retorno do palco também mostra o bloco e o tempo.
+- **Barra de comando** embaixo dos slides: Anterior, Próximo, Tela preta, Sem letra, Logo (atalho L) e Espera.
+- **Tela de espera:** logo da igreja, contagem regressiva até o horário do culto e carrossel de avisos. Configure em ⚙ › Igreja e tela de espera.
+- **Modelos:** em "+ Culto", salve o culto atual como modelo e crie os próximos a partir dele.
+- **Backup automático:** em ⚙ › Backup, escolha uma pasta (pen drive ou Google Drive). Uma vez por dia é gerado um .zip, e os 10 últimos ficam guardados.
+- **Bíblia:** versículo longo vira 2 telas e o fundo fica mais calmo. A referência fica no canto, embaixo.

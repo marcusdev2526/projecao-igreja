@@ -265,3 +265,35 @@
 @keyframes tr-hold { from { opacity: 1; } to { opacity: 1; } }
 .media-full canvas.amb { position: absolute; inset: -6%; width: 112%; height: 112%; filter: blur(48px) brightness(.5) saturate(1.25); }
 .media-full video { position: relative; }
+
+/* ---------- Bíblia: leitura confortável ---------- */
+.bible .verse2 { font-size: 40px; line-height: 1.3; font-style: italic; color: var(--sub); opacity: .85; font-weight: 400; }
+.bible.mode-bi .verse { font-size: 58px; }
+.bible-ref { position: absolute; left: 72px; bottom: 58px; font-family: var(--kw-font); font-weight: 600; font-size: 26px; letter-spacing: .14em; text-transform: uppercase; color: var(--sub); opacity: .9; }
+.bible-ref span { opacity: .65; font-size: .82em; }
+/* versículo grande: fundo escurece e para de se mexer */
+.stage .bg { transition: filter 1.2s ease; }
+.stage:has(.content-layer:not(.leave) .bible.long) .bg { filter: brightness(.45) saturate(.75); }
+.stage:has(.content-layer:not(.leave) .bible.long) .bg * { animation-play-state: paused !important; }
+/* área segura: uma sombra suave atrás da letra separa o texto dos enfeites do tema */
+.content-layer:has(> .slide-content)::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 46% 50% at 50% 50%, rgba(0,0,0,var(--scrim, .3)), transparent 72%); }
+.content-layer > .slide-content { position: relative; }
+.theme-claro, .theme-papel { --scrim: 0; }
+.theme-orbita .planet { width: 140px; height: 140px; right: 120px; top: 64px; }
+
+/* ---------- Logo e tela de espera ---------- */
+.church-logo { display: flex; align-items: center; justify-content: center; }
+.church-logo img { max-width: 900px; max-height: 520px; object-fit: contain; filter: drop-shadow(0 10px 40px rgba(0,0,0,.35)); }
+.church-logo .cname { font-family: var(--kw-font); font-size: 110px; font-weight: 800; letter-spacing: .02em; text-shadow: var(--glow); }
+.waiting { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 90px; padding: 0 110px; }
+.waiting .w-main { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.waiting.with-ads .w-main { flex: 0 0 auto; max-width: 760px; }
+.w-logo { max-width: 520px; max-height: 260px; object-fit: contain; margin-bottom: 44px; }
+.w-name { font-family: var(--kw-font); font-size: 64px; font-weight: 800; margin-bottom: 40px; }
+.w-text { font-family: var(--plain-font); font-size: 40px; color: var(--sub); letter-spacing: .02em; }
+.w-count { font-family: var(--kw-font); font-size: 170px; font-weight: 800; line-height: 1.05; margin-top: 14px; font-variant-numeric: tabular-nums; text-shadow: var(--glow); }
+.w-count.now { font-size: 84px; }
+.w-clock { font-family: var(--plain-font); font-size: 30px; color: var(--sub); margin-top: 22px; opacity: .8; }
+.w-ads { position: relative; flex: 0 1 900px; aspect-ratio: 16 / 9; border-radius: 26px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.45); background: #000; }
+.w-ads img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1.2s ease; }
+.w-ads img.on { opacity: 1; }

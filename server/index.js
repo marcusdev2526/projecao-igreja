@@ -14,6 +14,7 @@ import { DEMO_SONGS } from './seed.js';
 import fs from 'node:fs';
 import { parseBibleJson, seedBibles } from './bibleimport.js';
 import { makeDecks, convertPresentation } from './decks.js';
+import { makeBackup } from './backup.js';
 import { translateLines, keywordChunks, askClaude, alignOfficial, DEFAULT_MODEL } from './ai.js';
 import { lyricLines, missingTranslations, insertTranslations, setEnStatus, englishLines } from '../public/shared/enhance.js';
 import { fetchLyrics } from './urlimport.js';
@@ -68,6 +69,9 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     slides: [],
     index: -1,
     message: '',
+    logo: false, // tela só com a logo da igreja
+    waiting: false, // tela de espera (logo, contagem regressiva, avisos)
+    timing: { serviceStart: null, blockId: null, blockStart: null },
     loggedSongs: new Set(),
     bibleMain: repo.getSetting('bible_main', 'BLIVRE'),
     bibleSecond: repo.getSetting('bible_second', 'KJV'),
@@ -124,21 +128,100 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     const groups = [];
     for (let i = 0; i < main.length; i += per) groups.push(main.slice(i, i + per));
     const range = (g) => (g.length > 1 ? `${g[0].verse}-${g[g.length - 1].verse}` : g[0].verse);
-    return groups.map((g, index) => {
-      const verses = g.map((v) => ({ n: v.verse, pt: v.text, en: byVerse.get(v.verse) || '' }));
+    // Versículo longo (1 por tela) vira 2 telas, cortando na pontuação mais perto do meio
+    const LONG = 200;
+    const out = [];
+    for (const g of groups) {
+      const v = g[0];
+      const en = byVerse.get(v.verse) || '';
+      if (g.length === 1 && (v.text.length > LONG || v.text.length + en.length > LONG * 1.7)) {
+        const [p1, p2] = splitHalf(v.text);
+        const [e1, e2] = en ? splitHalf(en) : ['', ''];
+        if (p2) {
+          out.push({ g, part: 1, parts: 2, pt: p1, en: e1 });
+          out.push({ g, part: 2, parts: 2, pt: p2, en: e2 });
+          continue;
+        }
+      }
+      out.push({ g });
+    }
+    return out.map(({ g, part, parts, pt, en: enPart }, index) => {
+      const verses = part ? [{ n: g[0].verse, pt, en: enPart }] : g.map((v) => ({ n: v.verse, pt: v.text, en: byVerse.get(v.verse) || '' }));
       const join = (k) => verses.map((v) => (verses.length > 1 ? `${v.n} ` : '') + v[k]).filter((x) => x.trim()).join(' ');
       return {
         index,
         kind: 'bible',
         code: 'B',
-        name: refText(book, chapter, range(g), langOf(live.bibleMain)),
+        name: refText(book, chapter, range(g), langOf(live.bibleMain)) + (part ? ` (${part}/${parts})` : ''),
         verse: g[0].verse,
+        part,
+        parts,
         verses,
         ref: { pt: refText(book, chapter, range(g), langOf(live.bibleMain)), en: refText(book, chapter, range(g), langOf(live.bibleSecond)) },
         versions: { pt: live.bibleMain, en: live.bibleSecond },
         lines: [{ pt: join('pt'), en: verses.some((v) => v.en) ? join('en') : '' }],
       };
     });
+  }
+  // ---------- Igreja, tela de espera e cronômetro ----------
+  function churchInfo() {
+    const deckId = repo.getSetting('wait_deck', '');
+    const d = deckId && decks.get(deckId);
+    return {
+      name: repo.getSetting('church_name', ''),
+      logo: repo.getSetting('church_logo', ''),
+      start: repo.getSetting('wait_start', '19:00'),
+      waitText: repo.getSetting('wait_text', 'O culto já vai começar'),
+      deck: d ? { urls: d.urls, auto: d.auto || 8 } : null,
+    };
+  }
+  // bloco (Abertura, Louvor…) em que o item atual está
+  function blockOf(svc, itemId) {
+    let blk = null;
+    for (const it of svc.items) {
+      if (it.kind === 'block') blk = it;
+      if (it.id === itemId) return blk;
+    }
+    return null;
+  }
+  function currentBlock() {
+    const t = live.timing;
+    if (!t.blockId || !live.serviceId) return null;
+    const svc = repo.getService(live.serviceId);
+    const b = svc?.items.find((i) => i.id === t.blockId);
+    if (!b) return null;
+    let j = {};
+    try { j = JSON.parse(b.text || '{}'); } catch {}
+    return { id: b.id, title: b.title, minutes: +j.minutes || 0, color: j.color || '' };
+  }
+  function markTiming(itemId) {
+    if (!live.serviceId) return;
+    const svc = repo.getService(live.serviceId);
+    if (!svc) return;
+    const now = Date.now();
+    if (!live.timing.serviceStart) live.timing.serviceStart = now;
+    const b = blockOf(svc, itemId);
+    const bid = b ? b.id : null;
+    if (bid !== live.timing.blockId) { live.timing.blockId = bid; live.timing.blockStart = bid ? now : null; }
+  }
+
+  // divide um texto em duas partes, na pontuação mais perto do meio (; : . ! ? antes de vírgula)
+  function splitHalf(t) {
+    const mid = t.length / 2;
+    let best = -1;
+    let score = Infinity;
+    const re = /([;:.!?])\s|(,)\s/g;
+    let m;
+    while ((m = re.exec(t))) {
+      const pos = m.index + 1;
+      const d = Math.abs(pos - mid) * (m[2] ? 1.6 : 1);
+      if (pos > t.length * 0.25 && pos < t.length * 0.75 && d < score) { score = d; best = pos; }
+    }
+    if (best < 0) {
+      best = t.indexOf(' ', Math.floor(mid));
+      if (best < 0) return [t, ''];
+    }
+    return [t.slice(0, best).trim(), t.slice(best).trim()];
   }
   function loadBible(book, chapter, verse) {
     const slides = bibleSlides(book, chapter);
@@ -183,6 +266,11 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       next: live.slides[live.index + 1] || null,
       slides: live.slides.map((s) => ({ index: s.index, name: s.name, code: s.code, part: s.part, parts: s.parts, preview: preview(s) })),
       message: live.message,
+      logo: live.logo,
+      waiting: live.waiting,
+      church: churchInfo(),
+      timing: live.timing,
+      block: currentBlock(),
       themeDef: themeDef(live.themeId),
       transition: live.transition,
       trSpeed: live.trSpeed,
@@ -218,6 +306,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   function handleCmd(c = {}) {
     switch (c.type) {
       case 'service':
+        if (live.serviceId !== (c.id ?? null)) live.timing = { serviceStart: null, blockId: null, blockStart: null };
         live.serviceId = c.id ?? null;
         queueService(live.serviceId);
         break;
@@ -225,6 +314,15 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
         const svc = live.serviceId && repo.getService(live.serviceId);
         const item = svc?.items.find((i) => i.id === c.id) || db.prepare('SELECT * FROM service_item WHERE id = ?').get(c.id);
         if (!item) return;
+        if (item.kind === 'block') {
+          // bloco: só marca o início dele no cronômetro
+          if (live.timing.blockId !== item.id) { live.timing.blockId = item.id; live.timing.blockStart = Date.now(); }
+          if (!live.timing.serviceStart) live.timing.serviceStart = Date.now();
+          break;
+        }
+        live.logo = false;
+        live.waiting = false;
+        markTiming(item.id);
         leaveItem(item.id);
         if (item.kind === 'song') {
           loadSong(item.song_id, { itemId: item.id, index: c.index || 0 });
@@ -370,6 +468,18 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       case 'black':
         live.black = typeof c.value === 'boolean' ? c.value : !live.black;
         break;
+      case 'logo':
+        live.logo = typeof c.value === 'boolean' ? c.value : !live.logo;
+        if (live.logo) live.waiting = false;
+        break;
+      case 'waiting':
+        live.waiting = typeof c.value === 'boolean' ? c.value : !live.waiting;
+        if (live.waiting) live.logo = false;
+        break;
+      case 'timer':
+        if (c.action === 'start') { live.timing.serviceStart = Date.now(); if (live.timing.blockId) live.timing.blockStart = Date.now(); }
+        if (c.action === 'reset') live.timing = { serviceStart: null, blockId: null, blockStart: null };
+        break;
       case 'clear':
         live.clear = typeof c.value === 'boolean' ? c.value : !live.clear;
         break;
@@ -420,7 +530,9 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     if (!live.serviceId || !live.itemId) return;
     const svc = repo.getService(live.serviceId);
     const i = svc.items.findIndex((x) => x.id === live.itemId);
-    const target = svc.items[i + dir];
+    let k = i + dir;
+    while (svc.items[k] && svc.items[k].kind === 'block') k += dir;
+    const target = svc.items[k];
     if (!target) return;
     handleCmd({ type: 'item', id: target.id });
     if (dir < 0) {
@@ -587,7 +699,66 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
 
   // Cultos
   app.get('/api/services', (req, res) => ok(res, repo.listServices()));
-  app.post('/api/services', wrap((req, res) => ok(res, { id: repo.createService(req.body.title || 'Culto', req.body.date || new Date().toLocaleDateString('sv-SE')) })));
+  const templates = () => { try { return JSON.parse(repo.getSetting('templates', '[]')); } catch { return []; } };
+  app.post('/api/services', wrap((req, res) => {
+    const id = repo.createService(req.body.title || 'Culto', req.body.date || new Date().toLocaleDateString('sv-SE'));
+    const tpl = req.body.template != null && templates()[+req.body.template];
+    if (tpl) tpl.items.forEach((it) => { if (it.kind !== 'song' || repo.getSong(it.song_id)) repo.addItem(id, it); });
+    ok(res, { id });
+  }));
+  // Modelos de culto (ex.: "Culto de domingo padrão")
+  app.get('/api/templates', (req, res) => ok(res, templates().map((t, i) => ({ i, name: t.name, count: t.items.length }))));
+  app.post('/api/templates', wrap((req, res) => {
+    const svc = repo.getService(+req.body.service_id);
+    if (!svc) throw new Error('Culto não encontrado');
+    const name = String(req.body.name || svc.title).trim().slice(0, 60);
+    const list = templates().filter((t) => t.name !== name);
+    list.push({ name, items: svc.items.map((it) => ({ kind: it.kind, song_id: it.song_id, text: it.text, title: it.title })) });
+    repo.setSetting('templates', JSON.stringify(list));
+    ok(res, { count: list.length });
+  }));
+  app.delete('/api/templates/:i', (req, res) => { const list = templates(); list.splice(+req.params.i, 1); repo.setSetting('templates', JSON.stringify(list)); ok(res); });
+  // Igreja / tela de espera
+  app.get('/api/settings/church', (req, res) => ok(res, { ...churchInfo(), deckId: repo.getSetting('wait_deck', '') }));
+  app.put('/api/settings/church', wrap((req, res) => {
+    const b = req.body || {};
+    if (b.name != null) repo.setSetting('church_name', String(b.name).slice(0, 80));
+    if (b.logo != null) repo.setSetting('church_logo', String(b.logo));
+    if (b.start != null && /^\d{1,2}:\d{2}$/.test(b.start)) repo.setSetting('wait_start', b.start);
+    if (b.waitText != null) repo.setSetting('wait_text', String(b.waitText).slice(0, 80));
+    if (b.deckId != null) repo.setSetting('wait_deck', String(b.deckId));
+    broadcast();
+    ok(res, churchInfo());
+  }));
+  // Backup automático diário
+  const backup = makeBackup({ db, dataDir, getDir: () => repo.getSetting('backup_dir', '') });
+  async function backupIfDue() {
+    if (repo.getSetting('backup_on', '0') !== '1' || !repo.getSetting('backup_dir', '')) return;
+    const today = new Date().toLocaleDateString('sv-SE');
+    if (repo.getSetting('backup_last', '') === today) return;
+    try {
+      const r = await backup.run();
+      repo.setSetting('backup_last', today);
+      console.log('  Backup salvo em', r.file);
+    } catch (e) {
+      console.log('  Backup falhou:', e.message);
+    }
+  }
+  setTimeout(backupIfDue, 60 * 1000);
+  setInterval(backupIfDue, 60 * 60 * 1000);
+  app.get('/api/settings/backup', (req, res) => ok(res, { dir: repo.getSetting('backup_dir', ''), on: repo.getSetting('backup_on', '0') === '1', last: repo.getSetting('backup_last', '') }));
+  app.put('/api/settings/backup', wrap((req, res) => {
+    const dir = String(req.body.dir || '').trim();
+    if (dir && !fs.existsSync(dir)) throw new Error('Essa pasta não existe neste computador');
+    repo.setSetting('backup_dir', dir);
+    repo.setSetting('backup_on', req.body.on ? '1' : '0');
+    ok(res);
+  }));
+  app.post('/api/backup/run', wrap(async (req, res) => {
+    const r = await backup.run();
+    repo.setSetting('backup_last', r.date);
+    ok(res, r);
+  }));
   app.get('/api/services/:id', (req, res) => {
     const s = repo.getService(+req.params.id);
     s ? ok(res, s) : res.status(404).json({ error: 'Culto não encontrado' });

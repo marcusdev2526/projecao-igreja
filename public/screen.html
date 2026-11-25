@@ -17,7 +17,7 @@
 <div id="hint">Pressione F11 (ou clique duas vezes) para tela cheia · arraste esta janela para o projetor</div>
 <script src="/socket.io/socket.io.js"></script>
 <script type="module">
-  import { createStage, slideHTML } from '/shared/render.js';
+  import { createStage, slideHTML, logoHTML, waitingHTML, tickWaiting } from '/shared/render.js';
   const embedded = new URLSearchParams(location.search).has('embed');
   if (embedded) document.body.classList.add('embedded');
   const stage = createStage(document.getElementById('host'), { live: true });
@@ -27,11 +27,13 @@
     stage.setTheme(s.themeId, s.themeDef);
     stage.setBlack(s.black);
     stage.setTransition(s.transition, s.trSpeed);
-    const html = s.clear || !s.slide ? '' : slideHTML(s.slide, s.mode);
+    const html = s.waiting ? waitingHTML(s.church) : s.logo ? logoHTML(s.church) : s.clear || !s.slide ? '' : slideHTML(s.slide, s.mode);
     const key = s.themeId + '|' + s.mode + '|' + html;
-    if (key !== lastKey) { stage.show(html); lastKey = key; }
+    if (key !== lastKey) { stage.show(html); lastKey = key; tickWaiting(stage.el); }
     applyPlayer(s.player);
   });
+
+  setInterval(() => tickWaiting(stage.el), 1000);
 
   // ---------- Vídeo e áudio ----------
   // A janela do telão é quem toca (com som). A prévia do painel (embed) mostra o vídeo sem som.

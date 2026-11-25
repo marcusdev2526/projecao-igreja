@@ -5,6 +5,7 @@ import { THEMES, THEME_CATS, themeById, FONTS, newCustomTheme } from '/shared/th
 import { BOOKS, parseRef, refText, bookName } from '/shared/bible.js';
 import { initBibleView } from '/operator/bible.js';
 import { initMedia } from '/operator/media.js';
+import { initOrganize } from '/operator/organize.js';
 let MEDIA = null;
 import { renderProgress } from '/shared/progress.js';
 import { autoKeywords, chunksOf, markChunk, wordFreq, applyChunks, missingTranslations, insertTranslations, setEnStatus } from '/shared/enhance.js';
@@ -122,13 +123,7 @@ async function openService(id) {
   renderItems();
 }
 $('serviceSel').onchange = () => openService(+$('serviceSel').value);
-$('newServiceBtn').onclick = async () => {
-  const title = prompt('Nome do culto:', 'Culto de domingo');
-  if (!title) return;
-  const date = prompt('Data (AAAA-MM-DD):', new Date().toLocaleDateString('sv-SE'));
-  const { id } = await api('/api/services', { method: 'POST', body: { title, date } });
-  loadServices(id);
-};
+
 
 let nextStage = null;
 function renderNextPreview(s) {
@@ -155,14 +150,28 @@ socket.on('songs-changed', async ({ id }) => {
   clearTimeout(chT); chT = setTimeout(loadSongs, 800);
 });
 socket.on('en-error', ({ message }) => toast('Tradução automática: ' + message));
+const BLOCK_COLORS = { abertura: '#5fd0b8', louvor: '#ff9a62', palavra: '#b88cff', ofertas: '#f0c654', avisos: '#7fa8e8', outro: '#9aa3ae' };
+const jsonOf = (t) => { try { return JSON.parse(t || '{}'); } catch { return {}; } };
+function blockRow(it) {
+  const j = jsonOf(it.text);
+  const cur = live?.timing?.blockId === it.id;
+  return `<div class="item block ${cur ? 'cur' : ''}" draggable="true" data-id="${it.id}" style="--bc:${BLOCK_COLORS[j.color] || BLOCK_COLORS.outro}">
+    <span class="b-dot"></span><span class="b-name">${esc(it.title)}</span>
+    <button class="b-min" data-act="min" title="Tempo previsto (clique para mudar)">${j.minutes ? j.minutes + ' min' : 'sem tempo'}</button>
+    <button class="x" title="Remover bloco">×</button></div>`;
+}
 function renderItems() {
+  let bc = '';
   $('itemList').innerHTML = service.items.length
-    ? service.items.map((it, i) => `<div class="item ${selected?.item?.id === it.id ? 'sel' : ''} ${live?.itemId === it.id ? 'live' : ''}" draggable="true" data-id="${it.id}">
+    ? service.items.map((it, i) => {
+      if (it.kind === 'block') { bc = BLOCK_COLORS[jsonOf(it.text).color] || BLOCK_COLORS.outro; return blockRow(it); }
+      return `<div class="item ${bc ? 'in-block' : ''} ${selected?.item?.id === it.id ? 'sel' : ''} ${live?.itemId === it.id ? 'live' : ''}" draggable="true" data-id="${it.id}" style="${bc ? '--bc:' + bc : ''}">
         <div class="n">${MEDIA ? MEDIA.icon(MEDIA.itemKind(it)) : i + 1}</div>
         <div class="info"><div class="t">${esc(it.kind === 'song' ? it.song_title : it.title || 'Aviso')}</div>
         <div class="a">${MEDIA?.itemSub(it) ? esc(MEDIA.itemSub(it)) : it.kind === 'song' ? (MEDIA?.hasAudio(it) ? '<span class="badge pb">playback</span> ' : '') + esc(it.song_artist || '') + (it.has_en ? ' · ' + enBadge(it.has_en) : enPending.has(it.song_id) ? ' · <span class="badge auto pulse">traduzindo…</span>' : wantsEn() ? ' · <span class="badge no-en" data-song="' + it.song_id + '" title="' + (aiState.hasKey ? 'Não deu para traduzir — clique para abrir' : 'Cadastre a chave da IA em Configurações para traduzir sozinho') + '">sem inglês</span>' : '') : it.kind === 'bible' ? 'Bíblia' : 'Aviso / texto'}</div></div>
         ${it.kind === 'song' ? '<button class="mini aud" data-act="aud" title="Playback (áudio junto com a letra)">' + (MEDIA ? MEDIA.icon('audio') : '♪') + '</button>' : ''}
-        <button class="x" title="Remover do culto">×</button></div>`).join('')
+        <button class="x" title="Remover do culto">×</button></div>`;
+    }).join('')
     : '<div class="empty">Adicione louvores pelo botão ＋ da lista ao lado</div>';
 
 }
@@ -177,6 +186,15 @@ $('itemList').onclick = async (e) => {
   const id = +row.dataset.id;
   if (e.target.dataset.song) return openEditor(+e.target.dataset.song);
   if (e.target.closest('[data-act="aud"]')) return MEDIA.openAudioFor(service.items.find((x) => x.id === id));
+  if (e.target.closest('[data-act="min"]')) {
+    const it = service.items.find((x) => x.id === id);
+    const j = jsonOf(it.text);
+    const v = prompt(`Tempo previsto para "${it.title}" (minutos):`, j.minutes || '');
+    if (v == null) return;
+    j.minutes = Math.max(0, Math.round(+v || 0));
+    await api('/api/items/' + id, { method: 'PUT', body: { text: JSON.stringify(j), title: it.title } });
+    return openService(service.id);
+  }
   if (e.target.classList.contains('x')) {
     await api('/api/items/' + id, { method: 'DELETE' });
     if (selected?.item?.id === id) { selected = null; renderSlides(); }
@@ -231,7 +249,7 @@ function textSlides(item) {
 }
 async function selectItem(id, { fresh = false } = {}) {
   const item = service?.items.find((i) => i.id === id);
-  if (!item) return;
+  if (!item || item.kind === 'block') return;
   const mode = live?.mode || 'pt';
   let slides;
   if (item.kind === 'bible') {
@@ -409,6 +427,7 @@ document.addEventListener('keydown', (e) => {
   else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); cmd({ type: 'prev' }); }
   else if (e.key === 'b' || e.key === 'B' || e.key === '.') cmd({ type: 'black' });
   else if (e.key === 'c' || e.key === 'C') cmd({ type: 'clear' });
+  else if (e.key === 'l' || e.key === 'L') cmd({ type: 'logo' });
 });
 
 // ---------------- Editor de louvor ----------------
@@ -1005,5 +1024,6 @@ loadThemes();
 loadVersions();
 loadAi();
 setTimeout(() => checkUpdate({ silent: true }), 4000);
+initOrganize({ api, cmd, toast, esc, socket, getService: () => service, openService, loadServices, getLive: () => live, renderItems: () => service && renderItems(), BLOCK_COLORS });
 MEDIA = initMedia({ api, cmd, toast, esc, socket, getService: () => service, openService, getLive: () => live });
 initBibleView({ api, cmd, toast, esc, getLive: () => live, getService: () => service, openService, loadVersions, onState: (fn) => socket.on('state', fn) });

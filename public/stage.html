@@ -24,10 +24,14 @@
   #msg.on { display: block; animation: pulse 1.4s ease-in-out 3; }
   @keyframes pulse { 50% { background: #fff3a0; } }
   .blk { color: #f55; font-weight: 700; }
+  .hr { display: flex; align-items: center; gap: 2.4vw; }
+  #blk { font-size: 3vh; color: #9ad; font-variant-numeric: tabular-nums; }
+  #blk.over { color: #ff5a5a; font-weight: 700; animation: pulse2 1.4s ease-in-out infinite; }
+  @keyframes pulse2 { 50% { opacity: .55; } }
 </style>
 </head>
 <body>
-<header style="position:relative"><div><span id="title">—</span><span id="pos"></span> <span id="flags"></span></div><div id="clock"></div></header>
+<header style="position:relative"><div><span id="title">—</span><span id="pos"></span> <span id="flags"></span></div><div class="hr"><span id="blk"></span><span id="clock"></span></div></header>
 <div id="prog" style="padding:0 2vw" hidden></div>
 <main id="cur"></main>
 <div id="msg"></div>
@@ -44,18 +48,29 @@
     renderProgress($('prog'), { slides: s.slides, index: s.index });
     $('title').textContent = s.title || '—';
     $('pos').textContent = s.total ? `${s.index + 1}/${s.total}` : '';
-    $('flags').innerHTML = (s.black ? '<span class="blk">● TELA PRETA</span>' : '') + (s.clear ? ' <span class="blk">● SEM LETRA</span>' : '');
+    $('flags').innerHTML = (s.black ? '<span class="blk">● TELA PRETA</span>' : '') + (s.clear ? ' <span class="blk">● SEM LETRA</span>' : '') + (s.logo ? ' <span class="blk">● LOGO</span>' : '') + (s.waiting ? ' <span class="blk">● ESPERA</span>' : '');
     const sl = s.slide;
     $('cur').innerHTML = sl
-      ? `<div><span class="tag">${esc(sl.name)}${sl.parts > 1 ? ` ${sl.part}/${sl.parts}` : ''}</span></div>` +
+      ? `<div><span class="tag">${esc(sl.name)}${sl.parts > 1 && sl.kind !== 'bible' ? ` ${sl.part}/${sl.parts}` : ''}</span></div>` +
         sl.lines.map((l) => `${showChords && l.chords ? `<div class="chords">${esc(l.chords)}</div>` : ''}<div class="line">${esc(stripMarkup(l.pt))}${l.en ? `<div class="en">${esc(l.en)}</div>` : ''}</div>`).join('')
       : '<div class="line" style="color:#555">Nada no telão</div>';
     $('nexttxt').textContent = s.next ? `${s.next.name}: ${s.next.lines.map((l) => stripMarkup(l.pt)).join(' / ')}` : 'Fim do louvor';
     $('msg').textContent = s.message;
     $('msg').classList.toggle('on', !!s.message);
   });
-  const tick = () => ($('clock').textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-  tick(); setInterval(tick, 5000);
+  let st = null;
+  io().on('state', (s) => { st = s; tick(); });
+  const fmt = (ms) => { const t = Math.max(0, Math.floor(ms / 1000)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+  function tick() {
+    $('clock').textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const b = st?.block, t = st?.timing;
+    if (b && t?.blockStart) {
+      const el = Date.now() - t.blockStart, plan = (b.minutes || 0) * 60000;
+      $('blk').textContent = b.title + ' ' + fmt(el) + (plan ? ' / ' + b.minutes + ':00' : '');
+      $('blk').classList.toggle('over', !!plan && el > plan);
+    } else $('blk').textContent = '';
+  }
+  tick(); setInterval(tick, 1000);
   // depois de uma atualização do sistema, recarrega para pegar a versão nova
   { const s2 = io(); s2.on('updating', () => setTimeout(function w() { fetch('/api/info', { cache: 'no-store' }).then(() => location.reload(), () => setTimeout(w, 1500)); }, 3000)); }
 </script>

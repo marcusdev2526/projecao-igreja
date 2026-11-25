@@ -93,9 +93,53 @@ function bibleHTML(slide, mode) {
   const other = multi ? withNums(secondMain ? 'pt' : 'en') : esc(secondMain ? l.pt : l.en);
   const ref = secondMain ? slide.ref?.en : slide.ref?.pt;
   const ver = secondMain ? slide.versions?.en : slide.versions?.pt;
-  return `<div class="slide-content bible ${bi ? 'mode-bi' : 'mode-single'}${multi ? ' multi' : ''}"><div class="primary"><div class="verse">${main}</div></div>${
+  // texto grande = modo leitura (fundo mais calmo); referência discreta no canto
+  const long = (secondMain ? l.en : l.pt).length > 140 ? ' long' : '';
+  const part = slide.parts > 1 ? ` <span>${slide.part}/${slide.parts}</span>` : '';
+  return `<div class="slide-content bible ${bi ? 'mode-bi' : 'mode-single'}${multi ? ' multi' : ''}${long}"><div class="primary"><div class="verse">${main}</div></div>${
     bi ? `<div class="divider"></div><div class="secondary verse2">${other}</div>` : ''
-  }<div class="ref">${esc(ref || slide.name)}${ver ? ` <span>· ${esc(ver)}</span>` : ''}</div></div>`;
+  }</div><div class="bible-ref">${esc((ref || slide.name).replace(/\s*\(\d\/\d\)$/, ''))}${part}${ver ? ` <span>· ${esc(ver)}</span>` : ''}</div>`;
+}
+
+// Tela só com a logo (ou o nome) da igreja
+export function logoHTML(c = {}) {
+  return `<div class="church-logo">${c.logo ? `<img src="${esc(c.logo)}" alt="">` : `<div class="cname">${esc(c.name || 'Bem-vindos')}</div>`}</div>`;
+}
+// Tela de espera: logo, contagem regressiva até o início e carrossel de avisos
+export function waitingHTML(c = {}) {
+  const imgs = c.deck?.urls || [];
+  return `<div class="waiting${imgs.length ? ' with-ads' : ''}">
+    <div class="w-main">
+      ${c.logo ? `<img class="w-logo" src="${esc(c.logo)}" alt="">` : c.name ? `<div class="w-name">${esc(c.name)}</div>` : ''}
+      <div class="w-text">${esc(c.waitText || 'O culto já vai começar')}</div>
+      <div class="w-count" data-start="${esc(c.start || '')}">--:--</div>
+      <div class="w-clock"></div>
+    </div>
+    ${imgs.length ? `<div class="w-ads" data-auto="${c.deck.auto}">${imgs.map((u, i) => `<img src="${esc(u)}" class="${i ? '' : 'on'}" alt="">`).join('')}</div>` : ''}
+  </div>`;
+}
+// atualiza relógio, contagem e carrossel da tela de espera (chamar a cada segundo)
+export function tickWaiting(root) {
+  const w = root.querySelector('.content-layer:not(.leave) .waiting');
+  if (!w) return;
+  const now = new Date();
+  const cnt = w.querySelector('.w-count');
+  const [h, m] = (cnt.dataset.start || '').split(':').map(Number);
+  if (!isNaN(h)) {
+    const t = new Date(now); t.setHours(h, m || 0, 0, 0);
+    let d = Math.round((t - now) / 1000);
+    if (d < -3600) { t.setDate(t.getDate() + 1); d = Math.round((t - now) / 1000); }
+    cnt.textContent = d > 0 ? (d >= 3600 ? Math.floor(d / 3600) + ':' : '') + String(Math.floor((d % 3600) / 60)).padStart(d >= 3600 ? 2 : 1, '0') + ':' + String(d % 60).padStart(2, '0') : 'Já vamos começar';
+    cnt.classList.toggle('now', d <= 0);
+  } else cnt.textContent = '';
+  w.querySelector('.w-clock').textContent = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const ads = w.querySelector('.w-ads');
+  if (ads) {
+    const auto = +ads.dataset.auto || 8;
+    const imgs = ads.querySelectorAll('img');
+    const k = Math.floor(now / 1000 / auto) % imgs.length;
+    imgs.forEach((im, i) => im.classList.toggle('on', i === k));
+  }
 }
 
 // Cria um palco 1920x1080 que se ajusta ao tamanho do container
