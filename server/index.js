@@ -13,7 +13,8 @@ import { parseSong, buildSlides, slideMaxLines } from '../public/shared/parser.j
 import { DEMO_SONGS } from './seed.js';
 import fs from 'node:fs';
 import { parseBibleJson, seedBibles } from './bibleimport.js';
-import { translateLines, keywordChunks, askClaude, DEFAULT_MODEL } from './ai.js';
+import { translateLines, keywordChunks, askClaude, alignOfficial, DEFAULT_MODEL } from './ai.js';
+import { lyricLines, missingTranslations, insertTranslations, setEnStatus, englishLines } from '../public/shared/enhance.js';
 import { fetchLyrics } from './urlimport.js';
 import { makeUpdater, RESTART_CODE } from './updater.js';
 import { parseRef, refText } from '../public/shared/bible.js';
@@ -513,6 +514,66 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   app.post('/api/ai/translate', wrap(async (req, res) => {
     ok(res, { lines: await translateLines(req.body.lines || [], { ...aiConf(), title: req.body.title }) });
   }));
+  // Inglês: encaixar a letra oficial (colada ou por link) nas linhas em português
+  const stripEn = (src) => setEnStatus(String(src).replace(/\r/g, '').split('\n').filter((l) => !l.trim().startsWith('|')).join('\n'), '');
+  async function alignSource(source, english) {
+    const base = stripEn(source);
+    const lyric = lyricLines(base).lyric;
+    if (!lyric.length) throw new Error('A letra em português está vazia');
+    const conf = aiConf();
+    let ens;
+    if (conf.apiKey) {
+      ens = await alignOfficial(lyric.map((l) => l.text), english, { ...conf, title: parseSong(base).title });
+    } else {
+      const eng = englishLines(english);
+      const plain = (t) => t.replace(/[*_^~]/g, '').trim().toLowerCase();
+      if (eng.length === lyric.length) ens = eng;
+      else {
+        const uniq = [...new Set(lyric.map((l) => plain(l.text)))];
+        const engU = [...new Set(eng.map((t) => t.toLowerCase()))].map((t) => eng.find((e) => e.toLowerCase() === t));
+        if (uniq.length !== engU.length) {
+          throw new Error(`As letras têm quantidades de linhas diferentes (${uniq.length} em PT, ${engU.length} em EN). Cadastre a chave da IA em Configurações para encaixar automaticamente, ou deixe o inglês com uma linha para cada linha em português.`);
+        }
+        const map = new Map(uniq.map((u, k) => [u, engU[k]]));
+        ens = lyric.map((l) => map.get(plain(l.text)));
+      }
+    }
+    const out = insertTranslations(base, new Map(lyric.map((l, k) => [l.i, ens[k]])));
+    return setEnStatus(out, 'oficial');
+  }
+  async function autoTranslateSource(source) {
+    const miss = missingTranslations(source);
+    if (!miss.length) return null;
+    const lines = await translateLines(miss.map((m) => m.text), { ...aiConf(), title: parseSong(source).title });
+    return setEnStatus(insertTranslations(source, new Map(miss.map((m, k) => [m.i, lines[k]]))), 'automático');
+  }
+  app.post('/api/en/align', wrap(async (req, res) => {
+    let english = String(req.body.english || '').trim();
+    const url = String(req.body.url || '').trim();
+    if (url) english = (await fetchLyrics(url)).split('\n').slice(1).join('\n');
+    if (!english.trim()) throw new Error('Cole a letra oficial em inglês ou um link');
+    ok(res, { source: await alignSource(req.body.source || '', english) });
+  }));
+  // Prepara o inglês de todos os louvores do culto que ainda não têm (tradução automática, para revisar)
+  app.post('/api/services/:id/prepare-en', wrap(async (req, res) => {
+    if (!aiConf().apiKey) throw new Error('Cadastre a chave da IA em Configurações para traduzir');
+    const svc = repo.getService(+req.params.id);
+    if (!svc) throw new Error('Culto não encontrado');
+    const ids = [...new Set(svc.items.filter((i) => i.kind === 'song' && i.song_id && !i.has_en).map((i) => i.song_id))];
+    let done = 0;
+    const failed = [];
+    for (const id of ids) {
+      const song = repo.getSong(id);
+      try {
+        const src = await autoTranslateSource(song.source);
+        if (src) { repo.updateSong(id, src, { theme_id: song.theme_id }); handleCmd({ type: 'reload-song', id }); done++; }
+      } catch (e) {
+        failed.push(song.title + ': ' + e.message);
+      }
+    }
+    ok(res, { done, total: ids.length, failed });
+  }));
+  app.post('/api/songs/dedupe', wrap((req, res) => ok(res, repo.dedupeSongs({ dry: !!req.body.dry }))));
   app.post('/api/ai/keywords', wrap(async (req, res) => {
     ok(res, { chunks: await keywordChunks(req.body.chunks || [], { ...aiConf(), title: req.body.title }) });
   }));

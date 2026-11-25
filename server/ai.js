@@ -69,3 +69,23 @@ Exemplo: [["Sem você","não sei pra onde ir"]] → [["^sem^ *VOCÊ*","~não sei
     return m.every((line, j) => typeof line === 'string' && sameWords(line, ch[j])) ? m : null;
   });
 }
+
+// Encaixa a letra OFICIAL em inglês nas linhas em português (versões: "A Bênção" ↔ "The Blessing").
+// Não traduz: escolhe, para cada linha em PT, o trecho correspondente da letra oficial.
+export async function alignOfficial(ptLines, englishText, { apiKey, model, fetchImpl, title = '' }) {
+  if (!ptLines.length) return [];
+  const system = `Você monta projeção bilíngue de louvores. Recebe as linhas da versão em português (em ordem) e a letra OFICIAL em inglês da mesma música.
+Para cada linha em português, devolva o trecho da letra oficial em inglês que é cantado no mesmo lugar da música (mesma parte e mesma posição).
+Use SOMENTE frases da letra oficial, copiadas como estão; não traduza nem invente. Se uma linha em português não tiver correspondente, devolva "".
+Linhas em português repetidas (refrão) recebem o mesmo trecho em inglês. Uma linha em inglês pode ser dividida entre duas linhas em português, se a versão em português dividir assim.
+Responda SOMENTE com um array JSON de strings, exatamente uma por linha em português, na mesma ordem.`;
+  const out = [];
+  for (let i = 0; i < ptLines.length; i += 80) {
+    const part = ptLines.slice(i, i + 80).map((l) => l.replace(/[*_^~]/g, ''));
+    const prompt = `Louvor: ${title || 'sem título'}\n\nLETRA OFICIAL EM INGLÊS:\n${englishText.slice(0, 12000)}\n\nLINHAS EM PORTUGUÊS (${part.length}):\n${JSON.stringify(part)}`;
+    const arr = jsonArray(await askClaude({ apiKey, model, fetchImpl, system, prompt, maxTokens: 6000 }));
+    if (!Array.isArray(arr) || arr.length !== part.length) throw new Error('A IA devolveu uma quantidade diferente de linhas. Tente de novo.');
+    out.push(...arr.map((s) => String(s ?? '').trim()));
+  }
+  return out;
+}

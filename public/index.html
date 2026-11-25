@@ -39,7 +39,7 @@
     </div>
     <input class="search" id="search" placeholder="Buscar título, artista ou trecho da letra…" autocomplete="off">
     <div class="list" id="songList"></div>
-    <div class="panel-f"><span id="songCount"></span><a href="/api/export" class="link">Baixar backup</a></div>
+    <div class="panel-f"><span id="songCount"></span><span class="f-acts"><a href="#" class="link" id="dedupeBtn" title="Apaga louvores com a letra repetida">Remover duplicados</a><a href="/api/export" class="link">Baixar backup</a></span></div>
     </div>
   </section>
 
@@ -50,7 +50,7 @@
       <div class="acts"><button class="btn sm" id="newServiceBtn" title="Novo culto">+ Culto</button></div>
     </div>
     <div class="list" id="itemList"></div>
-    <div class="panel-f"><button class="btn sm" id="addTextBtn">+ Aviso</button><span class="hint">Arraste para reordenar</span></div>
+    <div class="panel-f"><button class="btn sm" id="addTextBtn">+ Aviso</button><button class="btn sm warn" id="prepEnBtn" hidden title="Traduz com IA os louvores do culto que ainda não têm inglês">Preparar inglês do culto</button><span class="hint">Arraste para reordenar</span></div>
   </section>
 
   <!-- Ao vivo -->
@@ -133,6 +133,7 @@
     <h2 id="edTitle">Novo louvor</h2>
     <div class="acts">
       <button class="btn sm" id="edKw" title="Sugere a palavra-chave de cada slide (estilo do vídeo)">Destacar palavras</button>
+      <button class="btn sm" id="edOfficial" title="Cole a letra original em inglês (ou um link) e o sistema encaixa linha por linha">Inglês oficial</button>
       <button class="btn sm" id="edTr" title="Sugere a tradução em inglês das linhas sem tradução (precisa da IA)">Traduzir</button>
       <button class="btn sm" id="edUndo" title="Desfazer a última sugestão" disabled>↶ Desfazer</button>
       <select id="edTheme" class="sel" title="Tema padrão deste louvor"></select>
@@ -291,6 +292,18 @@
 </dialog>
 
 <!-- Configurações -->
+<dialog id="enDlg" class="modal">
+  <div class="modal-h"><h2>Inglês oficial</h2><div class="acts"><button class="btn sm" id="enCancel">Cancelar</button></div></div>
+  <div class="en-body">
+    <p class="muted small">Para louvores que são versão de música em inglês (ex.: "A Bênção" → "The Blessing"). O sistema coloca cada linha oficial embaixo da linha certa em português. A tradução que já existir é trocada.</p>
+    <label class="lbl">Link da letra em inglês (Letras, Genius…)</label>
+    <input class="search" id="enUrl" placeholder="https://www.letras.mus.br/…/the-blessing/" autocomplete="off">
+    <label class="lbl">ou cole a letra em inglês</label>
+    <textarea id="enText" rows="12" spellcheck="false" placeholder="Now may the Lord bless you and keep you&#10;Make His face shine upon you…"></textarea>
+    <div class="en-foot"><span class="muted small" id="enHint"></span><button class="btn primary" id="enGo">Encaixar</button></div>
+  </div>
+</dialog>
+
 <dialog id="settings" class="modal">
   <div class="modal-h"><h2>Configurações</h2><div class="acts"><button class="btn sm" id="stClose">Fechar</button><button class="btn primary sm" id="stSave">Salvar</button></div></div>
   <div class="bi-body">

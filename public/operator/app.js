@@ -5,7 +5,7 @@ import { THEMES, THEME_CATS, themeById, FONTS, newCustomTheme } from '/shared/th
 import { BOOKS, parseRef, refText, bookName } from '/shared/bible.js';
 import { initBibleView } from '/operator/bible.js';
 import { renderProgress } from '/shared/progress.js';
-import { autoKeywords, chunksOf, markChunk, wordFreq, applyChunks, missingTranslations, insertTranslations } from '/shared/enhance.js';
+import { autoKeywords, chunksOf, markChunk, wordFreq, applyChunks, missingTranslations, insertTranslations, setEnStatus } from '/shared/enhance.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -47,7 +47,9 @@ socket.on('themes', loadThemes);
 // ---------------- Estado ao vivo ----------------
 socket.on('state', (s) => {
   const prevItem = live?.itemId;
+  const prevMode = live?.mode;
   live = s;
+  if (prevMode !== s.mode && service) renderItems();
   document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === s.mode));
   $('themeName').textContent = themeLabel(s.themeId);
   if ($('bibleMain').options.length) { $('bibleMain').value = s.bibleMain; $('bibleSecond').value = s.bibleSecond || ''; }
@@ -67,13 +69,14 @@ socket.on('state', (s) => {
 });
 
 // ---------------- Biblioteca ----------------
+const enBadge = (v) => (v === 2 ? '<span class="badge auto" title="Inglês traduzido automaticamente — revise no editor">EN auto</span>' : v ? '<span class="badge">EN</span>' : '');
 async function loadSongs() {
   const list = await api('/api/songs?q=' + encodeURIComponent($('search').value));
   $('songCount').textContent = `${list.length} louvor${list.length === 1 ? '' : 'es'}`;
   $('songList').innerHTML = list.length
     ? list.map((s) => `<div class="song" data-id="${s.id}" title="Duplo clique: projetar agora">
         <div class="info"><div class="t">${esc(s.title)}</div><div class="a">${esc(s.artist || '—')}${s.song_key ? ' · ' + esc(s.song_key) : ''}</div></div>
-        ${s.has_en ? '<span class="badge">EN</span>' : ''}
+        ${enBadge(s.has_en)}
         <button class="mini" data-act="edit" title="Editar">✎</button>
         <button class="mini" data-act="add" title="Adicionar ao culto">＋</button></div>`).join('')
     : '<div class="empty">Nenhum louvor encontrado</div>';
@@ -118,14 +121,16 @@ $('newServiceBtn').onclick = async () => {
   loadServices(id);
 };
 
+const wantsEn = () => !!live && live.mode !== 'pt';
 function renderItems() {
   $('itemList').innerHTML = service.items.length
     ? service.items.map((it, i) => `<div class="item ${selected?.item?.id === it.id ? 'sel' : ''} ${live?.itemId === it.id ? 'live' : ''}" draggable="true" data-id="${it.id}">
         <div class="n">${i + 1}</div>
         <div class="info"><div class="t">${esc(it.kind === 'song' ? it.song_title : it.title || 'Aviso')}</div>
-        <div class="a">${it.kind === 'song' ? esc(it.song_artist || '') + (it.has_en ? ' · <span class="badge">EN</span>' : '') : it.kind === 'bible' ? 'Bíblia' : 'Aviso / texto'}</div></div>
+        <div class="a">${it.kind === 'song' ? esc(it.song_artist || '') + (it.has_en ? ' · ' + enBadge(it.has_en) : wantsEn() ? ' · <span class="badge no-en" data-song="' + it.song_id + '" title="Abrir o editor para colocar o inglês">sem inglês</span>' : '') : it.kind === 'bible' ? 'Bíblia' : 'Aviso / texto'}</div></div>
         <button class="x" title="Remover do culto">×</button></div>`).join('')
     : '<div class="empty">Adicione louvores pelo botão ＋ da lista ao lado</div>';
+  $('prepEnBtn').hidden = !(wantsEn() && service.items.some((it) => it.kind === 'song' && !it.has_en));
 }
 async function addSongToService(songId) {
   await api(`/api/services/${service.id}/items`, { method: 'POST', body: { kind: 'song', song_id: songId } });
@@ -136,6 +141,7 @@ $('itemList').onclick = async (e) => {
   const row = e.target.closest('.item');
   if (!row) return;
   const id = +row.dataset.id;
+  if (e.target.dataset.song) return openEditor(+e.target.dataset.song);
   if (e.target.classList.contains('x')) {
     await api('/api/items/' + id, { method: 'DELETE' });
     if (selected?.item?.id === id) { selected = null; renderSlides(); }
@@ -366,7 +372,7 @@ function renderEditorPreview() {
   const slides = buildSlides(p, { maxLines: slideMaxLines(edMode) });
   const order = p.arrangement.join(' → ');
   $('edMeta').innerHTML = `<b>${esc(p.title || 'Sem título')}</b>${p.artist ? ' · ' + esc(p.artist) : ''}${p.key ? ' · Tom ' + esc(p.key) : ''}<br>
-    ${p.sections.length} partes · ${slides.length} slides · ${p.hasEn ? 'com tradução EN' : 'sem tradução'}<br>Ordem: ${esc(order || '—')}`;
+    ${p.sections.length} partes · ${slides.length} slides · ${p.hasEn ? (p.enStatus === 'auto' ? '<span class="ed-en">inglês automático — revise · <a id="edReviewed">marcar como revisado</a></span>' : p.enStatus === 'oficial' ? 'inglês oficial' : 'com tradução EN') : 'sem tradução'}<br>Ordem: ${esc(order || '—')}`;
   const themeId = $('edTheme').value || live?.themeId || 'brasa';
   const box = $('edPreviews');
   box.innerHTML = '';
@@ -431,7 +437,7 @@ $('edTr').onclick = async () => {
   toast(`Traduzindo ${miss.length} linha(s)…`);
   try {
     const { lines } = await api('/api/ai/translate', { method: 'POST', body: { lines: miss.map((m) => m.text), title: edTitleNow() } });
-    edSet(insertTranslations(src, new Map(miss.map((m, k) => [m.i, lines[k]]))), 'Tradução sugerida inserida. Revise antes de salvar; ↶ desfaz.');
+    edSet(setEnStatus(insertTranslations(src, new Map(miss.map((m, k) => [m.i, lines[k]]))), 'automático'), 'Tradução sugerida inserida. Revise antes de salvar; ↶ desfaz.');
   } catch (e) {
     toast(e.message);
   } finally {
@@ -439,12 +445,69 @@ $('edTr').onclick = async () => {
   }
 };
 $('editor').addEventListener('close', () => { edUndo = []; $('edUndo').disabled = true; });
+$('edMeta').addEventListener('click', (e) => {
+  if (e.target.id === 'edReviewed') edSet(setEnStatus($('edSource').value, ''), 'Inglês marcado como revisado. Clique em Salvar.');
+});
+// Inglês oficial: encaixa a letra original nas linhas em português
+$('edOfficial').onclick = () => {
+  $('enUrl').value = '';
+  $('enText').value = '';
+  $('enHint').textContent = aiState.hasKey ? 'A IA encaixa cada linha no lugar certo.' : 'Sem a chave da IA: cole uma linha em inglês para cada linha em português, na mesma ordem.';
+  $('enDlg').showModal();
+  $('enUrl').focus();
+};
+$('enCancel').onclick = () => $('enDlg').close();
+$('enGo').onclick = async () => {
+  const btn = $('enGo');
+  btn.disabled = true; btn.textContent = 'Encaixando…';
+  try {
+    const { source } = await api('/api/en/align', { method: 'POST', body: { source: $('edSource').value, url: $('enUrl').value.trim(), english: $('enText').value } });
+    $('enDlg').close();
+    edSet(source, 'Inglês oficial encaixado. Confira na prévia (PT+EN) e salve; ↶ desfaz.');
+    edMode = 'pt-en';
+    renderEditorPreview();
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Encaixar';
+  }
+};
+// Culto: traduz de uma vez os louvores sem inglês
+$('prepEnBtn').onclick = async () => {
+  if (!aiState.hasKey) { toast('Para traduzir, cadastre a chave da IA em Configurações'); return openSettings(); }
+  const n = new Set(service.items.filter((it) => it.kind === 'song' && !it.has_en).map((it) => it.song_id)).size;
+  if (!confirm(`Traduzir automaticamente ${n} louvor(es) do culto?\nDica: se algum for versão de música em inglês, prefira "Inglês oficial" no editor.`)) return;
+  const btn = $('prepEnBtn');
+  btn.disabled = true; btn.textContent = `Traduzindo ${n}…`;
+  try {
+    const r = await api(`/api/services/${service.id}/prepare-en`, { method: 'POST' });
+    toast(`Inglês pronto em ${r.done} de ${r.total} louvor(es)${r.failed.length ? ' · erro: ' + r.failed[0] : ''}. Marcados como "EN auto" para revisar.`);
+    songCache.clear();
+    await openService(service.id);
+    loadSongs();
+    if (selected?.item) selectItem(selected.item.id);
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Preparar inglês do culto';
+  }
+};
+// Biblioteca: remover duplicados
+$('dedupeBtn').onclick = async (e) => {
+  e.preventDefault();
+  const d = await api('/api/songs/dedupe', { method: 'POST', body: { dry: true } });
+  if (!d.removed) return toast('Nenhum louvor repetido encontrado');
+  if (!confirm(`Encontrei ${d.removed} louvor(es) repetido(s) com a letra igual.\nRemover e deixar só uma cópia de cada? (Os cultos continuam funcionando.)`)) return;
+  const r = await api('/api/songs/dedupe', { method: 'POST', body: {} });
+  toast(`${r.removed} repetido(s) removido(s)`);
+  songCache.clear();
+  loadSongs();
+  openService(service.id);
+};
 
 // Configurações
 async function openSettings() {
   await loadAi();
-setTimeout(() => checkUpdate({ silent: true }), 4000);
-initBibleView({ api, cmd, toast, esc, getLive: () => live, getService: () => service, openService, loadVersions, onState: (fn) => socket.on('state', fn) });
   $('stKey').value = '';
   $('stKeyInfo').textContent = aiState.hasKey ? `Chave cadastrada (${aiState.keyHint}). Deixe em branco para manter.` : 'Nenhuma chave cadastrada.';
   $('stModel').value = aiState.model || '';
@@ -516,8 +579,6 @@ $('stSave').onclick = async () => {
   if ($('stKey').value.trim()) body.key = $('stKey').value.trim();
   await api('/api/settings/ai', { method: 'PUT', body });
   await loadAi();
-setTimeout(() => checkUpdate({ silent: true }), 4000);
-initBibleView({ api, cmd, toast, esc, getLive: () => live, getService: () => service, openService, loadVersions, onState: (fn) => socket.on('state', fn) });
   $('settings').close();
   toast('Configurações salvas');
 };
@@ -528,8 +589,6 @@ $('stTest').onclick = async () => {
     await api('/api/ai/test', { method: 'POST' });
     $('stTestRes').textContent = '✅ Conectado';
     await loadAi();
-setTimeout(() => checkUpdate({ silent: true }), 4000);
-initBibleView({ api, cmd, toast, esc, getLive: () => live, getService: () => service, openService, loadVersions, onState: (fn) => socket.on('state', fn) });
   } catch (e) {
     $('stTestRes').textContent = '❌ ' + e.message;
   }

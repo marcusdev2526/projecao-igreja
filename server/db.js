@@ -89,7 +89,7 @@ export function songFields(source, extra = {}) {
     bpm: extra.bpm ?? p.bpm ?? '',
     tags: Array.isArray(tags) ? tags.join(', ') : String(tags),
     theme_id: extra.theme_id || '',
-    has_en: p.hasEn ? 1 : 0,
+    has_en: p.hasEn ? (p.enStatus === 'auto' ? 2 : 1) : 0,
     source,
     search: normalize([p.title, p.artist, source].join(' ')),
   };
@@ -122,6 +122,29 @@ export function makeRepo(db) {
         updated_at=datetime('now','localtime') WHERE id=?`).run(f.title, f.artist, f.song_key, f.bpm, f.tags, f.theme_id, f.has_en, f.source, f.search, id);
     },
     deleteSong: (id) => q('DELETE FROM song WHERE id = ?').run(id),
+    // Remove louvores repetidos (mesma letra). Mantém o mais antigo e repassa cultos e histórico para ele.
+    dedupeSongs({ dry = false } = {}) {
+      const key = (src) => String(src || '').replace(/\r/g, '').split('\n').map((l) => l.trim().replace(/\s+/g, ' ').toLowerCase()).filter(Boolean).join('\n');
+      const keep = new Map();
+      const drop = [];
+      for (const r of q('SELECT id, source FROM song ORDER BY id').all()) {
+        const k = key(r.source);
+        if (keep.has(k)) drop.push([r.id, keep.get(k)]);
+        else keep.set(k, r.id);
+      }
+      if (!dry && drop.length) {
+        db.exec('BEGIN');
+        try {
+          for (const [id, to] of drop) {
+            q('UPDATE service_item SET song_id = ? WHERE song_id = ?').run(to, id);
+            q('UPDATE play_log SET song_id = ? WHERE song_id = ?').run(to, id);
+            q('DELETE FROM song WHERE id = ?').run(id);
+          }
+          db.exec('COMMIT');
+        } catch (e) { db.exec('ROLLBACK'); throw e; }
+      }
+      return { removed: drop.length, total: keep.size + drop.length };
+    },
     allSongsFull: () => q('SELECT title, artist, song_key, bpm, tags, theme_id, source FROM song ORDER BY title').all(),
 
     // Cultos

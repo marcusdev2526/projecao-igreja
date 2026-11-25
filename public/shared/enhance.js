@@ -3,7 +3,7 @@
 //  - achar as linhas sem tradução e inserir a tradução sugerida
 import { isChordLine } from './parser.js';
 
-const EN_META = /^(artista|autor|artist|author|tom|key|bpm|tags|ordem|order|notas?|note|t[íi]tulo)\s*:/i;
+const EN_META = /^(artista|autor|artist|author|tom|key|bpm|tags|ordem|order|notas?|note|t[íi]tulo|ingl[eê]s|english)\s*:/i;
 const EN_LABEL = /^\[[^\]]+\]\s*(\(?\s*\d+\s*x\s*\)?)?$|^(pr[ée][\s-]?refr[aã]o|pre[\s-]?chorus|refr[aã]o|chorus|coro|verso|verse|estrofe|ponte|bridge|intro|final|outro)\s*\d*\s*:?\s*(\(?\s*\d+\s*x\s*\)?)?$/i;
 const EN_MARKUP = /[*_^~]/;
 
@@ -140,4 +140,24 @@ export function insertTranslations(source, map) {
     if (map.has(i) && map.get(i)) out.push('| ' + String(map.get(i)).replace(/\n/g, ' ').trim());
   });
   return out.join('\n');
+}
+
+// Marca de onde veio o inglês: "Inglês: automático" (IA, falta revisar) ou "Inglês: oficial".
+// status vazio remove a marca.
+export function setEnStatus(source, status) {
+  const lines = String(source || '').replace(/\r/g, '').split('\n').filter((l) => !/^\s*(ingl[eê]s|english)\s*:/i.test(l));
+  if (!status) return lines.join('\n');
+  let at = 0;
+  while (at < lines.length && !lines[at].trim()) at++;
+  at++; // depois do título
+  while (at < lines.length && EN_META.test(lines[at].trim())) at++;
+  lines.splice(at, 0, 'Inglês: ' + status);
+  return lines.join('\n');
+}
+
+// Texto da letra oficial em inglês: tira título, rótulos, metadados, cifras e linhas vazias
+export function englishLines(text) {
+  return String(text || '').replace(/\r/g, '').split('\n').map((l) => l.trim())
+    .filter((t) => t && !EN_LABEL.test(t) && !EN_META.test(t) && !t.startsWith('|') && t !== '---' && !isChordLine(t))
+    .map((t) => t.replace(/\s*\(\s*(\d+\s*x|bis)\s*\)\s*$/i, ''));
 }

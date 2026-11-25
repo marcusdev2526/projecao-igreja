@@ -379,3 +379,16 @@ body { font-size: 14px; letter-spacing: -.005em; }
 .upd-overlay b { display: block; font-size: 18px; margin-top: 16px; }
 .spin { width: 36px; height: 36px; margin: 0 auto; border-radius: 50%; border: 3px solid #2a303a; border-top-color: var(--accent); animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Inglês */
+.badge.auto { background: #3a3014; color: #ffcf66; }
+.badge.no-en { background: #3a1d1d; color: #ff9b9b; cursor: pointer; }
+.badge.no-en:hover { background: #4a2323; }
+.btn.warn { border-color: #6b5420; color: #ffcf66; }
+.f-acts { display: flex; gap: 14px; }
+.en-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+.en-body .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.en-body textarea { width: 100%; box-sizing: border-box; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 13px/1.5 Inter, system-ui, sans-serif; resize: vertical; }
+.en-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; }
+.ed-en { color: #ffcf66; } .ed-en a { color: var(--accent2); cursor: pointer; text-decoration: underline; }
+#prepEnBtn:not([hidden]) ~ .hint { display: none; }

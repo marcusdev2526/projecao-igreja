@@ -3,7 +3,7 @@
 //
 // Sintaxe aceita:
 //   Primeira linha ............ título
-//   Artista: / Tom: / BPM: / Tags: / Ordem:  (metadados, opcionais)
+//   Artista: / Tom: / BPM: / Tags: / Ordem: / Inglês: automático|oficial  (metadados, opcionais)
 //   [Verso 1] [Refrão] [Ponte] [Pré-refrão] [Final] [Intro]  (ou Verse/Chorus/Bridge)
 //   Linha em branco ............ separa estrofes
 //   | texto ................... tradução (EN) da linha de cima
@@ -31,7 +31,7 @@ const SECTION_TYPES = [
 ];
 const WORD_LABEL = /^(pr[ée][\s-]?refr[aã]o|pre[\s-]?chorus|refr[aã]o|chorus|coro|verso|verse|estrofe|ponte|bridge|intro|introdu[cç][aã]o|final|outro|ending)\s*(\d*)\s*:?\s*(?:\(?\s*(\d+)\s*x\s*\)?)?$/i;
 const BRACKET_LABEL = /^\[([^\]]+)\]\s*(?:\(?\s*(\d+)\s*x\s*\)?)?$/i;
-const META = /^(artista|autor|artist|author|tom|key|bpm|tags|ordem|order|notas?|note)\s*:\s*(.*)$/i;
+const META = /^(artista|autor|artist|author|tom|key|bpm|tags|ordem|order|notas?|note|ingl[eê]s|english)\s*:\s*(.*)$/i;
 const REPEAT_TAIL = /\s*\(\s*(?:(\d+)\s*x|(bis))\s*\)\s*$/i;
 
 function matchLabel(t) {
@@ -61,7 +61,7 @@ const keyOf = (lines) => lines.map((l) => l.pt.toLowerCase().replace(/[^\p{L}\p{
 
 export function parseSong(text) {
   const lines = String(text || '').replace(/\r/g, '').replace(/\t/g, ' ').split('\n');
-  const meta = { title: '', artist: '', key: '', bpm: '', tags: [], order: null, note: '' };
+  const meta = { title: '', artist: '', key: '', bpm: '', tags: [], order: null, note: '', enStatus: '' };
   const blocks = []; // {label|null, lines:[], repeat}
   let cur = null;
   let pendingChords = '';
@@ -84,6 +84,7 @@ export function parseSong(text) {
       else if (k === 'tom' || k === 'key') meta.key = v;
       else if (k === 'bpm') meta.bpm = v;
       else if (/^not/.test(k)) meta.note = v;
+      else if (/^(ingl|engl)/.test(k)) meta.enStatus = /auto/i.test(v) ? 'auto' : v.toLowerCase();
       else if (k === 'tags') meta.tags = v.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
       else meta.order = v.split(/[\s,]+/).map((s) => s.toUpperCase()).filter(Boolean);
       continue;
