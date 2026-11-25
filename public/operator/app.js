@@ -87,7 +87,7 @@ async function loadSongs() {
   const list = await api('/api/songs?q=' + encodeURIComponent($('search').value));
   $('songCount').textContent = `${list.length} louvor${list.length === 1 ? '' : 'es'}`;
   $('songList').innerHTML = list.length
-    ? list.map((s) => `<div class="song" data-id="${s.id}" title="Duplo clique: projetar agora">
+    ? list.map((s) => `<div class="song" draggable="true" data-id="${s.id}" title="Duplo clique: projetar agora · arraste para o telão ou para o culto">
         <div class="info"><div class="t">${esc(s.title)}</div><div class="a">${esc(s.artist || '—')}${s.song_key ? ' · ' + esc(s.song_key) : ''}</div></div>
         ${enBadge(s.has_en)}
         <button class="mini" data-act="edit" title="Editar">✎</button>
@@ -212,21 +212,41 @@ $('itemList').ondblclick = (e) => {
 // arrastar para reordenar
 let dragId = null;
 $('itemList').addEventListener('dragstart', (e) => { const r = e.target.closest('.item'); if (r) { dragId = +r.dataset.id; r.classList.add('dragging'); } });
-$('itemList').addEventListener('dragend', () => document.querySelectorAll('.item').forEach((x) => x.classList.remove('dragging', 'over')));
+$('itemList').addEventListener('dragend', () => { dragId = null; document.querySelectorAll('.item').forEach((x) => x.classList.remove('dragging', 'over')); });
 $('itemList').addEventListener('dragover', (e) => {
   e.preventDefault();
   document.querySelectorAll('.item').forEach((x) => x.classList.remove('over'));
   e.target.closest('.item')?.classList.add('over');
 });
 $('itemList').addEventListener('drop', async (e) => {
-  e.preventDefault();
   const target = e.target.closest('.item');
-  const ids = service.items.map((i) => i.id).filter((i) => i !== dragId);
+  let id = dragId;
+  if (id == null) {
+    // veio das fontes (louvor, versículo, mídia, apresentação): entra no culto onde foi solto
+    const raw = e.dataTransfer.getData('application/x-projecao');
+    if (!raw) return; // arquivo do computador: quem cuida é o "arrastar e soltar" geral
+    e.preventDefault();
+    e.stopPropagation();
+    const body = itemFromPayload(JSON.parse(raw));
+    if (!body) return;
+    id = (await api(`/api/services/${service.id}/items`, { method: 'POST', body })).id;
+    service = await api('/api/services/' + service.id);
+    toast('Adicionado ao culto');
+  } else e.preventDefault();
+  const ids = service.items.map((i) => i.id).filter((i) => i !== id);
   const at = target ? ids.indexOf(+target.dataset.id) : ids.length;
-  ids.splice(at < 0 ? ids.length : at, 0, dragId);
+  ids.splice(at < 0 ? ids.length : at, 0, id);
   await api(`/api/services/${service.id}/reorder`, { method: 'POST', body: { ids } });
+  dragId = null;
   openService(service.id);
 });
+function itemFromPayload(p) {
+  if (p.kind === 'song') return { kind: 'song', song_id: p.id };
+  if (p.kind === 'bible') return { kind: 'bible', title: refText(p.book, p.chapter, p.verse), text: JSON.stringify({ book: p.book, chapter: p.chapter, verse: p.verse }) };
+  if (p.kind === 'media') return { kind: 'media', title: p.name, text: JSON.stringify({ type: p.mtype, url: p.url, name: p.name, after: p.mtype === 'video' ? 'tema' : 'stop' }) };
+  if (p.kind === 'deck') return { kind: 'deck', title: p.title || 'Apresentação', text: JSON.stringify({ deck: p.id, count: p.count }) };
+  return null;
+}
 
 // Aviso
 let editingTextId = null;
@@ -430,17 +450,17 @@ async function renderBibleSrc() {
   if (!q) {
     const hist = await api('/api/bible/history').catch(() => []);
     $('bsList').innerHTML = hist.length
-      ? '<div class="sub-h">Lidos agora há pouco</div>' + hist.slice(0, 12).map((h) => `<div class="bs-hit" data-b="${h.book}" data-c="${h.chapter}" data-v="${h.verse || 1}"><b>${esc(refText(h.book, h.chapter, h.verse))}</b></div>`).join('')
+      ? '<div class="sub-h">Lidos agora há pouco</div>' + hist.slice(0, 12).map((h) => `<div class="bs-hit" draggable="true" data-b="${h.book}" data-c="${h.chapter}" data-v="${h.verse || 1}"><b>${esc(refText(h.book, h.chapter, h.verse))}</b></div>`).join('')
       : '<div class="empty">Digite uma referência (ex.: jo 3 16, sl 23) ou palavras do versículo</div>';
     return;
   }
   const r = await api('/api/bible/search?q=' + encodeURIComponent(q) + '&v=' + encodeURIComponent(live?.bibleMain || ''));
   if (r.ref) {
-    $('bsList').innerHTML = `<div class="bs-hit on" data-b="${r.ref.book}" data-c="${r.ref.chapter}" data-v="${r.ref.verse || 1}"><b>${esc(refText(r.ref.book, r.ref.chapter, r.ref.verse))}</b><span>Enter para abrir</span></div>`;
+    $('bsList').innerHTML = `<div class="bs-hit on" draggable="true" data-b="${r.ref.book}" data-c="${r.ref.chapter}" data-v="${r.ref.verse || 1}"><b>${esc(refText(r.ref.book, r.ref.chapter, r.ref.verse))}</b><span>Enter para abrir</span></div>`;
     return;
   }
   $('bsList').innerHTML = (r.hits || []).length
-    ? r.hits.map((h) => `<div class="bs-hit" data-b="${h.book}" data-c="${h.chapter}" data-v="${h.verse}"><b>${esc(refText(h.book, h.chapter, h.verse))}</b><span>${esc(h.text.slice(0, 120))}</span></div>`).join('')
+    ? r.hits.map((h) => `<div class="bs-hit" draggable="true" data-b="${h.book}" data-c="${h.chapter}" data-v="${h.verse}"><b>${esc(refText(h.book, h.chapter, h.verse))}</b><span>${esc(h.text.slice(0, 120))}</span></div>`).join('')
     : '<div class="empty">Nada encontrado</div>';
 }
 $('bsQ').oninput = () => { clearTimeout(bsT); bsT = setTimeout(renderBibleSrc, 220); };

@@ -463,21 +463,33 @@ export function initMedia(ctx) {
   // ---------- Arrastar para o telão (ou para o monitor "Preparado" quando congelado) ----------
   const DT = 'application/x-projecao';
   document.addEventListener('dragstart', (e) => {
-    const r = e.target.closest?.('#mediaList .mrow, #mbGrid .mb-card, #deckList .mrow, #avList .mrow');
+    const r = e.target.closest?.('#mediaList .mrow, #mbGrid .mb-card, #deckList .mrow, #avList .mrow, #songList .song, #bsList .bs-hit, #itemList .item:not(.block)');
     if (!r) return;
     let payload;
-    if (r.dataset.n) {
+    if (r.matches('.song')) payload = { kind: 'song', id: +r.dataset.id };
+    else if (r.matches('.bs-hit')) payload = { kind: 'bible', book: +r.dataset.b, chapter: +r.dataset.c, verse: +r.dataset.v };
+    else if (r.matches('.item')) payload = { kind: 'item', id: +r.dataset.id };
+    else if (r.dataset.n) {
       const m = media.find((x) => x.name === r.dataset.n);
       if (!m) return;
       payload = { kind: 'media', url: m.url, mtype: m.type, name: pretty(m) };
-    } else payload = { kind: 'deck', id: r.dataset.id };
+    } else {
+      const d = decks.find((x) => x.id === r.dataset.id);
+      payload = { kind: 'deck', id: r.dataset.id, title: d ? d.title + (d.author ? ' · ' + d.author : '') : '', count: d?.count };
+    }
     e.dataTransfer.setData(DT, JSON.stringify(payload));
-    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.effectAllowed = 'copyMove';
     document.body.classList.add('dragging-media');
     if ($('mediaBig').open) setTimeout(() => $('mediaBig').close(), 0); // fecha a biblioteca grande para ver o telão
   });
   document.addEventListener('dragend', () => document.body.classList.remove('dragging-media'));
-  const show = (p) => (p.kind === 'deck' ? cmd({ type: 'deck', id: p.id }) : cmd({ type: 'media', url: p.url, mtype: p.mtype, name: p.name }));
+  const show = (p) => {
+    if (p.kind === 'deck') return cmd({ type: 'deck', id: p.id });
+    if (p.kind === 'song') return cmd({ type: 'song', id: p.id });
+    if (p.kind === 'bible') return cmd({ type: 'bible', book: p.book, chapter: p.chapter, verse: p.verse });
+    if (p.kind === 'item') return cmd({ type: 'item', id: p.id, index: 0 });
+    cmd({ type: 'media', url: p.url, mtype: p.mtype, name: p.name });
+  };
   document.querySelectorAll('.pv-drop').forEach((z) => {
     z.addEventListener('dragover', (e) => {
       const t = [...e.dataTransfer.types];
@@ -509,6 +521,7 @@ export function initMedia(ctx) {
       if (goLive) setTimeout(() => cmd({ type: 'freeze', value: false }), 150);
       const frozen = getLive()?.frozen && !goLive;
       toast(frozen ? 'Preparado. Aperte “Jogar no telão” quando for a hora.' : 'No telão' + (raw && JSON.parse(raw).mtype === 'video' ? ' (pausado: aperte ▶)' : ''));
+      document.body.classList.remove('dragging-media');
     });
   });
 

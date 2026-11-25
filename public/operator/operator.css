@@ -897,3 +897,6 @@ body.light .bs-hit:hover { background: #f1f3f6; }
 .src-col .panel-f { font-size: 12px; }
 .src-col .panel-f .f-acts { gap: 10px; }
 @media (max-width: 1500px) { #service .panel-f .hint, .src-col #songCount { display: none; } .cb { padding: 0 11px; } }
+/* arrastando das fontes: o roteiro também recebe */
+body.dragging-media #itemList { outline: 2px dashed rgba(255,106,61,.55); outline-offset: -4px; border-radius: 10px; background: rgba(255,106,61,.04); }
+.song[draggable="true"], .bs-hit { cursor: grab; }
