@@ -1,6 +1,6 @@
 // Painel do operador
 import { parseSong, buildSlides, slideMaxLines } from '/shared/parser.js';
-import { createStage, slideHTML, stripMarkup } from '/shared/render.js';
+import { createStage, slideHTML, stripMarkup, niceCase } from '/shared/render.js';
 import { THEMES, THEME_CATS, themeById, FONTS, newCustomTheme } from '/shared/themes.js';
 import { BOOKS, parseRef, refText, bookName } from '/shared/bible.js';
 import { initBibleView } from '/operator/bible.js';
@@ -252,9 +252,9 @@ function renderSlides() {
   const it = selected.item;
   $('selTitle').textContent = it.kind === 'song' ? it.song_title : it.title || 'Aviso';
   $('slideGrid').innerHTML = selected.slides.length
-    ? selected.slides.map((s) => `<div class="slide" data-i="${s.index}">
+    ? selected.slides.map((s) => `<div class="slide" data-i="${s.index}" data-type="${esc(s.type || 'verso')}">
         <div class="tag"><span>${esc(s.name)}${s.parts > 1 ? ` · ${s.part}/${s.parts}` : ''}</span><span class="num">${s.index + 1}</span></div>
-        ${s.lines.map((l) => `<div class="pt">${esc(stripMarkup(l.pt))}</div>${l.en ? `<div class="en">${esc(l.en)}</div>` : ''}`).join('')}</div>`).join('')
+        ${s.lines.map((l) => `<div class="pt">${esc(niceCase(stripMarkup(l.pt)))}</div>${l.en ? `<div class="en">${esc(niceCase(l.en))}</div>` : ''}`).join('')}</div>`).join('')
     : '<div class="empty">Sem slides — edite a letra</div>';
   markLiveSlide(true);
 }
@@ -368,6 +368,17 @@ function renderQuickThemes() {
 const markQuickTheme = () => document.querySelectorAll('#quickThemes .qt').forEach((q) => q.classList.toggle('on', q.dataset.id === live?.themeId));
 $('trChips').onclick = (e) => { const b = e.target.closest('button'); if (b) cmd({ type: 'transition', value: b.dataset.tr }); };
 $('trSpeed').onclick = (e) => { const b = e.target.closest('button'); if (b) cmd({ type: 'transition', speed: b.dataset.sp }); };
+// Modo culto (tela limpa) e painel claro: preferências deste computador
+const pref = { get: (k) => { try { return localStorage.getItem(k) === '1'; } catch { return false; } }, set: (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch {} } };
+function applyPrefs() {
+  document.body.classList.toggle('focus', pref.get('focus'));
+  document.body.classList.toggle('light', pref.get('light'));
+  $('focusBtn').classList.toggle('on', pref.get('focus'));
+  $('lightBtn').title = pref.get('light') ? 'Painel escuro' : 'Painel claro';
+}
+$('focusBtn').onclick = () => { pref.set('focus', !pref.get('focus')); applyPrefs(); };
+$('lightBtn').onclick = () => { pref.set('light', !pref.get('light')); applyPrefs(); };
+applyPrefs();
 $('allThemesBtn').onclick = (e) => { e.preventDefault(); $('themeBtn').click(); };
 $('themeBtn').onclick = async () => { await loadThemes(); renderThemeGallery(); $('themes').showModal(); };
 $('newThemeBtn').onclick = () => openThemeEditor(newCustomTheme());

@@ -20,9 +20,24 @@ export function tokenize(line) {
   return out.filter((x) => x.s.trim() || x.t === 'plain');
 }
 
+// Letras que vêm TODAS EM MAIÚSCULAS ficam em caixa normal ("Uma chuva diferente…"),
+// mantendo maiúsculas em nomes de Deus e no "I" do inglês. Linhas normais não mudam.
+const KEEP_CAP = new Set(['deus', 'senhor', 'jesus', 'cristo', 'espírito', 'pai', 'emanuel', 'jeová', 'javé', 'yeshua', 'messias', 'god', 'lord', 'christ', 'spirit', 'father', 'savior', 'saviour', 'messiah']);
+export function niceCase(s) {
+  const str = String(s || '');
+  const letters = str.replace(/[^\p{L}]/gu, '');
+  if (letters.length < 4 || letters !== letters.toUpperCase() || letters === letters.toLowerCase()) return str;
+  const out = str.toLowerCase().replace(/[\p{L}]+(?:['’][\p{L}]+)?/gu, (w) => {
+    if (w === 'i' || /^i['’]/.test(w)) return 'I' + w.slice(1);
+    return KEEP_CAP.has(w) ? w[0].toUpperCase() + w.slice(1) : w;
+  });
+  return out.replace(/^([^\p{L}]*)(\p{L})/u, (m, a, b) => a + b.toUpperCase());
+}
+
 export const stripMarkup = (s) => tokenize(s || '').map((x) => x.s).join('').replace(/\s+/g, ' ').trim();
 
-function lineHTML(line) {
+function lineHTML(line, asIs = false) {
+  if (!asIs) line = niceCase(line);
   const toks = tokenize(line);
   const styled = toks.some((x) => x.t !== 'plain');
   if (!styled) return `<div class="ln plain-line"><div class="mn">${esc(line)}</div></div>`;
@@ -41,7 +56,7 @@ export function slideHTML(slide, mode = 'pt') {
   if (!slide) return '';
   if (slide.kind === 'bible') return bibleHTML(slide, mode);
   if (slide.kind === 'text') {
-    return `<div class="slide-content mode-pt"><div class="primary">${(slide.text || '').split('\n').map(lineHTML).join('')}</div></div>`;
+    return `<div class="slide-content mode-pt"><div class="primary">${(slide.text || '').split('\n').map((l) => lineHTML(l, true)).join('')}</div></div>`;
   }
   const lines = slide.lines || [];
   const hasEn = lines.some((l) => l.en);
@@ -49,11 +64,11 @@ export function slideHTML(slide, mode = 'pt') {
   const enMain = effMode === 'en' || effMode === 'en-pt';
   const bi = effMode === 'pt-en' || effMode === 'en-pt';
   const primary = lines
-    .map((l) => (enMain ? (l.en ? `<div class="ln plain-line"><div class="mn">${esc(l.en)}</div></div>` : lineHTML(l.pt)) : lineHTML(l.pt)))
+    .map((l) => (enMain ? (l.en ? `<div class="ln plain-line"><div class="mn">${esc(niceCase(l.en))}</div></div>` : lineHTML(l.pt)) : lineHTML(l.pt)))
     .join('');
   let secondary = '';
   if (bi) {
-    const sec = lines.map((l) => (enMain ? stripMarkup(l.pt) : l.en)).filter(Boolean);
+    const sec = lines.map((l) => niceCase(enMain ? stripMarkup(l.pt) : l.en)).filter(Boolean);
     if (sec.length) secondary = `<div class="divider"></div><div class="secondary">${sec.map((s) => `<div>${esc(s)}</div>`).join('')}</div>`;
   }
   return `<div class="slide-content ${bi ? 'mode-bi' : 'mode-single'}"><div class="primary">${primary}</div>${secondary}</div>`;
