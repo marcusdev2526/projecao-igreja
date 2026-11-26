@@ -1495,3 +1495,6 @@ body.light .modal > .modal-h { background-color: var(--panel); }
 .bi-file { border-top: 1px solid var(--ds-border); padding-top: 10px; }
 .bi-file summary { cursor: pointer; font-weight: 600; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
 .bi-file[open] { display: grid; gap: 8px; }
+.conn-chip.on { border-color: rgba(62,207,142,.5); background: rgba(62,207,142,.12); color: #8ff0c4; cursor: default; }
+.conn-chip.on i { background: #3ecf8e; box-shadow: 0 0 8px rgba(62,207,142,.8); animation: none; }
+body.light .conn-chip.on { color: #0f7a4a; }

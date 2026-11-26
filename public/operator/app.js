@@ -416,8 +416,15 @@ $('blackBtn').onclick = () => cmd({ type: 'black' });
 $('clearBtn').onclick = () => cmd({ type: 'clear' });
 $('openScreen').onclick = () => window.open('/screen.html', 'telao', 'popup,width=1280,height=720');
 // Aviso: telão fechado / painel sem conexão com o servidor
-socket.on('screens', (n) => { $('screenWarn').hidden = n > 0; });
-$('screenWarn').onclick = () => $('openScreen').click();
+// Selo do telão: vermelho = fechado (clique abre) · verde = projetando
+socket.on('screens', (n) => {
+  const on = n > 0;
+  $('screenWarn').hidden = false;
+  $('screenWarn').classList.toggle('on', on);
+  $('screenWarn').innerHTML = on ? `<i></i>Projetando${n > 1 ? ' · ' + n + ' telas' : ''}` : '<i></i>Telão fechado · abrir';
+  $('screenWarn').title = on ? 'O telão está aberto e recebendo a projeção' : 'Nenhuma janela do telão está aberta. Clique para abrir.';
+});
+$('screenWarn').onclick = () => { if (!$('screenWarn').classList.contains('on')) $('openScreen').click(); };
 let lostT;
 socket.on('disconnect', () => { clearTimeout(lostT); lostT = setTimeout(() => { $('connLost').hidden = false; }, 1500); });
 socket.on('connect', () => { clearTimeout(lostT); $('connLost').hidden = true; });

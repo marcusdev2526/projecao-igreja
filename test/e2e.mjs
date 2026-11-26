@@ -21,9 +21,9 @@ try {
   const panel = watch(await ctx.newPage(), 'painel');
   const screen = watch(await ctx.newPage(), 'telão');
   await step('painel abre', async () => { await panel.goto(base + '/?semintro'); await panel.waitForSelector('#itemList .item'); });
-  await step('telão abre e o aviso "telão fechado" some', async () => {
+  await step('telão abre e o selo fica verde (projetando)', async () => {
     await screen.goto(base + '/screen.html');
-    await panel.waitForFunction(() => document.getElementById('screenWarn').hidden);
+    await panel.waitForFunction(() => document.getElementById('screenWarn').classList.contains('on'));
   });
   await step('escolher louvor e passar slide aparece no telão', async () => {
     await panel.click('#itemList .item');
