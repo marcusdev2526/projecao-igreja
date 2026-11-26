@@ -242,6 +242,9 @@ export function initExtras(ctx) {
   $('secPinDel').onclick = async () => { if (!confirm('Tirar o PIN? Celulares e outros computadores deixam de controlar até você criar outro.')) return; await api('/api/security/pin', { method: 'DELETE' }); toast('PIN removido'); loadSecurity(); };
   $('secRevoke').onclick = async () => { await api('/api/security/revoke', { method: 'POST' }); toast('Todos os aparelhos foram desconectados'); loadSecurity(); };
   $('secInvites').onclick = async () => { await api('/api/security/rotate-invites', { method: 'POST' }); toast('QRs antigos não funcionam mais. Gere um QR novo para o pregador.'); };
+  try { $('introOn').checked = localStorage.getItem('introOff') !== '1'; } catch {}
+  $('introOn').onchange = () => { try { localStorage.setItem('introOff', $('introOn').checked ? '0' : '1'); } catch {} };
+  $('introSee').onclick = () => { try { sessionStorage.removeItem('introSeen'); localStorage.setItem('introOff', '0'); } catch {} location.reload(); };
   $('sysQuit').onclick = async () => { if (!confirm('Fechar o sistema agora? O telão e os celulares vão parar.')) return; await api('/api/system/quit', { method: 'POST' }).catch(() => {}); document.body.innerHTML = '<div style="display:grid;place-items:center;height:100vh;font:600 18px Inter,sans-serif;color:#aab">Sistema fechado. Para abrir de novo, use o atalho “Projeção Igreja”.</div>'; };
   $('sdRotate').onclick = async () => { if (!confirm('Gerar chave nova? Os botões do Stream Deck já configurados param de funcionar.')) return; await api('/api/security/rotate-control', { method: 'POST' }); loadSecurity(); };
   $('obsCopy').onclick = () => { navigator.clipboard?.writeText($('obsUrl').textContent); toast('Endereço copiado'); };
