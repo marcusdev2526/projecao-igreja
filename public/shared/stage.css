@@ -568,3 +568,4 @@
 :is(.theme-luar, .theme-trigal, .theme-calvario) { --mark: #fff3d1; }
 .theme-nascer { --mark: #fff; --mark-op: .8; }
 :is(.theme-cena, .theme-mar, .theme-estrelado) { --mark: #eaf2ff; }
+.stage.mark-hide .mark { opacity: 0 !important; }

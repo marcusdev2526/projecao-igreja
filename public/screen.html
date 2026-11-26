@@ -55,11 +55,30 @@
     stage.el.style.setProperty('--mark-img', markLogo ? `url("${markLogo}")` : 'none');
     stage.el.classList.toggle('has-mark', showMark);
     const key = s.themeId + '|' + s.mode + '|' + html;
-    if (key !== lastKey) { stage.show(html); lastKey = key; tickWaiting(stage.el); }
+    if (key !== lastKey) { stage.show(html); lastKey = key; tickWaiting(stage.el); checkMark(); }
     applyPlayer(s.player);
   }
 
   setInterval(() => tickWaiting(stage.el), 1000);
+
+  // Texto grande chegando perto da logo de baixo: a logo some (volta quando o texto for menor)
+  function checkMark() {
+    const run = () => {
+      const mark = stage.el.querySelector('.mark');
+      const layer = stage.el.querySelector('.layers > :last-child');
+      if (!mark || !layer) return;
+      const top = mark.getBoundingClientRect().top;
+      let bottom = 0;
+      layer.querySelectorAll('.ln, .secondary, .verse, .primary, p, li').forEach((el) => { const r = el.getBoundingClientRect(); if (r.height) bottom = Math.max(bottom, r.bottom); });
+      if (!bottom) { const r = (layer.firstElementChild || layer).getBoundingClientRect(); bottom = r.bottom; }
+      const gap = 24 * (stage.el.getBoundingClientRect().height / 1080);
+      stage.el.classList.toggle('mark-hide', bottom > top - gap);
+    };
+    requestAnimationFrame(() => requestAnimationFrame(run));
+    setTimeout(run, 400);
+  }
+  addEventListener('resize', checkMark);
+  window.__checkMark = checkMark;
 
   // ---------- Vídeo e áudio ----------
   // A janela do telão é quem toca (com som). A prévia do painel (embed) mostra o vídeo sem som.
