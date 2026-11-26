@@ -22,8 +22,8 @@ test('atualização: baixa, copia sem tocar em data/ e grava a versão', async (
   const fakeFetch = async (url) => {
     const json = (o) => ({ ok: true, status: 200, json: async () => o });
     if (url.endsWith('/repos/marcus/projecao')) return json({ default_branch: 'main' });
-    if (url.includes('/commits/HEAD')) return json({ sha: 'abc123def456', commit: { message: 'Versão nova\nDetalhes', committer: { date: '2026-11-25T01:00:00Z' } } });
-    if (url.includes('/zipball/abc123def456')) return { ok: true, status: 200, arrayBuffer: async () => zbuf };
+    if (url.endsWith('/commits/main.atom')) return { ok: true, status: 200, text: async () => '<feed><entry><id>tag:github.com,2008:Grit::Commit/abc123def456abc123def456abc123def456abcd</id><title>\n Versão nova\n </title><updated>2026-11-25T01:00:00Z</updated></entry></feed>' };
+    if (url.includes('/zip/abc123def456abc123def456abc123def456abcd')) return { ok: true, status: 200, arrayBuffer: async () => zbuf };
     return { ok: false, status: 404 };
   };
   const up = makeUpdater({ root, dataDir, getRepo: () => 'https://github.com/marcus/projecao', getToken: () => '', fetchImpl: fakeFetch });
@@ -45,7 +45,7 @@ test('atualização: não oferece versão que falhou nos testes do GitHub', asyn
   const mk = (runs) => makeUpdater({ root, dataDir, getRepo: () => 'marcus/projecao', getToken: () => '', fetchImpl: async (url) => {
     if (url.endsWith('/repos/marcus/projecao')) return json({ default_branch: 'main' });
     if (url.endsWith('/check-runs')) return json({ check_runs: runs });
-    if (url.includes('/commits/HEAD')) return json({ sha: 'fff111', commit: { message: 'x', committer: { date: '' } } });
+    if (url.endsWith('/commits/main.atom')) return { ok: true, status: 200, text: async () => '<feed><entry><id>Grit::Commit/fff111fff111fff111fff111fff111fff111ffff</id><title>x</title><updated>2026</updated></entry></feed>' };
     return { ok: false, status: 404 };
   } });
   let c = await mk([{ status: 'completed', conclusion: 'failure' }]).check();

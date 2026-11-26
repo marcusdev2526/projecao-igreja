@@ -46,8 +46,9 @@ export function makeUpdater({ root, dataDir, getRepo, getToken, fetchImpl = (...
 
   async function check() {
     const repo = repoParts();
-    const branch = 'HEAD';
-    const c = await (await gh(`https://api.github.com/repos/${repo}/commits/HEAD`)).json();
+    const branch = 'main';
+    // Sem token (repositório público): usa o feed de commits do site do GitHub, que não tem o limite de 60 consultas/hora da API
+    const c = getToken() ? await (await gh(`https://api.github.com/repos/${repo}/commits/HEAD`)).json() : await latestFromFeed(repo);
     const cur = installed();
     const tests = await testStatus(repo, c.sha);
     return {
@@ -61,12 +62,27 @@ export function makeUpdater({ root, dataDir, getRepo, getToken, fetchImpl = (...
     };
   }
 
+  async function latestFromFeed(repo) {
+    let r;
+    try { r = await fetchImpl(`https://github.com/${repo}/commits/main.atom`, { headers: { 'user-agent': 'projecao-igreja-updater' } }); } catch { throw new Error('Sem internet para procurar atualização'); }
+    if (r.status === 404) throw new Error('Repositório não encontrado (se for privado, cadastre o token)');
+    if (!r.ok) throw new Error('GitHub respondeu com erro ' + r.status);
+    const xml = await r.text();
+    const entry = xml.split('<entry>')[1] || '';
+    const sha = (entry.match(/Commit\/([0-9a-f]{40})/) || [])[1];
+    if (!sha) throw new Error('Não consegui ler a versão no GitHub');
+    const title = (entry.match(/<title>\s*([\s\S]*?)\s*<\/title>/) || [])[1] || '';
+    const date = (entry.match(/<updated>([^<]+)<\/updated>/) || [])[1] || '';
+    const dec = (t) => t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+    return { sha, commit: { message: dec(title), committer: { date } } };
+  }
+
   // Resultado dos testes automáticos (GitHub Actions) daquela versão: 'ok' | 'falhou' | 'rodando' | 'sem-testes'
   async function testStatus(repo, sha) {
     let runs;
     try {
       const r = await fetchImpl(`https://api.github.com/repos/${repo}/commits/${sha}/check-runs`, { headers: headers() });
-      if (!r.ok) return 'sem-testes';
+      if (!r.ok) return 'sem-testes'; // limite de consultas etc.: não bloqueia a atualização
       runs = (await r.json()).check_runs || [];
     } catch {
       return 'sem-testes';
@@ -83,7 +99,8 @@ export function makeUpdater({ root, dataDir, getRepo, getToken, fetchImpl = (...
     if (st.tests === 'falhou') throw new Error('A versão nova não passou nos testes automáticos. Aguarde a correção.');
     if (st.tests === 'rodando') throw new Error('A versão nova ainda está sendo testada. Tente de novo em alguns minutos.');
     // baixa exatamente a versão que foi testada (não a que chegou depois)
-    const r = await gh(`https://api.github.com/repos/${repo}/zipball/${latest.sha}`);
+    // sem token: baixa pelo codeload (não usa a cota da API)
+    const r = getToken() ? await gh(`https://api.github.com/repos/${repo}/zipball/${latest.sha}`) : await gh(`https://codeload.github.com/${repo}/zip/${latest.sha}`);
     const buf = Buffer.from(await r.arrayBuffer());
     const zip = new AdmZip(buf);
     const pkgBefore = readJson(path.join(root, 'package.json'));
