@@ -1,0 +1,23 @@
+# Testes automáticos: rodam a cada envio para o GitHub.
+# O botão "Atualizar" do sistema só instala versões em que estes testes passaram.
+name: Testes
+on:
+  push:
+  pull_request:
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Testes do servidor, letras, Bíblia e segurança
+        run: npm test
+      - name: Navegador para o teste de tela
+        run: npx playwright install --with-deps chromium
+      - name: Teste de tela (painel, telão, temas)
+        run: npm run test:e2e

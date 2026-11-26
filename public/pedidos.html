@@ -45,6 +45,8 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const sid = new URLSearchParams(location.search).get('s');
+  const key = new URLSearchParams(location.search).get('k') || '';
+  const auth = (u) => u + (u.includes('?') ? '&' : '?') + 's=' + encodeURIComponent(sid || '') + '&k=' + encodeURIComponent(key);
   try { $('who').value = localStorage.getItem('who') || ''; } catch {}
   let svc = null;
   async function loadSvc() {
@@ -59,7 +61,9 @@
   async function search() {
     const q = $('q').value.trim();
     if (q.length < 2) return ($('res').innerHTML = '');
-    const list = (await (await fetch('/api/songs?q=' + encodeURIComponent(q))).json()).slice(0, 15);
+    const rr = await fetch(auth('/api/songs?q=' + encodeURIComponent(q)));
+    if (rr.status === 401) return ($('res').innerHTML = '<div class="empty">Este link expirou. Peça um QR novo ao operador da projeção.</div>');
+    const list = (await rr.json()).slice(0, 15);
     const inSvc = new Set((svc?.items || []).map((i) => i.song_id));
     $('res').innerHTML = '<h2>Resultados</h2>' + (list.length ? list.map((s) => `<div class="it"><div class="t"><b>${esc(s.title)}</b><span>${esc(s.artist || '')}</span></div><button class="add ${inSvc.has(s.id) ? 'done' : ''}" data-id="${s.id}">${inSvc.has(s.id) ? 'No culto' : '+ Adicionar'}</button></div>`).join('') : '<div class="empty">Nenhum louvor encontrado</div>');
   }
@@ -68,7 +72,7 @@
     if (!b || b.classList.contains('done')) return;
     try { localStorage.setItem('who', $('who').value.trim()); } catch {}
     b.disabled = true;
-    await fetch(`/api/services/${sid}/items`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'song', song_id: +b.dataset.id, by: 'pedido', who: $('who').value.trim() }) });
+    await fetch(auth(`/api/services/${sid}/items`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'song', song_id: +b.dataset.id, by: 'pedido', who: $('who').value.trim() }) });
     b.textContent = 'No culto';
     b.classList.add('done');
     navigator.vibrate?.(20);

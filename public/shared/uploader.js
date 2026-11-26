@@ -27,10 +27,13 @@ export async function pdfToImages(file, onPage) {
   return out;
 }
 
+// Página aberta pelo QR do pregador: os envios levam a chave do link (?s=…&k=…)
+const qs = new URLSearchParams(location.search);
+const withKey = (url) => (qs.get('k') ? url + (url.includes('?') ? '&' : '?') + 's=' + encodeURIComponent(qs.get('s') || '') + '&k=' + encodeURIComponent(qs.get('k')) : url);
 export function xhrUpload(url, fd, onProgress) {
   return new Promise((resolve, reject) => {
     const x = new XMLHttpRequest();
-    x.open('POST', url);
+    x.open('POST', withKey(url));
     x.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total);
     x.onload = () => {
       let data = {};

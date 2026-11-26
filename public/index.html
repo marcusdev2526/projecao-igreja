@@ -10,6 +10,7 @@
 <body>
 <header class="top">
   <div class="brand"><span class="dot"></span>Projeção</div>
+  <button class="conn-chip" id="screenWarn" hidden title="Nenhuma janela do telão está aberta. Clique para abrir."><i></i>Telão fechado · abrir</button>
   <div class="seg view-seg tabs" id="viewSeg">
     <button data-view="inicio" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Início</button>
     <button data-view="biblia"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M12 7v6M9 10h6"/></svg>Bíblia completa</button>
@@ -155,6 +156,7 @@
       </div>
     </div>
     <input class="search" id="search" placeholder="Buscar título, artista ou trecho da letra…" autocomplete="off">
+    <div class="tag-row" id="tagRow"></div>
     <div class="list" id="songList"></div>
     <div class="panel-f"><span id="songCount"></span><span class="f-acts"><a href="#" class="link" id="histBtn" title="Louvores cantados nos últimos cultos">Histórico</a><a href="#" class="link" id="dedupeBtn" title="Apaga louvores com a letra repetida">Remover duplicados</a><a href="/api/export" class="link">Baixar backup</a></span></div>
     </div>
@@ -297,6 +299,11 @@
   </div>
   <div class="ed-body">
     <div class="ed-left">
+      <div class="ed-metabar">
+        <label>Tom <select class="sel" id="edKey"><option value="">—</option></select></label>
+        <label>BPM <input class="search" id="edBpm" type="number" min="30" max="240" placeholder="—"></label>
+        <div class="ed-tags"><span>Etiquetas</span><div id="edTags"></div><input class="search" id="edTagNew" placeholder="+ nova" maxlength="20"></div>
+      </div>
       <textarea id="edSource" spellcheck="false"></textarea>
       <details class="help" open>
         <summary>Como escrever</summary>
@@ -580,7 +587,20 @@
 <dialog id="settings" class="modal">
   <div class="modal-h"><h2>Configurações</h2><div class="acts"><button class="btn sm" id="stClose">Fechar</button><button class="btn primary sm" id="stSave">Salvar</button></div></div>
   <div class="bi-body">
-    <h3 class="st-h">Inteligência artificial (opcional)</h3>
+    <div id="secBox">
+    <h3 class="st-h">Segurança (acesso pela rede)</h3>
+    <p class="muted small">Celulares e outros computadores da rede só controlam a projeção depois de digitar o PIN (uma vez por aparelho). Este computador nunca pede PIN. O pregador e os pedidos de louvor entram pelo QR, que só vale para aquele culto.</p>
+    <div class="sec-status" id="secStatus"></div>
+    <div class="sec-row"><input id="secPin" class="search secret" inputmode="numeric" maxlength="8" placeholder="Novo PIN (4 a 8 números)" autocomplete="off" data-lpignore="true" data-1p-ignore><button class="btn sm primary" id="secPinSave">Salvar PIN</button></div>
+    <div class="sec-acts"><button class="btn sm" id="secRevoke">Desconectar todos os aparelhos</button><button class="btn sm" id="secInvites">Invalidar QRs antigos (pregador e pedidos)</button><button class="btn sm danger" id="secPinDel">Tirar o PIN</button></div>
+    <h3 class="st-h" style="margin-top:14px">Passador de slides e Stream Deck</h3>
+    <p class="muted small">O <b>passador de apresentação</b> (controle sem fio) já funciona com o painel ou o telão em foco: avançar/voltar passam o slide, e a tecla de tela preta apaga o telão. No <b>Stream Deck</b>, use a ação <b>Website</b> (marque "GET request in background") com um destes endereços:</p>
+    <div class="sd-list" id="sdList"></div>
+    <div class="sec-acts"><button class="btn sm" id="sdRotate">Gerar chave nova</button><span class="muted small">A chave nova invalida os botões já configurados.</span></div>
+    <h3 class="st-h" style="margin-top:14px">Sistema</h3>
+    <div class="sec-acts"><button class="btn sm danger" id="sysQuit">Fechar o sistema</button><span class="muted small">Desliga o servidor (o telão e os celulares param). Para abrir de novo, use o atalho "Projeção Igreja".</span></div>
+    </div>
+    <h3 class="st-h" style="margin-top:14px">Inteligência artificial (opcional)</h3>
     <p class="muted small">Usada para <b>traduzir</b> letras para o inglês e para sugerir a <b>palavra-chave</b> com mais precisão. Sem a chave, o "Destacar palavras" usa a sugestão automática do próprio sistema, sem internet.</p>
     <label>Chave da API da Anthropic (Claude) <input id="stKey" class="search secret" type="text" placeholder="sk-ant-..." autocomplete="off" data-lpignore="true" data-1p-ignore spellcheck="false"></label>
     <p class="muted small" id="stKeyInfo"></p>
@@ -594,8 +614,14 @@
     <label>Avisos na tela de espera <select class="sel" id="chDeck"></select></label>
     <h3 class="st-h" style="margin-top:14px">Transmissão (OBS / YouTube)</h3>
     <p class="muted small">No OBS, adicione uma fonte <b>Navegador</b> com o endereço abaixo (largura 1920, altura 1080). Ela mostra só a letra, com fundo transparente, para ficar por cima da câmera.</p>
+    <div class="obs-opts">
+      <label>Estilo <select class="sel" id="obsStyle"><option value="">Letra solta (com sombra)</option><option value="faixa">Caixa escura atrás da letra</option><option value="tv">Faixa inteira embaixo (legenda de TV)</option></select></label>
+      <label>Posição <select class="sel" id="obsPos"><option value="">Embaixo</option><option value="topo">Em cima</option></select></label>
+      <label>Tamanho <select class="sel" id="obsSize"><option value="">Normal</option><option value="80">Menor</option><option value="125">Maior</option></select></label>
+      <label>Linhas <select class="sel" id="obsLines"><option value="">Todas</option><option value="2">Até 2</option><option value="1">Só 1</option></select></label>
+    </div>
     <div class="obs-row"><code id="obsUrl">http://localhost:3000/obs.html</code><button class="btn sm" id="obsCopy">Copiar</button></div>
-    <p class="muted small">Opções no fim do endereço: <code>?faixa=1</code> (faixa escura atrás da letra), <code>?pos=topo</code>, <code>?tamanho=80</code>.</p>
+    <p class="muted small">A legenda some sozinha quando o telão está em tela preta, logo, espera, cartaz ou vídeo.</p>
     <h3 class="st-h" style="margin-top:14px">Backup automático</h3>
     <p class="muted small">Uma vez por dia o sistema salva louvores, cultos, temas, mídias e apresentações num arquivo .zip (guarda os 10 últimos). Use um pen drive ou a pasta do Google Drive para computador.</p>
     <label>Pasta do backup <input id="bkDir" class="search" placeholder="D:\Backup Projeção  ou  G:\Meu Drive\Projeção"></label>
@@ -611,6 +637,7 @@
 
 <div id="updOverlay" class="upd-overlay" hidden><div><div class="spin"></div><b>Atualizando o sistema…</b><p class="muted small">Não feche a janela preta. Esta tela volta sozinha em alguns segundos.</p></div></div>
 <div id="toast"></div>
+<div class="conn-lost" id="connLost" hidden><div class="spin"></div><b>Sem conexão com o sistema</b><span>O telão continua mostrando o último slide. Reconectando…</span></div>
 <script src="/socket.io/socket.io.js"></script>
 <script type="module" src="/operator/app.js"></script>
 </body>

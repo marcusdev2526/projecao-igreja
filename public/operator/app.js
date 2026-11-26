@@ -19,6 +19,7 @@ const api = async (url, opts = {}) => {
     headers: opts.body && !(opts.body instanceof FormData) ? { 'Content-Type': 'application/json' } : undefined,
     body: opts.body && !(opts.body instanceof FormData) ? JSON.stringify(opts.body) : opts.body,
   });
+  if (r.status === 401) { location.href = '/entrar.html?next=' + encodeURIComponent(location.pathname + location.search); throw new Error('Digite o PIN'); }
   const data = await r.json();
   if (!r.ok) throw new Error(data.error || 'Erro');
   return data;
@@ -32,6 +33,7 @@ const toast = (msg) => {
 };
 
 const socket = io();
+socket.on('auth', (a) => { if (!a.control) location.href = '/entrar.html?next=' + encodeURIComponent(location.pathname); });
 const cmd = (c) => socket.emit('cmd', c);
 let live = null; // estado do servidor
 let service = null; // culto aberto
@@ -107,22 +109,38 @@ async function webSearch(q) {
   webBusy = false;
   if ($('search').value.trim() === q) loadSongs(true);
 }
+// Etiquetas e sugestões na biblioteca
+const TAG_PRESETS = ['Adoração', 'Celebração', 'Ceia', 'Batismo', 'Oferta', 'Jovens', 'Infantil', 'Natal', 'Páscoa'];
+let tagFilter = '';
+const tagsOf = (s) => String(s.tags || '').split(',').map((t) => t.trim()).filter(Boolean);
+const daysSince = (d) => (d ? Math.floor((Date.now() - new Date(d.replace(' ', 'T'))) / 864e5) : null);
+function renderTagRow(all) {
+  const used = new Map();
+  all.forEach((s) => tagsOf(s).forEach((t) => used.set(t, (used.get(t) || 0) + 1)));
+  const tags = [...used.keys()].sort((a, b) => used.get(b) - used.get(a)).slice(0, 14);
+  $('tagRow').innerHTML = `<button data-t="" class="${!tagFilter ? 'on' : ''}">Todos</button><button data-t="@sug" class="sug ${tagFilter === '@sug' ? 'on' : ''}" title="Louvores que a igreja canta, mas que não aparecem há mais de 2 meses">Sugestões</button>` +
+    tags.map((t) => `<button data-t="${esc(t)}" class="${tagFilter === t ? 'on' : ''}">${esc(t)} <i>${used.get(t)}</i></button>`).join('');
+}
+$('tagRow').onclick = (e) => { const b = e.target.closest('[data-t]'); if (!b) return; tagFilter = b.dataset.t; loadSongs(true); };
 async function loadSongs(keepWeb = false) {
   const q = $('search').value.trim();
-  const list = await api('/api/songs?q=' + encodeURIComponent($('search').value));
+  let list = await api('/api/songs?q=' + encodeURIComponent($('search').value));
+  renderTagRow(list);
+  if (tagFilter === '@sug') list = list.filter((s) => s.plays > 0 && daysSince(s.last_played) > 60).sort((a, b) => b.plays - a.plays || daysSince(b.last_played) - daysSince(a.last_played));
+  else if (tagFilter) list = list.filter((s) => tagsOf(s).includes(tagFilter));
   if (!keepWeb && q !== webQ) { webRes = null; webBusy = false; }
   $('songCount').textContent = `${list.length} louvor${list.length === 1 ? '' : 'es'}`;
   $('songList').innerHTML = (list.length
     ? list.map((s) => `<div class="song" draggable="true" data-id="${s.id}" title="Duplo clique: projetar agora · arraste para o telão ou para o culto">
-        <div class="info"><div class="t">${esc(s.title)}</div><div class="a">${esc(s.artist || '—')}${s.song_key ? ' · ' + esc(s.song_key) : ''}</div></div>
+        <div class="info"><div class="t">${esc(s.title)}</div><div class="a">${esc(s.artist || '—')}${s.song_key ? ' · Tom ' + esc(s.song_key) : ''}${s.bpm ? ' · ' + esc(s.bpm) + ' BPM' : ''}${tagFilter === '@sug' ? ` · cantado ${s.plays}x, último há ${daysSince(s.last_played)} dias` : ''}${tagsOf(s).length ? ' ' + tagsOf(s).slice(0, 3).map((t) => `<span class="tg">${esc(t)}</span>`).join('') : ''}</div></div>
         ${s.last_played && (Date.now() - new Date(s.last_played.replace(' ', 'T'))) < 21 * 864e5 ? `<span class="badge recent" title="Cantado em ${s.last_played.slice(0, 10).split('-').reverse().join('/')}">há ${Math.max(0, Math.round((Date.now() - new Date(s.last_played.replace(' ', 'T'))) / 864e5))}d</span>` : ''}
         ${enBadge(s.has_en)}
         <button class="mini" data-act="edit" title="Editar">✎</button>
         <button class="mini" data-act="add" title="Adicionar ao culto">＋</button></div>`).join('')
-    : (q ? '<div class="empty">Não está na biblioteca.</div>' : '<div class="empty">Nenhum louvor encontrado</div>')) + webBlock(q);
+    : (tagFilter === '@sug' ? '<div class="empty">Nenhuma sugestão por enquanto: todos os louvores cantados apareceram nos últimos 2 meses.</div>' : tagFilter ? '<div class="empty">Nenhum louvor com essa etiqueta.</div>' : q ? '<div class="empty">Não está na biblioteca.</div>' : '<div class="empty">Nenhum louvor encontrado</div>')) + (tagFilter ? '' : webBlock(q));
   // Sem resultado aqui: já procura na internet sozinho
   clearTimeout(webT);
-  if (!list.length && q.length >= 3 && !webBusy && !(webRes && webQ === q)) webT = setTimeout(() => { if ($('search').value.trim() === q) webSearch(q); }, 500);
+  if (!tagFilter && !list.length && q.length >= 3 && !webBusy && !(webRes && webQ === q)) webT = setTimeout(() => { if ($('search').value.trim() === q) webSearch(q); }, 500);
 }
 $('songList').addEventListener('click', async (e) => {
   if (e.target.closest('#webSearchBtn')) return webSearch($('search').value.trim());
@@ -397,6 +415,12 @@ $('modes').onclick = (e) => e.target.dataset.mode && cmd({ type: 'mode', value: 
 $('blackBtn').onclick = () => cmd({ type: 'black' });
 $('clearBtn').onclick = () => cmd({ type: 'clear' });
 $('openScreen').onclick = () => window.open('/screen.html', 'telao', 'popup,width=1280,height=720');
+// Aviso: telão fechado / painel sem conexão com o servidor
+socket.on('screens', (n) => { $('screenWarn').hidden = n > 0; });
+$('screenWarn').onclick = () => $('openScreen').click();
+let lostT;
+socket.on('disconnect', () => { clearTimeout(lostT); lostT = setTimeout(() => { $('connLost').hidden = false; }, 1500); });
+socket.on('connect', () => { clearTimeout(lostT); $('connLost').hidden = true; });
 $('openStage').onclick = () => window.open('/stage.html', 'retorno', 'popup,width=1280,height=720');
 $('msgSend').onclick = () => { cmd({ type: 'message', value: $('msgIn').value }); toast($('msgIn').value ? 'Recado enviado ao retorno' : 'Recado removido'); };
 $('msgIn').onkeydown = (e) => e.key === 'Enter' && $('msgSend').click();
@@ -574,7 +598,10 @@ $('thClose').onclick = () => $('themes').close();
 
 // Atalhos de teclado (fora de campos de texto)
 document.addEventListener('keydown', (e) => {
+  // passador de slides: o botão "apresentar" manda F5/Shift+F5 — não deixa recarregar o painel no meio do culto
+  if (e.key === 'F5' && !e.ctrlKey) { e.preventDefault(); return; }
   if (e.target.closest('input, textarea, select, dialog[open]') || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === ',' || e.key === 'w' || e.key === 'W') return cmd({ type: 'clear' });
   if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); cmd({ type: 'next' }); }
   else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); cmd({ type: 'prev' }); }
   else if (e.key === 'b' || e.key === 'B' || e.key === '.') cmd({ type: 'black' });
@@ -613,11 +640,66 @@ async function openEditor(id) {
   }
   $('edDelete').hidden = !id;
   $('editor').showModal();
+  syncMetaBar();
   renderEditorPreview();
   $('edSource').focus();
 }
+// Barra de dados: tom, BPM e etiquetas (gravados nas linhas "Tom:", "BPM:" e "Tags:" da letra)
+const KEYS = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
+$('edKey').innerHTML = '<option value="">—</option>' + KEYS.flatMap((k) => [k, k + 'm']).map((k) => `<option>${k}</option>`).join('');
+function setMeta(src, re, label, value) {
+  const lines = src.split('\n');
+  const i = lines.findIndex((l) => re.test(l));
+  if (i >= 0) { if (value) lines[i] = label + ': ' + value; else lines.splice(i, 1); return lines.join('\n'); }
+  if (!value) return src;
+  // depois do título e das outras linhas de dados
+  let at = 1;
+  while (at < lines.length && /^\s*[\p{L} ]+\s*:/u.test(lines[at]) && !/^\s*\[/.test(lines[at])) at++;
+  lines.splice(at, 0, label + ': ' + value);
+  return lines.join('\n');
+}
+const RE_KEY = /^\s*(tom|key)\s*:/i;
+const RE_BPM = /^\s*bpm\s*:/i;
+const RE_TAGS = /^\s*tags\s*:/i;
+function syncMetaBar() {
+  const p = parseSong($('edSource').value);
+  if (document.activeElement !== $('edKey')) { const k = p.key || ''; if (k && ![...$('edKey').options].some((o) => o.value === k)) $('edKey').insertAdjacentHTML('beforeend', `<option>${esc(k)}</option>`); $('edKey').value = k; }
+  if (document.activeElement !== $('edBpm')) $('edBpm').value = p.bpm || '';
+  const cur = (p.tags || []).map((t) => String(t).trim()).filter(Boolean);
+  const all = [...new Set([...TAG_PRESETS, ...cur])];
+  // atualiza no lugar (sem recriar os botões) para não perder o clique que está acontecendo
+  const html = all.map((t) => `<button type="button" data-tag="${esc(t)}">${esc(t)}</button>`).join('');
+  if ($('edTags').dataset.h !== html) { $('edTags').innerHTML = html; $('edTags').dataset.h = html; }
+  $('edTags').querySelectorAll('[data-tag]').forEach((b) => b.classList.toggle('on', cur.includes(b.dataset.tag)));
+}
+function edMetaChange(re, label, value) {
+  edUndo.push($('edSource').value);
+  $('edUndo').disabled = false;
+  $('edSource').value = setMeta($('edSource').value, re, label, value);
+  syncMetaBar();
+  renderEditorPreview();
+}
+$('edKey').onchange = () => edMetaChange(RE_KEY, 'Tom', $('edKey').value);
+$('edBpm').onchange = () => edMetaChange(RE_BPM, 'BPM', String(Math.round(+$('edBpm').value) || ''));
+$('edTags').onclick = (e) => {
+  const b = e.target.closest('[data-tag]');
+  if (!b) return;
+  const cur = (parseSong($('edSource').value).tags || []).map((t) => String(t).trim()).filter(Boolean);
+  const t = b.dataset.tag;
+  const next = cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t];
+  edMetaChange(RE_TAGS, 'Tags', next.join(', '));
+};
+$('edTagNew').onkeydown = (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const t = $('edTagNew').value.trim().replace(/,/g, ' ');
+  if (!t) return;
+  const cur = (parseSong($('edSource').value).tags || []).map((x) => String(x).trim()).filter(Boolean);
+  if (!cur.includes(t)) edMetaChange(RE_TAGS, 'Tags', [...cur, t].join(', '));
+  $('edTagNew').value = '';
+};
 let edT;
-$('edSource').oninput = () => { clearTimeout(edT); edT = setTimeout(renderEditorPreview, 250); };
+$('edSource').oninput = () => { clearTimeout(edT); edT = setTimeout(() => { renderEditorPreview(); syncMetaBar(); }, 250); };
 $('edTheme').onchange = renderEditorPreview;
 $('edModes').onclick = (e) => { if (e.target.dataset.mode) { edMode = e.target.dataset.mode; renderEditorPreview(); } };
 function renderEditorPreview() {
@@ -772,6 +854,8 @@ async function checkUpdate({ silent = false } = {}) {
     $('upApply').hidden = !upState.available;
     if (!silent) $('upInfo').textContent = upState.available
       ? `Versão nova disponível: ${upState.latest.short} · ${fmtDate(upState.latest.date)} — ${upState.latest.message}`
+      : upState.tests === 'falhou' && upState.installed?.sha !== upState.latest.sha ? `Há uma versão nova (${upState.latest.short}), mas ela não passou nos testes automáticos. Ela não será instalada até ser corrigida.`
+      : upState.tests === 'rodando' && upState.installed?.sha !== upState.latest.sha ? `Há uma versão nova (${upState.latest.short}) sendo testada agora. Procure de novo em alguns minutos.`
       : `Você já está na versão mais recente (${upState.latest.short}).`;
   } catch (e) {
     if (!silent) $('upInfo').textContent = '⚠ ' + e.message;

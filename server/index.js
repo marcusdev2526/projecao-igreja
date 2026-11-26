@@ -12,6 +12,7 @@ import { fileToSources, splitSongs } from './importers.js';
 import { parseSong, buildSlides, slideMaxLines } from '../public/shared/parser.js';
 import { DEMO_SONGS } from './seed.js';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import { parseBibleJson, seedBibles } from './bibleimport.js';
 import { makeDecks, convertPresentation } from './decks.js';
 import { makeBackup } from './backup.js';
@@ -20,6 +21,7 @@ import { lyricLines, missingTranslations, insertTranslations, setEnStatus, engli
 import { fetchLyrics, searchLyricsOnline, fetchOnlineResult } from './urlimport.js';
 import { makeUpdater, RESTART_CODE } from './updater.js';
 import { parseRef, refText } from '../public/shared/bible.js';
+import { makeSecurity, safeFetch } from './security.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -41,7 +43,57 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
 
   const app = express();
   const server = http.createServer(app);
-  const io = new Server(server);
+  const sec = makeSecurity(repo);
+  // Socket só aceita conexões de páginas do próprio sistema (nada de site de fora)
+  const io = new Server(server, {
+    allowRequest: (req, cb) => {
+      const o = req.headers.origin;
+      let same = true;
+      if (o) { try { same = new URL(o).host === req.headers.host; } catch { same = false; } }
+      cb(null, sec.hostOk(req.headers.host) && same);
+    },
+  });
+
+  // ---------------- Segurança ----------------
+  app.disable('x-powered-by');
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    if (!sec.hostOk(req.headers.host)) return res.status(403).type('text').send('Endereço não permitido. Use http://localhost ou o IP deste computador.');
+    const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+    if ((unsafe && !sec.originOk(req)) || (req.path.startsWith('/api/') && req.headers['sec-fetch-site'] === 'cross-site')) return res.status(403).json({ error: 'Pedido de origem não permitida' });
+    req.level = sec.level(req);
+    next();
+  });
+  // Arquivos enviados nunca rodam como página (evita código escondido em arquivo)
+  app.use(['/media', '/decks'], (req, res, next) => { res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; img-src 'self'; media-src 'self'"); next(); });
+  // Painel e controle pelo celular: pela rede, só com PIN
+  const PROTECTED = /^\/(index\.html)?$|^\/remote\.html$|^\/operator\//;
+  app.use((req, res, next) => {
+    if (req.level || !PROTECTED.test(req.path)) return next();
+    if (req.path.startsWith('/operator/')) return res.status(401).end();
+    res.redirect('/entrar.html?next=' + encodeURIComponent(req.originalUrl));
+  });
+  // API: pela rede precisa de PIN; pregador/pedidos só o necessário, com a chave do QR
+  const LOCAL_ONLY = /^\/(system|security|update\/settings|settings\/ai|settings\/backup|backup\/)/;
+  app.use('/api', (req, res, next) => {
+    const p = req.path;
+    const m = req.method;
+    if (req.level === 'local') return next();
+    if (req.level === 'admin') return LOCAL_ONLY.test(p) && (m !== 'GET' || p.startsWith('/security')) ? res.status(403).json({ error: 'Isso só pode ser mudado no computador da projeção' }) : next();
+    if (m === 'GET' && (p === '/info' || /^\/services\/\d+$/.test(p))) return next();
+    if (p.startsWith('/auth/') || p.startsWith('/control/')) return next();
+    const s = +req.query.s;
+    const k = req.query.k || req.headers['x-key'];
+    if (s && sec.checkInvite(s, k)) {
+      req.guestSid = s;
+      if (m === 'GET' && p === '/songs') return next();
+      if (m === 'POST' && p === `/services/${s}/items`) { req.guestSongOnly = true; return next(); }
+      if (m === 'POST' && (p === '/upload' || p === '/decks')) return next();
+    }
+    res.status(401).json({ needPin: true, error: sec.hasPin() ? 'Digite o PIN para usar pela rede' : 'Defina um PIN no computador da projeção (Configurações › Segurança) para usar pela rede' });
+  });
   app.use(express.json({ limit: '20mb' }));
   app.use(express.static(path.join(ROOT, 'public')));
   app.use('/media', express.static(mediaDir, { maxAge: '1h' }));
@@ -709,19 +761,27 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   }
 
   io.on('connection', (socket) => {
+    // pela rede sem PIN: só assiste (telão/retorno em outro computador), não comanda
+    socket.data.ok = !!sec.level(socket.request);
+    socket.data.role = String(socket.handshake.query?.role || '');
+    if (socket.data.role === 'screen') { emitScreens(); socket.on('disconnect', () => setTimeout(emitScreens, 50)); }
+    socket.emit('screens', screenCount());
+    const allowed = () => socket.data.ok;
+    socket.emit('auth', { control: allowed(), hasPin: sec.hasPin() });
+    const guard = (fn) => (...a) => { if (allowed()) fn(...a); else socket.emit('auth', { control: false, hasPin: sec.hasPin() }); };
     socket.emit('state', publicState());
     socket.emit('en-queue', [...enQueue]);
     // O telão avisa o tempo do vídeo/áudio e quando terminou
-    socket.on('player-time', (t) => { if (t && isFinite(t.t)) { live.playerT = +t.t; followPlayback(live.playerT); } socket.broadcast.volatile.emit('player-time', t); });
-    socket.on('player-blocked', () => io.emit('player-blocked'));
-    socket.on('screen-aspect', (ar) => {
+    socket.on('player-time', guard((t) => { if (t && isFinite(t.t)) { live.playerT = +t.t; followPlayback(live.playerT); } socket.broadcast.volatile.emit('player-time', t); }));
+    socket.on('player-blocked', guard(() => io.emit('player-blocked')));
+    socket.on('screen-aspect', guard((ar) => {
       ar = Math.min(3.6, Math.max(1.3, +ar || 0));
       if (!ar || Math.abs(ar - live.aspect) < 0.01) return;
       live.aspect = ar;
       repo.setSetting('aspect', String(ar));
       broadcast();
-    });
-    socket.on('player-ended', ({ seq } = {}) => {
+    }));
+    socket.on('player-ended', guard(({ seq } = {}) => {
       const p = live.player;
       if (!p || p.seq !== seq || p.status !== 'playing') return;
       if (p.after === 'loop') { p.seek = 0; p.seq++; return broadcast(); }
@@ -731,14 +791,14 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       if (p.after === 'next' && p.itemId && p.itemId === live.itemId) return nextItem(1) ?? broadcast();
       if (p.after === 'tema' && live.kind === 'media' && p.type === 'video') { if (live.base) live.showBase = true; else live.clear = true; }
       broadcast();
-    });
-    socket.on('cmd', (c) => {
+    }));
+    socket.on('cmd', guard((c) => {
       try {
         handleCmd(c);
       } catch (e) {
         console.error('cmd', c, e);
       }
-    });
+    }));
   });
 
   // ---------------- API ----------------
@@ -751,6 +811,38 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       res.status(400).json({ error: e.message });
     }
   };
+  const ipOf = (req) => String(req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+  app.get('/api/auth/status', (req, res) => ok(res, { level: req.level, hasPin: sec.hasPin() }));
+  app.post('/api/auth/login', (req, res) => {
+    const ip = ipOf(req);
+    const wait = sec.blocked(ip);
+    if (wait) return res.status(429).json({ error: `Muitas tentativas. Tente de novo em ${Math.ceil(wait / 60)} min.` });
+    if (!sec.hasPin()) return res.status(400).json({ error: 'O PIN ainda não foi criado. No computador da projeção: Configurações › Segurança.' });
+    if (!sec.checkPin(req.body?.pin)) { sec.fail(ip); return res.status(401).json({ error: 'PIN incorreto' }); }
+    sec.success(ip);
+    res.setHeader('Set-Cookie', sec.cookieHeader(sec.createSession(req.headers['user-agent'])));
+    ok(res);
+  });
+  app.post('/api/auth/logout', (req, res) => {
+    sec.endSession(sec.parseCookies(req.headers.cookie)[sec.COOKIE]);
+    res.setHeader('Set-Cookie', sec.clearCookie());
+    ok(res);
+  });
+  // Quantos telões (screen.html sem ?embed) estão abertos — o painel avisa se nenhum estiver
+  const screenCount = () => [...io.sockets.sockets.values()].filter((so) => so.data.role === 'screen').length;
+  const emitScreens = () => io.emit('screens', screenCount());
+  function refreshAuth() {
+    for (const so of io.sockets.sockets.values()) { so.data.ok = !!sec.level(so.request); so.emit('auth', { control: so.data.ok, hasPin: sec.hasPin() }); }
+  }
+  // Fechar o sistema (atalho "Fechar Projeção" e botão nas Configurações)
+  app.post('/api/system/quit', (req, res) => { ok(res); console.log('\n  Sistema fechado pelo atalho.\n'); setTimeout(() => process.exit(0), 300); });
+  app.get('/api/security', (req, res) => ok(res, { hasPin: sec.hasPin(), devices: sec.sessionCount(), controlKey: sec.controlKey() }));
+  app.put('/api/security/pin', wrap((req, res) => { sec.setPin(req.body.pin); refreshAuth(); ok(res); }));
+  app.delete('/api/security/pin', (req, res) => { sec.removePin(); refreshAuth(); ok(res); });
+  app.post('/api/security/revoke', (req, res) => { sec.revokeAll(); refreshAuth(); ok(res); });
+  app.post('/api/security/rotate-invites', (req, res) => { sec.rotateInvites(); ok(res); });
+  app.post('/api/security/rotate-control', (req, res) => { sec.rotateControl(); ok(res, { controlKey: sec.controlKey() }); });
+
 
   app.get('/api/songs', (req, res) => ok(res, repo.listSongs(req.query.q || '')));
   app.get('/api/songs/:id', (req, res) => {
@@ -802,7 +894,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     ok(res, out);
   }));
   app.post('/api/import/url', wrap(async (req, res) => {
-    const source = await fetchLyrics(String(req.body.url || '').trim());
+    const source = await fetchLyrics(String(req.body.url || '').trim(), { fetchImpl: safeFetch });
     const p = parseSong(source);
     const dup = repo.findDuplicate(p.title || '', p.artist || '');
     ok(res, [{ from: req.body.url, source, title: p.title, artist: p.artist, sections: p.sections.length,
@@ -813,7 +905,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   app.post('/api/lyrics/import', wrap(async (req, res) => {
     const url = String(req.body.url || '');
     if (!/^(https?:\/\/|ovh:)/.test(url)) throw new Error('Resultado inválido');
-    const source = await fetchOnlineResult(url);
+    const source = await fetchOnlineResult(url, { fetchImpl: safeFetch });
     const p = parseSong(source);
     const dup = repo.findDuplicate(p.title || '', p.artist || '');
     if (dup && !req.body.force) return ok(res, { id: dup.id, existed: true });
@@ -920,6 +1012,11 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   app.put('/api/services/:id', wrap((req, res) => { repo.renameService(+req.params.id, req.body.title, req.body.date); ok(res); }));
   app.delete('/api/services/:id', (req, res) => { repo.deleteService(+req.params.id); ok(res); });
   app.post('/api/services/:id/items', wrap((req, res) => {
+    if (req.guestSongOnly) {
+      const song = repo.getSong(+req.body.song_id);
+      if (!song) throw new Error('Louvor não encontrado');
+      req.body = { kind: 'song', song_id: song.id, by: 'pedido', who: String(req.body.who || '').slice(0, 40) };
+    }
     const id = repo.addItem(+req.params.id, req.body);
     if (req.body.by === 'pedido') {
       const song = req.body.song_id && repo.getSong(+req.body.song_id);
@@ -1056,7 +1153,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     const files = (req.files || []).filter((f) => /\.(png|jpe?g|webp)$/i.test(fixName(f.originalname)));
     files.forEach((f) => { const ext = path.extname(fixName(f.originalname)).toLowerCase(); fs.renameSync(f.path, f.path + ext); f.path += ext; });
     const d = decks.create({ title: req.body.title, author: req.body.author, images: files.map((f) => f.path), auto: req.body.auto, loop: req.body.loop === '1' || req.body.loop === 'true' });
-    const itemId = addToService(req.body.service_id, deckItem(d));
+    const itemId = addToService(req.guestSid || req.body.service_id, deckItem(d));
     io.emit('library');
     ok(res, { deck: d, itemId });
   }));
@@ -1065,7 +1162,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     const names = (req.body.names || []).map((n) => path.join(mediaDir, path.basename(decodeURIComponent(n))));
     const ok2 = names.filter((f) => fs.existsSync(f));
     const d = decks.create({ title: req.body.title || 'Avisos', images: ok2, auto: req.body.auto ?? 8, loop: req.body.loop ?? true, move: false });
-    const itemId = addToService(req.body.service_id, deckItem(d));
+    const itemId = addToService(req.guestSid || req.body.service_id, deckItem(d));
     io.emit('library');
     ok(res, { deck: d, itemId });
   }));
@@ -1079,7 +1176,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       try {
         if (MEDIA_EXT[ext]) {
           const it = mediaItem(f, author);
-          const itemId = addToService(req.body.service_id, it);
+          const itemId = addToService(req.guestSid || req.body.service_id, it);
           results.push({ name: orig, ok: true, kind: 'media', type: MEDIA_EXT[ext], itemId, url: JSON.parse(it.text).url, title: it.title });
         } else if (PRES_EXT.test(orig)) {
           const src = f.path + '.' + ext;
@@ -1088,7 +1185,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
           try {
             const imgs = await convertPresentation(src, out);
             const d = decks.create({ title: baseName(orig), author, images: imgs });
-            const itemId = addToService(req.body.service_id, deckItem(d));
+            const itemId = addToService(req.guestSid || req.body.service_id, deckItem(d));
             results.push({ name: orig, ok: true, kind: 'deck', slides: d.count, itemId });
           } finally {
             fs.rmSync(src, { force: true });
@@ -1139,8 +1236,9 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     const url = directLink(original);
     let u;
     try { u = new URL(url); } catch { throw new Error('Link inválido'); }
+    u = new URL(url);
     if (!/^https?:$/.test(u.protocol) || /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1)/i.test(u.hostname)) throw new Error('Esse link não pode ser baixado');
-    const r = await fetch(url, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36' } });
+    const r = await safeFetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36' } });
     if (!r.ok) throw new Error('Não deu para baixar (' + r.status + ')');
     const mime = r.headers.get('content-type') || '';
     const cd = r.headers.get('content-disposition') || '';
@@ -1164,9 +1262,31 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   app.get('/api/qr', wrap(async (req, res) => {
     const ips = Object.values(os.networkInterfaces()).flat().filter((n) => n && n.family === 'IPv4' && !n.internal).map((n) => n.address);
     const base = ips.length ? `http://${ips[0]}:${port}` : `http://localhost:${port}`;
-    const url = base + String(req.query.path || '/');
+    let p = String(req.query.path || '/');
+    if (!p.startsWith('/') || p.startsWith('//')) p = '/';
+    // link do pregador / pedidos: leva a chave que só vale para aquele culto
+    const m = p.match(/^\/(enviar|pedidos)\.html\?s=(\d+)$/);
+    if (m) p += '&k=' + sec.inviteKey(m[2]);
+    const url = base + p;
     ok(res, { url, qr: await QRCode.toDataURL(url, { margin: 1, width: 260 }) });
   }));
+
+  // Controle por link: Stream Deck, botões físicos, atalhos (precisa da chave de controle)
+  const CONTROL = { next: { type: 'next' }, prev: { type: 'prev' }, black: { type: 'black' }, clear: { type: 'clear' }, logo: { type: 'logo' }, waiting: { type: 'waiting' }, freeze: { type: 'freeze' }, cartaz: { type: 'base-show', value: undefined }, 'next-item': 'n+', 'prev-item': 'n-', play: { type: 'player', action: 'toggle' }, stop: { type: 'player', action: 'stop' } };
+  app.all('/api/control/:action', (req, res) => {
+    const k = String(req.query.k || req.headers['x-key'] || '');
+    const good = Buffer.from(sec.controlKey());
+    if (!k || k.length !== good.length || !crypto.timingSafeEqual(Buffer.from(k), good)) return res.status(401).json({ error: 'Chave de controle inválida' });
+    const c = CONTROL[req.params.action];
+    if (!c) return res.status(404).json({ error: 'Ação desconhecida', acoes: Object.keys(CONTROL) });
+    try {
+      if (c === 'n+') nextItem(1);
+      else if (c === 'n-') { nextItem(-1); live.index = 0; broadcast(); }
+      else if (c.type === 'base-show') handleCmd({ type: 'base-show', value: !live.showBase });
+      else handleCmd({ ...c });
+    } catch (e) { return res.status(400).json({ error: e.message }); }
+    ok(res, { ok: true, action: req.params.action, slide: live.index + 1, de: live.slides.length });
+  });
 
   // ---------------- Temas personalizados ----------------
   app.get('/api/themes', (req, res) => ok(res, repo.listThemes()));
@@ -1240,7 +1360,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   app.post('/api/en/align', wrap(async (req, res) => {
     let english = String(req.body.english || '').trim();
     const url = String(req.body.url || '').trim();
-    if (url) english = (await fetchLyrics(url)).split('\n').slice(1).join('\n');
+    if (url) english = (await fetchLyrics(url, { fetchImpl: safeFetch })).split('\n').slice(1).join('\n');
     if (!english.trim()) throw new Error('Cole a letra oficial em inglês ou um link');
     ok(res, { source: await alignSource(req.body.source || '', english) });
   }));

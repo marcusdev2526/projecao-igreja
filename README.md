@@ -9,6 +9,23 @@ Sistema de projeção de letras para a igreja, no estilo do Holyrics, com:
 - **Temas da igreja**: editor visual com fundo animado, cor, degradê, **imagem ou vídeo**, escurecimento, fontes, logo e transição.
 - **Telão, retorno (palco) e controle pelo celular**, sincronizados em tempo real pela rede local. Funciona sem internet.
 
+## Instalar no Windows (recomendado)
+
+1. Baixe o projeto e dê dois cliques em **`Instalar.cmd`** (instala o Node.js se precisar, as dependências e cria os atalhos).
+2. Use o atalho **Projeção Igreja** na área de trabalho: abre o sistema sem janela preta. Para desligar, **Fechar Projeção** (ou Configurações › Sistema).
+3. Opcional: na instalação, responda **S** para o sistema abrir sozinho quando o Windows ligar.
+
+## Segurança
+
+- Este computador nunca pede senha. **Celulares e outros computadores da rede** só controlam depois de digitar o **PIN** (Configurações › Segurança). Sem PIN criado, ninguém controla pela rede.
+- O **pregador** e os **pedidos de louvor** entram pelo QR, que leva uma chave que só vale para aquele culto (dá para invalidar os QRs antigos).
+- **Stream Deck / botões físicos**: `http://localhost:3000/api/control/next?k=CHAVE` (a chave e todos os endereços ficam em Configurações).
+- Sites de fora não conseguem comandar o sistema pelo navegador (checagem de Host/Origin), links colados não acessam a rede interna e o PIN bloqueia depois de 5 tentativas erradas.
+
+## Testes
+
+`npm test` (servidor, letras, Bíblia, atualização e segurança) e `npm run test:e2e` (painel e telão num navegador). No GitHub eles rodam a cada envio, e o botão **Atualizar** só instala versões aprovadas.
+
 ## Como rodar
 
 Requisito: [Node.js 22.13 ou mais novo](https://nodejs.org) (versão LTS).

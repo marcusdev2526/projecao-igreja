@@ -78,6 +78,7 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const socket = io();
+  socket.on('auth', (a) => { if (!a.control) location.href = '/entrar.html?next=/remote.html'; });
   const cmd = (c) => { socket.emit('cmd', c); navigator.vibrate?.(15); };
   let state = null;
   let serviceId = null;

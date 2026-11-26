@@ -100,7 +100,7 @@ export function makeRepo(db) {
   return {
     listSongs(term = '') {
       const t = normalize(term).trim();
-      const rows = q(`SELECT s.id, s.title, s.artist, s.song_key, s.tags, s.has_en, s.theme_id,
+      const rows = q(`SELECT s.id, s.title, s.artist, s.song_key, s.bpm, s.tags, s.has_en, s.theme_id,
           (SELECT COUNT(DISTINCT date(p.played_at)) FROM play_log p WHERE p.song_id = s.id) AS plays,
           (SELECT MAX(p.played_at) FROM play_log p WHERE p.song_id = s.id) AS last_played
         FROM song s ${t ? 'WHERE s.search LIKE ?' : ''} ORDER BY s.title COLLATE NOCASE`).all(...(t ? [`%${t}%`] : []));

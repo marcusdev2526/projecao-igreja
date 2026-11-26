@@ -203,7 +203,46 @@ export function initExtras(ctx) {
   // ---------- OBS ----------
   document.getElementById('settingsBtn').addEventListener('click', async () => {
     const info = await api('/api/info').catch(() => null);
-    $('obsUrl').textContent = (location.origin || (info?.urls?.[0] ?? '')) + '/obs.html';
+    obsBase = (location.origin || (info?.urls?.[0] ?? '')) + '/obs.html';
+    obsBuild();
   });
+  // ---------- Endereço da legenda do OBS (montado pelas opções) ----------
+  let obsBase = location.origin + '/obs.html';
+  function obsBuild() {
+    const q = new URLSearchParams();
+    const st = $('obsStyle').value;
+    if (st === 'faixa') q.set('faixa', '1');
+    if (st === 'tv') q.set('estilo', 'tv');
+    if ($('obsPos').value) q.set('pos', $('obsPos').value);
+    if ($('obsSize').value) q.set('tamanho', $('obsSize').value);
+    if ($('obsLines').value) q.set('linhas', $('obsLines').value);
+    $('obsUrl').textContent = obsBase + (q.toString() ? '?' + q : '');
+  }
+  ['obsStyle', 'obsPos', 'obsSize', 'obsLines'].forEach((id) => ($(id).onchange = obsBuild));
+  // ---------- Segurança e Stream Deck ----------
+  const SD = [['next', 'Próximo slide'], ['prev', 'Slide anterior'], ['next-item', 'Próximo item do culto'], ['prev-item', 'Item anterior'], ['black', 'Tela preta (liga/desliga)'], ['clear', 'Sem letra'], ['freeze', 'Congelar'], ['logo', 'Logo'], ['waiting', 'Tela de espera'], ['cartaz', 'Cartaz'], ['play', 'Play/pausa do vídeo'], ['stop', 'Parar vídeo']];
+  async function loadSecurity() {
+    let s;
+    try { s = await api('/api/security'); } catch { $('secBox').hidden = true; return; }
+    $('secBox').hidden = false;
+    $('secStatus').innerHTML = s.hasPin
+      ? `<span class="ok">● PIN ativo</span> · ${s.devices} aparelho${s.devices === 1 ? '' : 's'} conectado${s.devices === 1 ? '' : 's'} pela rede`
+      : '<span class="warn">● Sem PIN</span> · celulares e outros computadores <b>não conseguem</b> controlar até você criar um PIN';
+    $('secPinDel').hidden = !s.hasPin;
+    $('secPinSave').textContent = s.hasPin ? 'Trocar PIN' : 'Criar PIN';
+    const base = location.origin;
+    $('sdList').innerHTML = SD.map(([a, n]) => `<div class="sd-row"><span>${n}</span><code>${esc(base)}/api/control/${a}?k=${esc(s.controlKey)}</code><button class="btn sm" data-copy="${esc(base)}/api/control/${a}?k=${esc(s.controlKey)}">Copiar</button></div>`).join('');
+  }
+  document.getElementById('settingsBtn').addEventListener('click', loadSecurity);
+  $('sdList').onclick = (e) => { const b = e.target.closest('[data-copy]'); if (b) { navigator.clipboard?.writeText(b.dataset.copy); toast('Endereço copiado'); } };
+  $('secPinSave').onclick = async () => {
+    try { await api('/api/security/pin', { method: 'PUT', body: { pin: $('secPin').value.trim() } }); $('secPin').value = ''; toast('PIN salvo. Os aparelhos precisam digitar o PIN novo.'); loadSecurity(); }
+    catch (e) { toast(e.message); }
+  };
+  $('secPinDel').onclick = async () => { if (!confirm('Tirar o PIN? Celulares e outros computadores deixam de controlar até você criar outro.')) return; await api('/api/security/pin', { method: 'DELETE' }); toast('PIN removido'); loadSecurity(); };
+  $('secRevoke').onclick = async () => { await api('/api/security/revoke', { method: 'POST' }); toast('Todos os aparelhos foram desconectados'); loadSecurity(); };
+  $('secInvites').onclick = async () => { await api('/api/security/rotate-invites', { method: 'POST' }); toast('QRs antigos não funcionam mais. Gere um QR novo para o pregador.'); };
+  $('sysQuit').onclick = async () => { if (!confirm('Fechar o sistema agora? O telão e os celulares vão parar.')) return; await api('/api/system/quit', { method: 'POST' }).catch(() => {}); document.body.innerHTML = '<div style="display:grid;place-items:center;height:100vh;font:600 18px Inter,sans-serif;color:#aab">Sistema fechado. Para abrir de novo, use o atalho “Projeção Igreja”.</div>'; };
+  $('sdRotate').onclick = async () => { if (!confirm('Gerar chave nova? Os botões do Stream Deck já configurados param de funcionar.')) return; await api('/api/security/rotate-control', { method: 'POST' }); loadSecurity(); };
   $('obsCopy').onclick = () => { navigator.clipboard?.writeText($('obsUrl').textContent); toast('Endereço copiado'); };
 }

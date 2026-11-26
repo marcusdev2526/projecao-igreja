@@ -24,8 +24,23 @@
   if (embedded) document.body.classList.add('embedded');
   const stage = createStage(document.getElementById('host'), { live: true });
   let lastKey = '';
-  const socket = io();
+  // ?embed = prévia no painel; sem embed = telão de verdade (o painel conta quantos telões estão abertos)
+  const socket = io({ query: { role: embedded ? 'preview' : realView ? 'preview' : 'screen' } });
+  // Telão que não cai: guarda o último estado e mostra de novo se a página recarregar sem servidor
+  const SAVE = 'screen_last_state';
+  if (!embedded) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(SAVE) || 'null');
+      if (saved && Date.now() - saved.at < 12 * 3600e3) setTimeout(() => { if (!socket.connected) render({ ...saved.s, player: null }); }, 400);
+    } catch {}
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+  let saveT;
   socket.on('state', (s0) => {
+    render(s0);
+    if (!embedded) { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(SAVE, JSON.stringify({ at: Date.now(), s: s0 })); } catch {} }, 300); }
+  });
+  function render(s0) {
     // congelado: o telão continua mostrando o que estava no ar
     const s = s0.frozen && s0.screen && !realView ? { ...s0, ...s0.screen } : s0;
     stage.setTheme(s.themeId, s.themeDef);
@@ -37,7 +52,7 @@
     const key = s.themeId + '|' + s.mode + '|' + html;
     if (key !== lastKey) { stage.show(html); lastKey = key; tickWaiting(stage.el); }
     applyPlayer(s.player);
-  });
+  }
 
   setInterval(() => tickWaiting(stage.el), 1000);
 
@@ -89,6 +104,18 @@
       el.addEventListener('seeked', rep);
       el.addEventListener('pause', rep);
     }
+  }
+  // Passador de slides com a janela do telão em foco
+  if (!embedded) {
+    addEventListener('keydown', (e) => {
+      if (e.key === 'F5' && !e.ctrlKey) return e.preventDefault();
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const c = ['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key) ? { type: 'next' }
+        : ['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(e.key) ? { type: 'prev' }
+        : ['b', 'B', '.'].includes(e.key) ? { type: 'black' }
+        : [',', 'w', 'W'].includes(e.key) ? { type: 'clear' } : null;
+      if (c) { e.preventDefault(); socket.emit('cmd', c); }
+    });
   }
   // O painel mostra a prévia no mesmo formato da tela do telão (16:9, ultrawide…)
   if (!embedded) {
