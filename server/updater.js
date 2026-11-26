@@ -35,6 +35,10 @@ export function makeUpdater({ root, dataDir, getRepo, getToken, fetchImpl = (...
       throw new Error('Sem internet para procurar atualização');
     }
     if (r.status === 404) throw new Error('Repositório não encontrado (se for privado, cadastre o token)');
+    if ((r.status === 403 || r.status === 429) && r.headers?.get?.('x-ratelimit-remaining') === '0') {
+      const reset = new Date(+r.headers.get('x-ratelimit-reset') * 1000);
+      throw new Error(`O GitHub limita as consultas sem login (60 por hora). Tente de novo às ${reset.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`);
+    }
     if (r.status === 401 || r.status === 403) throw new Error('O GitHub recusou o acesso (token inválido ou limite de consultas; tente mais tarde)');
     if (!r.ok) throw new Error('GitHub respondeu com erro ' + r.status);
     return r;
@@ -42,9 +46,8 @@ export function makeUpdater({ root, dataDir, getRepo, getToken, fetchImpl = (...
 
   async function check() {
     const repo = repoParts();
-    const info = await (await gh(`https://api.github.com/repos/${repo}`)).json();
-    const branch = info.default_branch || 'main';
-    const c = await (await gh(`https://api.github.com/repos/${repo}/commits/${branch}`)).json();
+    const branch = 'HEAD';
+    const c = await (await gh(`https://api.github.com/repos/${repo}/commits/HEAD`)).json();
     const cur = installed();
     const tests = await testStatus(repo, c.sha);
     return {

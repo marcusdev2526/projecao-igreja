@@ -22,7 +22,7 @@ test('atualização: baixa, copia sem tocar em data/ e grava a versão', async (
   const fakeFetch = async (url) => {
     const json = (o) => ({ ok: true, status: 200, json: async () => o });
     if (url.endsWith('/repos/marcus/projecao')) return json({ default_branch: 'main' });
-    if (url.includes('/commits/main')) return json({ sha: 'abc123def456', commit: { message: 'Versão nova\nDetalhes', committer: { date: '2026-11-25T01:00:00Z' } } });
+    if (url.includes('/commits/HEAD')) return json({ sha: 'abc123def456', commit: { message: 'Versão nova\nDetalhes', committer: { date: '2026-11-25T01:00:00Z' } } });
     if (url.includes('/zipball/abc123def456')) return { ok: true, status: 200, arrayBuffer: async () => zbuf };
     return { ok: false, status: 404 };
   };
@@ -45,7 +45,7 @@ test('atualização: não oferece versão que falhou nos testes do GitHub', asyn
   const mk = (runs) => makeUpdater({ root, dataDir, getRepo: () => 'marcus/projecao', getToken: () => '', fetchImpl: async (url) => {
     if (url.endsWith('/repos/marcus/projecao')) return json({ default_branch: 'main' });
     if (url.endsWith('/check-runs')) return json({ check_runs: runs });
-    if (url.includes('/commits/main')) return json({ sha: 'fff111', commit: { message: 'x', committer: { date: '' } } });
+    if (url.includes('/commits/HEAD')) return json({ sha: 'fff111', commit: { message: 'x', committer: { date: '' } } });
     return { ok: false, status: 404 };
   } });
   let c = await mk([{ status: 'completed', conclusion: 'failure' }]).check();
