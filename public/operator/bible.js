@@ -141,7 +141,12 @@ export function initBibleView({ api, cmd, toast, esc, getLive, getService, openS
   };
 
   // ---------- Versões e versículos por slide ----------
-  const changeVersions = () => {
+  const changeVersions = (e) => {
+    // última opção da lista: abre a janela para baixar mais versões
+    if (e?.target?.value === '__more') {
+      e.target.value = e.target.id === 'bibleMain' ? getLive()?.bibleMain || e.target.options[0].value : getLive()?.bibleSecond || '';
+      return document.getElementById('bibleImportBtn').click();
+    }
     cmd({ type: 'bible-versions', main: $('bibleMain').value, second: $('bibleSecond').value });
     setTimeout(() => loadChapter(st.book, st.chapter, { focus: st.focus }), 120);
   };

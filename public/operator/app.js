@@ -1196,6 +1196,7 @@ async function loadVersions() {
   const opts = versions.map((v) => [v.code, `${v.code} · ${v.name}`]);
   fillSelect($('bibleMain'), opts);
   fillSelect($('bibleSecond'), opts, 'Nenhuma');
+  for (const id of ['bibleMain', 'bibleSecond']) $(id).insertAdjacentHTML('beforeend', '<option disabled>──────────</option><option value="__more">＋ Baixar mais versões…</option>');
   if (live) { $('bibleMain').value = live.bibleMain; $('bibleSecond').value = live.bibleSecond || ''; }
   $('biVersions').innerHTML = versions.map((v) => `<div class="ver-row"><span><b>${esc(v.code)}</b> · ${esc(v.name)} <span class="muted small">(${v.verses} versículos)</span></span><button class="btn sm danger" data-delv="${esc(v.code)}">Remover</button></div>`).join('');
 }
