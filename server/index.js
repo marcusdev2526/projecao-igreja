@@ -60,6 +60,9 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+    if (req.path.startsWith('/api/')) res.setHeader('Cache-Control', 'no-store');
     if (!sec.hostOk(req.headers.host)) return res.status(403).type('text').send('Endereço não permitido. Use http://localhost ou o IP deste computador.');
     const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
     if ((unsafe && !sec.originOk(req)) || (req.path.startsWith('/api/') && req.headers['sec-fetch-site'] === 'cross-site')) return res.status(403).json({ error: 'Pedido de origem não permitida' });
@@ -76,12 +79,12 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     res.redirect('/entrar.html?next=' + encodeURIComponent(req.originalUrl));
   });
   // API: pela rede precisa de PIN; pregador/pedidos só o necessário, com a chave do QR
-  const LOCAL_ONLY = /^\/(system|security|update\/settings|settings\/ai|settings\/backup|backup\/)/;
+  const LOCAL_ONLY = /^\/(system|security|update\/(settings|apply)|settings\/ai|settings\/backup|backup\/|export)/;
   app.use('/api', (req, res, next) => {
     const p = req.path;
     const m = req.method;
     if (req.level === 'local') return next();
-    if (req.level === 'admin') return LOCAL_ONLY.test(p) && (m !== 'GET' || p.startsWith('/security')) ? res.status(403).json({ error: 'Isso só pode ser mudado no computador da projeção' }) : next();
+    if (req.level === 'admin') return LOCAL_ONLY.test(p) && (m !== 'GET' || /^\/(security|export|backup\/)/.test(p)) ? res.status(403).json({ error: 'Isso só pode ser mudado no computador da projeção' }) : next();
     if (m === 'GET' && (p === '/info' || /^\/services\/\d+$/.test(p))) return next();
     if (p.startsWith('/auth/') || p.startsWith('/control/')) return next();
     const s = +req.query.s;

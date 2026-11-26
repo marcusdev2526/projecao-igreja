@@ -1,0 +1,10 @@
+# Avisa (e abre correção) quando alguma biblioteca do sistema tiver falha de segurança conhecida
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }

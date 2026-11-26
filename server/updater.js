@@ -103,6 +103,9 @@ export function makeUpdater({ root, dataDir, getRepo, getToken, fetchImpl = (...
     const r = getToken() ? await gh(`https://api.github.com/repos/${repo}/zipball/${latest.sha}`) : await gh(`https://codeload.github.com/${repo}/zip/${latest.sha}`);
     const buf = Buffer.from(await r.arrayBuffer());
     const zip = new AdmZip(buf);
+    // confere que o pacote é mesmo daquela versão (a pasta do zip leva o código da versão)
+    const top = (zip.getEntries()[0]?.entryName || '').split('/')[0];
+    if (!top.endsWith(latest.sha.slice(0, 7)) && !top.endsWith(latest.sha)) throw new Error('O pacote baixado não confere com a versão esperada. Atualização cancelada.');
     const pkgBefore = readJson(path.join(root, 'package.json'));
     let files = 0;
     for (const e of zip.getEntries()) {

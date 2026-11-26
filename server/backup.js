@@ -2,6 +2,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import AdmZip from 'adm-zip';
+import { DatabaseSync } from 'node:sqlite';
+
+// Senhas e chaves nunca vão para o backup (ele pode ficar no pen drive ou no Google Drive)
+export const SECRET_KEYS = ['update_token', 'ai_key', 'pin_hash', 'sessions', 'invite_secret', 'control_key'];
 
 export function makeBackup({ db, dataDir, getDir, keep = 10 }) {
   let running = false;
@@ -15,6 +19,10 @@ export function makeBackup({ db, dataDir, getDir, keep = 10 }) {
     const tmpDb = path.join(dataDir, `backup-${Date.now()}.db`);
     try {
       db.exec(`VACUUM INTO '${tmpDb.replace(/'/g, "''")}'`);
+      const clean = new DatabaseSync(tmpDb);
+      clean.prepare(`DELETE FROM setting WHERE key IN (${SECRET_KEYS.map(() => '?').join(',')})`).run(...SECRET_KEYS);
+      clean.exec('VACUUM');
+      clean.close();
       const zip = new AdmZip();
       zip.addLocalFile(tmpDb, '', 'projecao.db');
       for (const sub of ['media', 'decks']) {

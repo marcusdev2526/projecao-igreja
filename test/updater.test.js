@@ -14,10 +14,10 @@ test('atualização: baixa, copia sem tocar em data/ e grava a versão', async (
   fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies: { a: '1' } }));
   fs.writeFileSync(path.join(root, 'velho.txt'), 'antigo');
   const zip = new AdmZip();
-  zip.addFile('marcus-projecao-abc123/package.json', Buffer.from(JSON.stringify({ dependencies: { a: '1' } })));
-  zip.addFile('marcus-projecao-abc123/public/novo.js', Buffer.from('novo'));
-  zip.addFile('marcus-projecao-abc123/data/louvores.db', Buffer.from('APAGARIA TUDO'));
-  zip.addFile('marcus-projecao-abc123/velho.txt', Buffer.from('atualizado'));
+  zip.addFile('marcus-projecao-abc123def456abc123def456abc123def456abcd/package.json', Buffer.from(JSON.stringify({ dependencies: { a: '1' } })));
+  zip.addFile('marcus-projecao-abc123def456abc123def456abc123def456abcd/public/novo.js', Buffer.from('novo'));
+  zip.addFile('marcus-projecao-abc123def456abc123def456abc123def456abcd/data/louvores.db', Buffer.from('APAGARIA TUDO'));
+  zip.addFile('marcus-projecao-abc123def456abc123def456abc123def456abcd/velho.txt', Buffer.from('atualizado'));
   const zbuf = zip.toBuffer();
   const fakeFetch = async (url) => {
     const json = (o) => ({ ok: true, status: 200, json: async () => o });
