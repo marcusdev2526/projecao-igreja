@@ -1516,3 +1516,11 @@ body.light .conn-chip.on { color: #0f7a4a; }
 .src-tabs::-webkit-scrollbar { display: none; }
 .src-tabs button { flex: 0 0 auto; }
 .cmdbar .cb.warn::before { flex: none; }
+#toast[popover] { margin: 0; inset: auto auto 20px 50%; color: var(--text); }
+#toast:popover-open { display: block; }
+.ph-tip { font: 600 13px ui-monospace, Consolas, monospace; color: var(--muted); text-align: center; margin: -4px 0 6px; }
+.ph-more { font-size: 13px; color: var(--muted); }
+.ph-more summary { cursor: pointer; color: var(--accent2); font-weight: 600; }
+.ph-more ol { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; }
+.ph-more a { color: var(--accent2); }
+.bi-body label.chk, label.chk { display: flex !important; align-items: center; gap: 8px; flex-direction: row; } label.chk input { width: 16px; height: 16px; margin: 0; flex: none; accent-color: var(--accent); }

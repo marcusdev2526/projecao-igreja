@@ -808,6 +808,26 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
 
   // ---------------- API ----------------
   const ok = (res, data = { ok: true }) => res.json(data);
+  // Endereços da rede deste computador, do mais provável (Wi-Fi/Ethernet da igreja) ao menos provável
+  function lanIps() {
+    const VIRTUAL = /virtual|vmware|vbox|hyper-v|vethernet|wsl|docker|loopback|bluetooth|tailscale|zerotier|vpn|tap|tun|hamachi|radmin/i;
+    const list = [];
+    for (const [name, addrs] of Object.entries(os.networkInterfaces())) {
+      for (const n of addrs || []) {
+        if (n.family !== 'IPv4' || n.internal || n.address.startsWith('169.254.')) continue;
+        let score = 0;
+        if (VIRTUAL.test(name)) score -= 10;
+        if (/wi-?fi|wlan|wireless|sem fio/i.test(name)) score += 3;
+        if (/ethernet|eth|en\d|conexão local/i.test(name)) score += 2;
+        if (n.address.startsWith('192.168.')) score += 2;
+        if (/^192\.168\.(56|99)\./.test(n.address)) score -= 6; // VirtualBox / redes internas
+        if (n.address.startsWith('10.')) score += 1;
+        if (/^172\.(1[6-9]|2\d|3[01])\./.test(n.address)) score -= 2; // comum em WSL/Docker/Hyper-V
+        list.push({ ip: n.address, score });
+      }
+    }
+    return list.sort((a, b) => b.score - a.score).map((x) => x.ip);
+  }
   const wrap = (fn) => async (req, res) => {
     try {
       await fn(req, res);
@@ -816,6 +836,25 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       res.status(400).json({ error: e.message });
     }
   };
+  // Parear celular pelo QR: quem lê o QR que aparece NESTE computador já entra liberado (sem digitar PIN)
+  const pairTokens = new Map(); // token -> expira em
+  app.get('/api/pair', wrap(async (req, res) => {
+    if (req.level !== 'local') throw new Error('O QR do celular só pode ser gerado no computador da projeção');
+    const now = Date.now();
+    for (const [t, exp] of pairTokens) if (exp < now) pairTokens.delete(t);
+    const t = crypto.randomBytes(18).toString('base64url');
+    pairTokens.set(t, now + 15 * 60e3);
+    const ips = lanIps();
+    const urls = (ips.length ? ips : ['localhost']).map((ip) => `http://${ip}:${port}/parear?t=${t}`);
+    ok(res, { url: urls[0], others: urls.slice(1), qr: await QRCode.toDataURL(urls[0], { margin: 1, width: 260 }) });
+  }));
+  app.get('/parear', (req, res) => {
+    const t = String(req.query.t || '');
+    const exp = pairTokens.get(t);
+    if (!exp || exp < Date.now()) return res.status(410).type('html').send('<meta name="viewport" content="width=device-width"><body style="font:16px system-ui;background:#0a0e14;color:#e6eaef;display:grid;place-items:center;height:90vh;text-align:center;padding:20px"><div><h2>QR vencido</h2><p>Abra de novo a janela <b>Celular</b> no computador da projeção e leia o QR novo.</p><p><a style="color:#7fc0f2" href="/entrar.html?next=/remote.html">Ou entre com o PIN</a></p></div>');
+    res.setHeader('Set-Cookie', sec.cookieHeader(sec.createSession(req.headers['user-agent'])));
+    res.redirect('/remote.html');
+  });
   const ipOf = (req) => String(req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
   app.get('/api/auth/status', (req, res) => ok(res, { level: req.level, hasPin: sec.hasPin() }));
   app.post('/api/auth/login', (req, res) => {
@@ -1305,7 +1344,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
 
   // QR code para o celular do pregador enviar arquivos direto para o culto
   app.get('/api/qr', wrap(async (req, res) => {
-    const ips = Object.values(os.networkInterfaces()).flat().filter((n) => n && n.family === 'IPv4' && !n.internal).map((n) => n.address);
+    const ips = lanIps();
     const base = ips.length ? `http://${ips[0]}:${port}` : `http://localhost:${port}`;
     let p = String(req.query.path || '/');
     if (!p.startsWith('/') || p.startsWith('//')) p = '/';
@@ -1452,7 +1491,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
 
   // Endereços para abrir no celular (mesma rede Wi-Fi)
   app.get('/api/info', wrap(async (req, res) => {
-    const ips = Object.values(os.networkInterfaces()).flat().filter((n) => n && n.family === 'IPv4' && !n.internal).map((n) => n.address);
+    const ips = lanIps();
     const urls = ips.map((ip) => `http://${ip}:${port}`);
     const remote = (urls[0] || `http://localhost:${port}`) + '/remote.html';
     ok(res, { urls, remote, qr: await QRCode.toDataURL(remote, { margin: 1, width: 220 }) });

@@ -446,8 +446,15 @@
   <div class="modal-h"><h2>Controle pelo celular</h2><div class="acts"><button class="btn sm" id="phClose">Fechar</button></div></div>
   <div class="phone-body">
     <img id="qr" alt="QR code do controle">
-    <p>Conecte o celular no <b>mesmo Wi-Fi</b> deste computador e leia o QR code, ou abra:</p>
-    <div id="phUrls"></div>
+    <p><b>Leia o QR com a câmera do celular</b> (no mesmo Wi-Fi deste computador). O celular já entra liberado para controlar — sem digitar PIN. O QR vale por 15 minutos; depois é só abrir esta janela de novo.</p>
+    <div class="ph-tip" id="phTip"></div>
+    <details class="ph-more"><summary>Não abriu no celular?</summary>
+      <ol>
+        <li>Confira se o celular está no <b>mesmo Wi-Fi</b> (não nos dados móveis).</li>
+        <li>O Windows pode estar bloqueando: na pasta do sistema, dê dois cliques em <b>Liberar-celular.cmd</b> e aceite a permissão.</li>
+        <li>Se o computador tiver mais de uma rede, tente os outros endereços: <span id="phUrls"></span></li>
+      </ol>
+    </details>
     <p class="muted small">Retorno do palco: mesmo endereço com <code>/stage.html</code> (TV ou tablet).</p>
   </div>
 </dialog>
@@ -647,7 +654,7 @@
 </dialog>
 
 <div id="updOverlay" class="upd-overlay" hidden><div><div class="spin"></div><b>Atualizando o sistema…</b><p class="muted small">Não feche a janela preta. Esta tela volta sozinha em alguns segundos.</p></div></div>
-<div id="toast"></div>
+<div id="toast" popover="manual"></div>
 <div class="conn-lost" id="connLost" hidden><div class="spin"></div><b>Sem conexão com o sistema</b><span>O telão continua mostrando o último slide. Reconectando…</span></div>
 <script src="/socket.io/socket.io.js"></script>
 <script type="module" src="/operator/app.js"></script>

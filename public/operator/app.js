@@ -26,10 +26,13 @@ const api = async (url, opts = {}) => {
 };
 let toastT;
 const toast = (msg) => {
-  $('toast').textContent = msg;
-  $('toast').classList.add('on');
+  const t = $('toast');
+  t.textContent = msg;
+  // fica por cima até das janelas abertas (Configurações etc.)
+  try { if (t.matches(':popover-open')) t.hidePopover(); t.showPopover(); } catch {}
+  t.classList.add('on');
   clearTimeout(toastT);
-  toastT = setTimeout(() => $('toast').classList.remove('on'), 2600);
+  toastT = setTimeout(() => { t.classList.remove('on'); setTimeout(() => { try { t.hidePopover(); } catch {} }, 300); }, 3200);
 };
 
 const socket = io();
@@ -433,9 +436,11 @@ $('msgSend').onclick = () => { cmd({ type: 'message', value: $('msgIn').value })
 $('msgIn').onkeydown = (e) => e.key === 'Enter' && $('msgSend').click();
 
 $('phoneBtn').onclick = async () => {
-  const info = await api('/api/info');
-  $('qr').src = info.qr;
-  $('phUrls').innerHTML = (info.urls.length ? info.urls : ['http://localhost:' + location.port]).map((u) => `<a href="${u}/remote.html" target="_blank">${u}/remote.html</a>`).join('');
+  let p;
+  try { p = await api('/api/pair'); } catch (e) { return toast(e.message); }
+  $('qr').src = p.qr;
+  $('phTip').textContent = p.url.replace(/\?.*$/, '').replace('/parear', '');
+  $('phUrls').innerHTML = p.others.length ? p.others.map((u) => `<a href="${u}" target="_blank">${u.replace(/\/parear.*/, '')}</a>`).join(' · ') : '(só há uma rede)';
   $('phone').showModal();
 };
 $('phClose').onclick = () => $('phone').close();

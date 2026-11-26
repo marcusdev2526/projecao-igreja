@@ -38,7 +38,12 @@ echo  Instalando as dependencias (so demora na primeira vez)...
 call npm install --omit=dev --no-audit --no-fund
 if errorlevel 1 (echo  Erro ao instalar as dependencias. Verifique a internet e rode de novo. & pause & exit /b 1)
 
-rem ---- 3) Atalhos ----
+rem ---- 3) Liberar o celular no firewall do Windows ----
+echo.
+echo  Liberando o celular no firewall (o Windows vai pedir permissao)...
+call "%~dp0Liberar-celular.cmd"
+
+rem ---- 4) Atalhos ----
 echo.
 choice /c SN /n /m " Abrir o sistema sozinho quando o Windows ligar? [S/N] "
 set "AUTO=0"
