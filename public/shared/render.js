@@ -182,8 +182,10 @@ export function createStage(container, { live = false } = {}) {
       api.themeKey = key;
       api.themeId = id;
       resetTheme(stage);
+      api.th = null;
       if (def) { applyCustomTheme(stage, def); return sliceBg(stage); }
       const th = themeById(id);
+      api.th = th;
       stage.classList.add('theme-' + th.id, 'tr-blur');
       stage.querySelector('.bg').innerHTML = th.bg();
       sliceBg(stage);
@@ -195,6 +197,7 @@ export function createStage(container, { live = false } = {}) {
       layer.className = 'content-layer' + (animate ? ' enter' : '');
       layer.innerHTML = html;
       layers.appendChild(layer);
+      if (api.th?.onSlide) try { api.th.onSlide(stage, layer); } catch {}
       fit(layer);
       ambientVideo(layer);
       const newIsMedia = !!layer.querySelector('.media-full');

@@ -43,9 +43,11 @@ const sine = (w, y, amp, period) => {
   return d;
 };
 
-export const THEME_CATS = { minimalista: 'Minimalistas', expressivo: 'Expressivos', datas: 'Datas especiais' };
+import { SCENE_THEMES } from './scenes.js';
+export const THEME_CATS = { cenas: 'Cenas ilustradas', minimalista: 'Minimalistas', expressivo: 'Expressivos', datas: 'Datas especiais' };
 
 export const THEMES = [
+  ...SCENE_THEMES,
   {
     id: 'adpc',
     cat: 'expressivo',
