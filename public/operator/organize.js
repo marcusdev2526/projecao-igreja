@@ -135,6 +135,7 @@ export function initOrganize(ctx) {
     $('chText').value = c.waitText || '';
     $('chLogo').innerHTML = '<option value="">Sem logo (mostra o nome)</option><option value="/brand/adpc.png">Logo da ADPC (se monta no telão)</option>' + media.filter((m) => m.type === 'image').map((m) => `<option value="${esc(m.url)}">${esc(m.name)}</option>`).join('');
     $('chLogo').value = c.logo || '';
+    $('chMark').checked = c.mark !== false;
     showLogo();
     $('chDeck').innerHTML = '<option value="">Sem avisos</option>' + decks.map((d) => `<option value="${d.id}">${esc(d.title)} (${d.count})</option>`).join('');
     $('chDeck').value = c.deckId || '';
@@ -147,7 +148,7 @@ export function initOrganize(ctx) {
   $('settingsBtn').addEventListener('click', () => loadChurch().catch(() => {}));
   $('stSave').addEventListener('click', async () => {
     try {
-      await api('/api/settings/church', { method: 'PUT', body: { name: $('chName').value.trim(), logo: $('chLogo').value, start: $('chStart').value, waitText: $('chText').value.trim(), deckId: $('chDeck').value } });
+      await api('/api/settings/church', { method: 'PUT', body: { name: $('chName').value.trim(), logo: $('chLogo').value, mark: $('chMark').checked, start: $('chStart').value, waitText: $('chText').value.trim(), deckId: $('chDeck').value } });
       await api('/api/settings/backup', { method: 'PUT', body: { dir: $('bkDir').value.trim(), on: $('bkOn').checked } });
     } catch (e) {
       toast(e.message);

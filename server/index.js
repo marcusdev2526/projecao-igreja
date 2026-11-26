@@ -230,6 +230,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     return {
       name: repo.getSetting('church_name', ''),
       logo: repo.getSetting('church_logo', '/brand/adpc.png'),
+      mark: repo.getSetting('church_mark', '1') === '1',
       start: repo.getSetting('wait_start', '19:00'),
       waitText: repo.getSetting('wait_text', 'O culto já vai começar'),
       deck: d ? { urls: d.urls, auto: d.auto || 8 } : null,
@@ -974,6 +975,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     const b = req.body || {};
     if (b.name != null) repo.setSetting('church_name', String(b.name).slice(0, 80));
     if (b.logo != null) repo.setSetting('church_logo', String(b.logo));
+    if (b.mark != null) repo.setSetting('church_mark', b.mark ? '1' : '0');
     if (b.start != null && /^\d{1,2}:\d{2}$/.test(b.start)) repo.setSetting('wait_start', b.start);
     if (b.waitText != null) repo.setSetting('wait_text', String(b.waitText).slice(0, 80));
     if (b.deckId != null) repo.setSetting('wait_deck', String(b.deckId));

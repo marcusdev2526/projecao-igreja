@@ -170,7 +170,7 @@ export function createStage(container, { live = false } = {}) {
   container.classList.add('stage-host');
   const stage = document.createElement('div');
   stage.className = 'stage';
-  stage.innerHTML = '<div class="bg"></div><div class="dim"></div><div class="layers"></div><div class="logo"></div><div class="black"></div>';
+  stage.innerHTML = '<div class="bg"></div><div class="dim"></div><div class="layers"></div><div class="logo"></div><div class="mark"></div><div class="black"></div>';
   container.appendChild(stage);
   const api = {
     el: stage,

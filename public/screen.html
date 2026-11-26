@@ -49,6 +49,11 @@
     // fundo reage ao refrão
     stage.el.classList.toggle('is-chorus', !s.showBase && !s.clear && s.slide?.type === 'refrao');
     const html = s.waiting ? waitingHTML(s.church) : s.logo ? logoHTML(s.church) : s.showBase && s.base ? baseHTML(s.base) : s.clear || !s.slide ? '' : slideHTML(s.slide, s.mode);
+    // marca da igreja embaixo: só com letra ou Bíblia na tela (some na logo, espera, cartaz, vídeo e tela preta)
+    const markLogo = s.church?.logo === '/brand/adpc.png' ? '/brand/intro/mask.png' : s.church?.logo;
+    const showMark = !!(s.church?.mark && markLogo && s.slide && !s.clear && !s.logo && !s.waiting && !(s.showBase && s.base) && s.slide.kind !== 'media');
+    stage.el.style.setProperty('--mark-img', markLogo ? `url("${markLogo}")` : 'none');
+    stage.el.classList.toggle('has-mark', showMark);
     const key = s.themeId + '|' + s.mode + '|' + html;
     if (key !== lastKey) { stage.show(html); lastKey = key; tickWaiting(stage.el); }
     applyPlayer(s.player);
