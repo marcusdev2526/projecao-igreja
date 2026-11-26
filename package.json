@@ -25,7 +25,7 @@
     "mammoth": "^1.13.0",
     "multer": "^2.5.0",
     "node-html-parser": "^9.0.7",
-    "pdfjs-dist": "^4.10.38",
+    "pdfjs-dist": "^6.5.438",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.4"
   },
