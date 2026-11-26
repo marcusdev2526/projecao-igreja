@@ -421,15 +421,23 @@
 </dialog>
 
 <!-- Importar versão da Bíblia -->
-<dialog id="bibleImp" class="modal">
-  <div class="modal-h"><h2>Importar versão da Bíblia</h2><div class="acts"><button class="btn sm" id="biCancel">Cancelar</button><button class="btn primary sm" id="biSave">Importar</button></div></div>
+<dialog id="bibleImp" class="modal bi-wide">
+  <div class="modal-h"><h2>Versões da Bíblia</h2><div class="acts"><button class="btn sm" id="biCancel">Fechar</button></div></div>
   <div class="bi-body">
+    <h3 class="st-h">Instaladas</h3>
+    <div id="biVersions"></div>
+    <h3 class="st-h" style="margin-top:8px">Baixar da internet</h3>
+    <p class="muted small">Versões do projeto <b>thiagobodruk/bible</b> no GitHub. Um clique baixa e instala (leva uns segundos). O texto de cada versão pertence à sua editora: projete só as que a igreja tem direito de usar. As marcadas <span class="pd">livre</span> são de domínio público ou licença aberta.</p>
+    <div class="bc-tools"><input class="search" id="bcQ" placeholder="Buscar versão (ex.: Almeida, NVI, King James)…" autocomplete="off"><div class="seg" id="bcLang"><button data-l="pt" class="on">Português</button><button data-l="en">Inglês</button><button data-l="es">Espanhol</button></div></div>
+    <div class="bc-list" id="bcList"></div>
+    <details class="bi-file"><summary>Importar de um arquivo (.json)</summary>
     <label>Arquivo (.json) <input type="file" id="biFile" accept=".json,.gz"></label>
     <label>Sigla <input id="biCode" class="search" placeholder="Ex.: ARC" maxlength="16"></label>
     <label>Nome <input id="biName" class="search" placeholder="Ex.: Almeida Revista e Corrigida"></label>
     <label>Idioma <select id="biLang" class="sel"><option value="pt">Português</option><option value="en">Inglês</option><option value="es">Espanhol</option></select></label>
+    <button class="btn primary sm" id="biSave" style="justify-self:start">Importar arquivo</button>
     <p class="muted small">Aceita JSON no formato do projeto <i>thiagobodruk/biblia</i>, do <i>scrollmapper/bible_databases</i> ou o deste sistema. Importe só versões que a igreja tem direito de projetar (NVI, NAA e ARA têm direitos autorais).</p>
-    <div id="biVersions"></div>
+    </details>
   </div>
 </dialog>
 

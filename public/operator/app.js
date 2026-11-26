@@ -1234,7 +1234,38 @@ $('addBibleBtn').onclick = async () => {
 };
 
 // Importar versão
-$('bibleImportBtn').onclick = async () => { await loadVersions(); $('bibleImp').showModal(); };
+// Baixar versões da internet (catálogo do projeto thiagobodruk/bible)
+const FREE_BIBLES = new Set(['pt_tb', 'en_kjv', 'en_asv', 'en_bbe', 'en_darby', 'en_dra', 'en_gnv', 'en_web', 'en_webu', 'en_webbe', 'en_webus', 'en_wmb', 'en_wmbbe', 'en_ylt98', 'en_bsb', 'en_mbsb', 'en_lsv', 'en_fbv', 'en_engrv', 'en_kjvcpb', 'en_wbms', 'en_t4t', 'en_jub', 'es_rv1909', 'es_rvr1909']);
+let bcCat = [];
+let bcLang = 'pt';
+const bcCode = (id) => id.split('_')[1].toUpperCase().slice(0, 16);
+async function renderCatalog() {
+  if (!bcCat.length) { try { bcCat = await api('/api/bible/catalog'); } catch { bcCat = []; } }
+  const have = new Set(versions.map((v) => v.code));
+  const q = $('bcQ').value.trim().toLowerCase();
+  const list = bcCat.filter((b) => b.lang === bcLang && (!q || (b.name + ' ' + b.id).toLowerCase().includes(q)));
+  $('bcList').innerHTML = list.map((b) => {
+    const inst = have.has(bcCode(b.id));
+    return `<div class="bc-row"><div><b>${esc(b.name)}</b> <span class="muted small">${bcCode(b.id)}</span>${FREE_BIBLES.has(b.id) ? ' <span class="pd">livre</span>' : ''}</div>
+      ${inst ? '<span class="bc-ok">✓ instalada</span>' : `<button class="btn sm" data-dl="${esc(b.id)}">Baixar</button>`}</div>`;
+  }).join('') || '<div class="empty">Nenhuma versão encontrada</div>';
+}
+$('bcQ').oninput = renderCatalog;
+$('bcLang').onclick = (e) => { const b = e.target.closest('[data-l]'); if (!b) return; bcLang = b.dataset.l; $('bcLang').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); renderCatalog(); };
+$('bcList').onclick = async (e) => {
+  const b = e.target.closest('[data-dl]');
+  if (!b) return;
+  const item = bcCat.find((x) => x.id === b.dataset.dl);
+  if (!FREE_BIBLES.has(item.id) && !confirm(`“${item.name}” tem direitos autorais da editora.\n\nSó instale se a igreja tiver permissão para projetar essa versão. Continuar?`)) return;
+  b.disabled = true; b.textContent = 'Baixando…';
+  try {
+    const r = await api('/api/bible/download', { method: 'POST', body: { id: item.id } });
+    toast(`${item.name}: ${r.verses} versículos instalados`);
+    await loadVersions();
+    renderCatalog();
+  } catch (err) { toast(err.message || 'Não consegui baixar'); b.disabled = false; b.textContent = 'Baixar'; }
+};
+$('bibleImportBtn').onclick = async () => { await loadVersions(); renderCatalog(); $('bibleImp').showModal(); };
 $('biCancel').onclick = () => $('bibleImp').close();
 $('biVersions').onclick = async (e) => {
   const c = e.target.dataset.delv;

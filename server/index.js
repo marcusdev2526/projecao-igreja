@@ -22,6 +22,7 @@ import { fetchLyrics, searchLyricsOnline, fetchOnlineResult } from './urlimport.
 import { makeUpdater, RESTART_CODE } from './updater.js';
 import { parseRef, refText } from '../public/shared/bible.js';
 import { makeSecurity, safeFetch } from './security.js';
+import { BIBLE_CATALOG } from './biblecatalog.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -1055,6 +1056,32 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     v.lang = req.body.lang || v.lang || 'pt';
     v.license = req.body.license || v.license || '';
     ok(res, repo.importVersion(v));
+  }));
+  // Baixar versões do projeto thiagobodruk/bible direto pelo sistema
+  app.get('/api/bible/catalog', (req, res) => ok(res, BIBLE_CATALOG));
+  let bibleFetching = false;
+  app.post('/api/bible/download', wrap(async (req, res) => {
+    const item = BIBLE_CATALOG.find((x) => x.id === String(req.body.id || ''));
+    if (!item) throw new Error('Versão não encontrada no catálogo');
+    if (bibleFetching) throw new Error('Já está baixando uma versão, aguarde');
+    bibleFetching = true;
+    try {
+      const r = await safeFetch(`https://raw.githubusercontent.com/thiagobodruk/bible/master/json/${item.id}.json`, { headers: { 'user-agent': 'projecao-igreja' } });
+      if (!r.ok) throw new Error('Não consegui baixar (GitHub respondeu ' + r.status + ')');
+      const buf = Buffer.from(await r.arrayBuffer());
+      if (buf.length > 30 * 1024 * 1024) throw new Error('Arquivo grande demais');
+      const v = parseBibleJson(buf);
+      v.books = v.books.slice(0, 66); // ignora livros extras (apócrifos)
+      v.code = String(req.body.code || item.id.split('_')[1]).toUpperCase();
+      v.name = item.name;
+      v.lang = item.lang;
+      v.license = 'Baixada de github.com/thiagobodruk/bible — o texto pertence aos seus donos';
+      const out = repo.importVersion(v);
+      io.emit('bible-versions');
+      ok(res, out);
+    } finally {
+      bibleFetching = false;
+    }
   }));
   app.get('/api/bible/history', (req, res) => ok(res, bibleHistory));
   // Versículo sobre a obra de Deus para a abertura do sistema (muda a cada dia)
