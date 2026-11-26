@@ -133,7 +133,7 @@ export function initOrganize(ctx) {
     $('chName').value = c.name || '';
     $('chStart').value = c.start || '19:00';
     $('chText').value = c.waitText || '';
-    $('chLogo').innerHTML = '<option value="">Sem logo (mostra o nome)</option>' + media.filter((m) => m.type === 'image').map((m) => `<option value="${esc(m.url)}">${esc(m.name)}</option>`).join('');
+    $('chLogo').innerHTML = '<option value="">Sem logo (mostra o nome)</option><option value="/brand/adpc.png">Logo da ADPC (se monta no telão)</option>' + media.filter((m) => m.type === 'image').map((m) => `<option value="${esc(m.url)}">${esc(m.name)}</option>`).join('');
     $('chLogo').value = c.logo || '';
     showLogo();
     $('chDeck').innerHTML = '<option value="">Sem avisos</option>' + decks.map((d) => `<option value="${d.id}">${esc(d.title)} (${d.count})</option>`).join('');
