@@ -1498,3 +1498,21 @@ body.light .modal > .modal-h { background-color: var(--panel); }
 .conn-chip.on { border-color: rgba(62,207,142,.5); background: rgba(62,207,142,.12); color: #8ff0c4; cursor: default; }
 .conn-chip.on i { background: #3ecf8e; box-shadow: 0 0 8px rgba(62,207,142,.8); animation: none; }
 body.light .conn-chip.on { color: #0f7a4a; }
+
+/* Notebook / zoom do Windows (125%): prévia proporcional à altura livre e barra de baixo que sempre cabe */
+.preview-wrap { width: min(100%, calc(clamp(220px, min(52vh, 100vh - 440px), 760px) * var(--ar, 1.7778))); }
+.cmdbar { overflow: hidden; }
+.cmdbar .cb { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; justify-content: center; }
+.cmdbar .cb.next { flex: 2 1 auto; }
+.cmdbar > .sep, .cmdbar > .grow { flex: 0 1 12px; min-width: 0; }
+@media (max-width: 1700px) {
+  .cmdbar { gap: 5px; padding-left: 10px; padding-right: 10px; }
+  .cmdbar .cb { padding: 0 9px; font-size: 12.5px; gap: 5px; }
+  .cmdbar .cb kbd { display: none; }
+}
+@media (max-width: 1450px) { .cmdbar .cb:not(.next) svg { display: none; } }
+/* aba de fontes: abas e etiquetas não estouram */
+.src-tabs { overflow-x: auto; scrollbar-width: none; }
+.src-tabs::-webkit-scrollbar { display: none; }
+.src-tabs button { flex: 0 0 auto; }
+.cmdbar .cb.warn::before { flex: none; }
