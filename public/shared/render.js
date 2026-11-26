@@ -111,15 +111,17 @@ export function baseHTML(b = {}) {
 // Tela só com a logo (ou o nome) da igreja
 // Logo da ADPC "se montando" (peças em /brand/intro): livro, globo, faixa, chamas e letras
 export const ADPC_LOGO = '/brand/adpc.png';
-export function logoBuildHTML() {
+export function logoBuildHTML(h = '') {
   const P = '/brand/intro/';
   let seed = 3;
   const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
-  return `<div class="logo-build">
-    <div class="lb-glow"></div>
-    ${['book', 'globe', 'swoosh', 'flames', 'flameb', 'A', 'D', 'P', 'C'].map((p) => `<img class="lb-p lb-${p}" src="${P}${p}.png" alt="">`).join('')}
-    <div class="lb-shine" style="--m:url(${P}mask.png)"></div>
-    <div class="lb-embers">${Array.from({ length: 26 }, () => `<i style="--x:${(28 + rnd() * 44).toFixed(1)}%;--d:${(1.6 + rnd() * 1.6).toFixed(2)}s;--dl:${(1.5 + rnd() * 2.5).toFixed(2)}s;--dx:${((rnd() - 0.5) * 160) | 0}px"></i>`).join('')}</div>
+  return `<div class="logo-build" style="--m:url(${P}mask.png)${h ? ';--lb-h:' + h : ''}">
+    <div class="lb-rays"></div><div class="lb-halo"></div>
+    <div class="lb-cam">
+      ${['book', 'globe', 'swoosh', 'flames', 'flameb', 'A', 'D', 'P', 'C'].map((p) => `<img class="lb-p lb-${p}" src="${P}${p}.png" alt="" draggable="false">`).join('')}
+      <div class="lb-flare"></div><div class="lb-shine"></div>
+      <div class="lb-embers">${Array.from({ length: 14 }, () => `<i style="--x:${(34 + rnd() * 32).toFixed(1)}%;--d:${(2.6 + rnd() * 2.2).toFixed(2)}s;--dl:${(2.4 + rnd() * 4).toFixed(2)}s;--dx:${((rnd() - 0.5) * 0.12).toFixed(3)}"></i>`).join('')}</div>
+    </div>
   </div>`;
 }
 export function logoHTML(c = {}) {

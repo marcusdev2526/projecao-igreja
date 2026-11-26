@@ -480,30 +480,77 @@
 :is(.theme-luar, .theme-nascer, .theme-mar, .theme-trigal, .theme-estrelado, .theme-calvario, .theme-cena) .plain-line .mn { font-weight: 800; letter-spacing: -.02em; }
 .theme-luar { --glow: 0 4px 40px rgba(16, 6, 60, .85), 0 0 2px rgba(16, 6, 60, .6); }
 
-/* ===== Logo da ADPC se montando no telão (botão Logo) ===== */
-.logo-build { position: relative; height: 640px; aspect-ratio: 1280 / 1263; }
-.logo-build .lb-p { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; opacity: 0; filter: none; }
-.lb-glow { position: absolute; left: 50%; top: 45%; width: 1100px; height: 1100px; transform: translate(-50%, -50%) scale(.6); border-radius: 50%; background: radial-gradient(circle, rgba(43,147,208,.32), rgba(242,146,30,.08) 45%, transparent 70%); opacity: 0; animation: lb-glow 2.6s ease .5s forwards, lb-breathe 6s ease-in-out 3.2s infinite alternate; }
-@keyframes lb-glow { to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
-@keyframes lb-breathe { from { opacity: 1; } to { opacity: .65; } }
-.lb-book { transform-origin: 50% 77%; animation: lb-book .9s cubic-bezier(.2,.8,.2,1) .3s forwards; }
-@keyframes lb-book { from { opacity: 0; transform: translateY(60px) scaleY(.05); } 60% { opacity: 1; } to { opacity: 1; transform: none; } }
-.lb-globe { transform-origin: 50% 44.7%; animation: lb-globe 1.1s cubic-bezier(.2,.8,.2,1) .9s forwards; }
-@keyframes lb-globe { from { opacity: 0; transform: scale(.4) rotate(-40deg); filter: blur(10px) brightness(2); } to { opacity: 1; transform: none; filter: none; } }
-.lb-swoosh { clip-path: inset(0 100% 0 0); animation: lb-wx 1.1s cubic-bezier(.6,0,.3,1) 1.4s forwards; }
-@keyframes lb-wx { from { opacity: 1; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
-.lb-flames { clip-path: inset(100% 0 0 0); animation: lb-wy 1s cubic-bezier(.3,.7,.2,1) 1.8s forwards, lb-flick 1.6s ease-in-out 3s infinite alternate; }
-.lb-flameb { clip-path: inset(100% 0 0 0); animation: lb-wy .9s cubic-bezier(.3,.7,.2,1) 2.1s forwards; }
-@keyframes lb-wy { from { opacity: 1; clip-path: inset(100% 0 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
-@keyframes lb-flick { to { filter: brightness(1.2) drop-shadow(0 0 18px rgba(255,190,60,.5)); } }
-.lb-A, .lb-D, .lb-P, .lb-C { animation: lb-letter .7s cubic-bezier(.2,.9,.25,1.2) forwards; }
-.lb-A { animation-delay: 2.5s; } .lb-D { animation-delay: 2.64s; } .lb-P { animation-delay: 2.78s; } .lb-C { animation-delay: 2.92s; }
-@keyframes lb-letter { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
-.lb-shine { position: absolute; inset: 0; pointer-events: none; -webkit-mask: var(--m) center / 100% 100% no-repeat; mask: var(--m) center / 100% 100% no-repeat;
-  background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.7) 50%, transparent 65%) -150% 0 / 250% 100% no-repeat; animation: lb-shine 1.2s ease 3.6s forwards, lb-shine-loop 9s ease 9s infinite; }
-@keyframes lb-shine { to { background-position: 150% 0; } }
-@keyframes lb-shine-loop { 0% { background-position: -150% 0; } 14%, 100% { background-position: 150% 0; } }
-.lb-embers i { position: absolute; left: var(--x); top: 38%; width: 6px; height: 6px; border-radius: 50%; background: #ffd36b; box-shadow: 0 0 10px 3px rgba(242,146,30,.8); opacity: 0; animation: lb-ember var(--d) ease-out var(--dl) infinite; }
-@keyframes lb-ember { 0% { opacity: 0; transform: translate(0, 0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), -360px); } }
+/* =====================================================================
+   LOGO DA ADPC SE MONTANDO — usada no botão Logo do telão e na abertura do sistema
+   Linguagem: revelações com máscara suave (sem corte seco), easing "expo out",
+   profundidade (livro abre em 3D), foco que entra (desfoque → nítido),
+   luz que acompanha a montagem e uma leve aproximação de câmera.
+   Tempo total da montagem ≈ 4,4 s; depois fica "viva" bem de leve.
+   ===================================================================== */
+.logo-build { --lb-h: 640px; --ez: cubic-bezier(.16, 1, .3, 1); position: relative; height: var(--lb-h); aspect-ratio: 1280 / 1263; isolation: isolate; }
+.lb-cam { position: absolute; inset: 0; transform: scale(.94); animation: lb-cam 5.2s cubic-bezier(.22, .8, .25, 1) forwards; }
+@keyframes lb-cam { to { transform: scale(1); } }
+.logo-build .lb-p { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; opacity: 0; filter: none; will-change: transform, opacity, filter; }
+
+/* luz de fundo: halo + feixes girando devagar */
+.lb-halo { position: absolute; left: 50%; top: 44%; width: 165%; aspect-ratio: 1; transform: translate(-50%, -50%) scale(.7); border-radius: 50%; opacity: 0; z-index: -1;
+  background: radial-gradient(circle, rgba(90, 170, 235, .30) 0%, rgba(43, 120, 200, .12) 30%, rgba(242, 146, 30, .05) 46%, transparent 66%);
+  animation: lb-halo 2.4s var(--ez) .1s forwards, lb-breathe 7s ease-in-out 4.5s infinite alternate; }
+@keyframes lb-halo { to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes lb-breathe { from { opacity: 1; } to { opacity: .7; } }
+.lb-rays { position: absolute; left: 50%; top: 44%; width: 210%; aspect-ratio: 1; transform: translate(-50%, -50%); z-index: -1; opacity: 0;
+  background: repeating-conic-gradient(from 0deg, rgba(160, 205, 255, .055) 0deg 2.5deg, transparent 2.5deg 12deg);
+  -webkit-mask: radial-gradient(circle, #000 0 12%, transparent 52%); mask: radial-gradient(circle, #000 0 12%, transparent 52%);
+  animation: lb-fade 2s ease .6s forwards, lb-spin 140s linear infinite; }
+@keyframes lb-fade { to { opacity: 1; } }
+@keyframes lb-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+/* 1. o livro abre em 3D */
+.lb-book { transform-origin: 50% 78%; animation: lb-book 1.3s var(--ez) .25s forwards; }
+@keyframes lb-book { from { opacity: 0; transform: perspective(900px) translateY(5%) rotateX(78deg); filter: blur(6px); } 45% { opacity: 1; } to { opacity: 1; transform: none; filter: none; } }
+
+/* 2. o globo entra em foco, com um clarão de luz */
+.lb-globe { transform-origin: 50% 44.7%; animation: lb-globe 1.4s var(--ez) .8s forwards; }
+@keyframes lb-globe { from { opacity: 0; transform: scale(.84); filter: blur(16px) brightness(1.9); } 40% { opacity: 1; } to { opacity: 1; transform: none; filter: none; } }
+.lb-flare { position: absolute; left: 50%; top: 44.7%; width: 90%; height: 3%; transform: translate(-50%, -50%) scaleX(0); border-radius: 50%; opacity: 0; pointer-events: none;
+  background: radial-gradient(ellipse, rgba(255, 255, 255, .95), rgba(150, 210, 255, .5) 35%, transparent 70%); filter: blur(2px); mix-blend-mode: screen;
+  animation: lb-flare 1.3s var(--ez) .95s forwards; }
+@keyframes lb-flare { 0% { opacity: 0; transform: translate(-50%, -50%) scaleX(0); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scaleX(1.25); } }
+
+/* 3. a faixa azul é "pintada" com borda suave */
+.lb-swoosh { -webkit-mask: linear-gradient(90deg, #000 42%, transparent 58%) 100% 0 / 260% 100% no-repeat; mask: linear-gradient(90deg, #000 42%, transparent 58%) 100% 0 / 260% 100% no-repeat;
+  animation: lb-paint-x 1.5s cubic-bezier(.45, 0, .2, 1) 1.35s forwards; }
+@keyframes lb-paint-x { from { opacity: 1; -webkit-mask-position: 100% 0; mask-position: 100% 0; } to { opacity: 1; -webkit-mask-position: 0 0; mask-position: 0 0; } }
+
+/* 4. as chamas acendem de baixo para cima */
+.lb-flames, .lb-flameb { transform-origin: 50% 62%;
+  -webkit-mask: linear-gradient(0deg, #000 42%, transparent 58%) 0 0 / 100% 260% no-repeat; mask: linear-gradient(0deg, #000 42%, transparent 58%) 0 0 / 100% 260% no-repeat; }
+.lb-flames { animation: lb-paint-y 1.3s cubic-bezier(.3, .6, .2, 1) 1.85s forwards, lb-flick 2.4s ease-in-out 4.4s infinite alternate; }
+.lb-flameb { animation: lb-paint-y 1.2s cubic-bezier(.3, .6, .2, 1) 2.15s forwards; }
+@keyframes lb-paint-y { from { opacity: 1; -webkit-mask-position: 0 0; mask-position: 0 0; transform: scaleY(.92); } to { opacity: 1; -webkit-mask-position: 0 100%; mask-position: 0 100%; transform: none; } }
+@keyframes lb-flick { from { filter: brightness(1); } to { filter: brightness(1.1) drop-shadow(0 0 10px rgba(255, 190, 70, .35)); } }
+
+/* 5. letras sobem de trás de uma linha invisível, entrando em foco */
+.lb-A, .lb-D, .lb-P, .lb-C { -webkit-mask: linear-gradient(0deg, #000 46%, transparent 54%) 0 0 / 100% 230% no-repeat; mask: linear-gradient(0deg, #000 46%, transparent 54%) 0 0 / 100% 230% no-repeat;
+  animation: lb-letter 1.1s var(--ez) forwards; }
+.lb-A { animation-delay: 2.55s; } .lb-D { animation-delay: 2.68s; } .lb-P { animation-delay: 2.81s; } .lb-C { animation-delay: 2.94s; }
+@keyframes lb-letter { from { opacity: 0; transform: translateY(2.2%); filter: blur(6px); -webkit-mask-position: 0 0; mask-position: 0 0; } 30% { opacity: 1; } to { opacity: 1; transform: none; filter: none; -webkit-mask-position: 0 100%; mask-position: 0 100%; } }
+
+/* 6. acabamento: brilho suave passando e um pulso de luz */
+.lb-shine { position: absolute; inset: 0; pointer-events: none; opacity: .55; mix-blend-mode: screen;
+  -webkit-mask: var(--m) center / 100% 100% no-repeat; mask: var(--m) center / 100% 100% no-repeat;
+  background: linear-gradient(110deg, transparent 40%, rgba(255, 255, 255, .85) 50%, transparent 60%) -160% 0 / 260% 100% no-repeat;
+  animation: lb-shine 1.6s cubic-bezier(.45, 0, .2, 1) 3.75s forwards, lb-shine-loop 14s ease-in-out 14s infinite; }
+@keyframes lb-shine { to { background-position: 160% 0; } }
+@keyframes lb-shine-loop { 0% { background-position: -160% 0; } 12%, 100% { background-position: 160% 0; } }
+.lb-cam::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  -webkit-mask: var(--m) center / 100% 100% no-repeat; mask: var(--m) center / 100% 100% no-repeat;
+  background: rgba(255, 255, 255, .5); animation: lb-pulse 1.2s ease-out 3.6s forwards; }
+@keyframes lb-pulse { 0% { opacity: 0; } 25% { opacity: .35; } 100% { opacity: 0; } }
+
+/* faíscas discretas subindo das chamas */
+.lb-embers i { position: absolute; left: var(--x); top: 36%; width: .9%; aspect-ratio: 1; border-radius: 50%; background: #ffe2a0; box-shadow: 0 0 6px 2px rgba(242, 146, 30, .6); filter: blur(.5px); opacity: 0; animation: lb-ember var(--d) ease-out var(--dl) infinite; }
+@keyframes lb-ember { 0% { opacity: 0; transform: translate(0, 0) scale(1); } 20% { opacity: .9; } 100% { opacity: 0; transform: translate(calc(var(--lb-h) * var(--dx)), calc(var(--lb-h) * -.42)) scale(.4); } }
+
 .content-layer.out .logo-build * { animation-play-state: paused; }
-@media (prefers-reduced-motion: reduce) { .logo-build * { animation: none !important; opacity: 1 !important; clip-path: none !important; } .lb-embers { display: none; } }
+@media (prefers-reduced-motion: reduce) { .logo-build *, .lb-cam { animation: none !important; opacity: 1 !important; -webkit-mask: none !important; mask: none !important; transform: none !important; } .lb-embers, .lb-rays, .lb-flare, .lb-shine { display: none; } }
