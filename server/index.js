@@ -1054,6 +1054,19 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     ok(res, repo.importVersion(v));
   }));
   app.get('/api/bible/history', (req, res) => ok(res, bibleHistory));
+  // Versículo sobre a obra de Deus para a abertura do sistema (muda a cada dia)
+  const OBRA = [[46, 15, 58], [50, 1, 6], [49, 2, 10], [19, 90, 17], [51, 3, 23], [40, 5, 16], [41, 16, 15], [23, 64, 8], [46, 3, 9], [48, 6, 9], [43, 9, 4], [19, 92, 4], [60, 4, 10]];
+  app.get('/api/bible/obra', (req, res) => {
+    const versions = repo.listVersions().filter((v) => v.lang === 'pt');
+    const v = versions.find((x) => x.code === live.bibleMain) || versions.find((x) => x.code === 'BLIVRE') || versions[0];
+    const day = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60e3) / 864e5);
+    for (let k = 0; k < OBRA.length; k++) {
+      const [b, c, n] = OBRA[(day + k) % OBRA.length];
+      const verse = v && repo.getChapter(v.code, b, c).find((x) => x.verse === n);
+      if (verse) return ok(res, { text: verse.text, ref: refText(b, c, n), version: v.name });
+    }
+    ok(res, { text: 'Portanto, meus amados irmãos, sede firmes, imóveis e sempre abundantes na obra do Senhor, sabendo que o vosso trabalho não é vão no Senhor.', ref: '1 Coríntios 15:58', version: 'Bíblia Livre' });
+  });
   app.get('/api/bible/favorites', (req, res) => ok(res, readJson('bible_favs')));
   app.post('/api/bible/favorites', wrap((req, res) => {
     const { book, chapter, verse } = req.body;
