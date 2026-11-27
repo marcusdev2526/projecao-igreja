@@ -82,7 +82,7 @@ export function initOrganize(ctx) {
       const key = sc.itemId + ':' + sc.total;
       if ($('lnChips').dataset.k !== key) {
         $('lnChips').dataset.k = key;
-        $('lnChips').innerHTML = sc.slides.map((x) => `<button data-i="${x.index}" data-type="${x.type || ''}" title="${(x.preview || '').replace(/"/g, '&quot;')}">${x.code || x.name?.[0] || '·'}${x.parts > 1 && x.kind !== 'bible' ? '<small>' + x.part + '</small>' : ''}</button>`).join('');
+        $('lnChips').innerHTML = sc.slides.map((x) => `<button data-i="${x.index}" data-type="${x.type || ''}" title="${(x.preview || '').replace(/"/g, '&quot;')}">${x.kind === 'bible' ? ((x.name || '').match(/:(\d+(?:-\d+)?)/)?.[1] || x.index + 1) : x.code || x.name?.[0] || '·'}${x.parts > 1 ? '<small>' + x.part + '</small>' : ''}</button>`).join('');
       }
       $('lnChips').querySelectorAll('button').forEach((b) => b.classList.toggle('on', +b.dataset.i === sc.index));
       $('lnChips').querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });

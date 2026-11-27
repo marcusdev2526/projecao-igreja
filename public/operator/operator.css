@@ -1396,15 +1396,10 @@ body.light .filt-pop { box-shadow: 0 16px 40px rgba(16,24,40,.16); }
    - telão 16:9 → lado a lado, ocupando mais altura
    - telão ultrawide → um embaixo do outro (Preparado em cima, No telão embaixo), bem maiores */
 .preview-wrap:has(.pv-frame.dual) { width: min(100%, calc(clamp(220px, 44vh, 620px) * var(--ar, 1.7778) * 2 + 14px)); }
-body.ar-wide .pv-frame.dual { grid-template-columns: 1fr; gap: 12px; }
-body.ar-wide .preview-wrap:has(.pv-frame.dual) { width: min(100%, calc(clamp(160px, 27vh, 440px) * var(--ar, 1.7778))); }
-body.ar-wide .pv-frame.dual .pv-go { height: 34px; }
 .live-top:has(.pv-frame.dual) { padding-left: 14px; padding-right: 14px; }
 /* (regras com peso suficiente para vencer o ajuste do player) */
 .live-top .preview-wrap:has(#pvFrame.dual) { width: min(100%, calc(clamp(220px, 42vh, 620px) * var(--ar, 1.7778) * 2 + 14px)); }
 .live-top:has(#playerBar:not([hidden])) .preview-wrap:has(#pvFrame.dual) { width: min(100%, calc(clamp(200px, 36vh, 560px) * var(--ar, 1.7778) * 2 + 14px)); }
-body.ar-wide .live-top .preview-wrap:has(#pvFrame.dual) { width: min(100%, calc(clamp(150px, 31vh, 480px) * var(--ar, 1.7778))); }
-body.ar-wide .live-top:has(#playerBar:not([hidden])) .preview-wrap:has(#pvFrame.dual) { width: min(100%, calc(clamp(140px, 25vh, 420px) * var(--ar, 1.7778))); }
 .pv-frame.dual .frozen-badge { white-space: nowrap; }
 
 /* Buscar letra na internet */
@@ -1546,3 +1541,6 @@ body.light .conn-chip.on { color: #0f7a4a; }
 .ln-hint { font-size: 11.5px; color: var(--muted); }
 /* na barra de baixo, Anterior/Próximo passam o telão: fica claro pela cor */
 body.screen-nav .cmdbar .cb.next { background: #3fb6ea !important; border-color: #3fb6ea !important; color: #04131c !important; }
+/* Congelado: sempre lado a lado (Preparado | No telão), usando toda a largura do centro */
+.live-top .preview-wrap:has(#pvFrame.dual) { width: 100%; }
+.pv-frame.dual { grid-template-columns: 1fr 1fr; align-items: start; }
