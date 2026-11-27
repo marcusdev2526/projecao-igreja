@@ -313,6 +313,10 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   function screenView() {
     return {
       slide: live.slides[live.index] || null,
+      slides: live.slides,
+      index: live.index,
+      title: live.title,
+      itemId: live.itemId,
       mode: live.mode,
       themeId: live.themeId,
       themeDef: themeDef(live.themeId),
@@ -335,7 +339,31 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     let player = snap.player;
     if (player?.type === 'video') player = { ...player, status: 'paused', seq: player.seq + 0.5 };
     else if (live.player?.type === 'audio') player = live.player;
-    return { ...snap, player, black: live.black };
+    const { slides: all, ...rest } = snap;
+    return {
+      ...rest,
+      player,
+      black: live.black,
+      // para o painel/retorno: trechos do que está no telão (dá para continuar passando enquanto prepara o próximo)
+      total: all?.length || 0,
+      next: all?.[snap.index + 1] || null,
+      slides: (all || []).map((x) => ({ index: x.index, name: x.name, code: x.code, part: x.part, parts: x.parts, type: x.type, kind: x.kind, preview: preview(x) })),
+      navigable: snapNavigable(),
+    };
+  }
+  // Congelado com letra/Bíblia/aviso no telão: setas, celular e passador continuam passando os trechos NO TELÃO
+  function snapNavigable() {
+    const sn = live.screenSnap;
+    return !!(live.frozen && !live.rehearsal && sn && sn.slides?.length > 1 && sn.slide && sn.slide.kind !== 'media' && !sn.logo && !sn.waiting && !(sn.showBase && sn.base));
+  }
+  function moveSnap(to) {
+    const sn = live.screenSnap;
+    const i = Math.max(0, Math.min(sn.slides.length - 1, to));
+    if (i === sn.index && !sn.clear) return false;
+    sn.index = i;
+    sn.slide = sn.slides[i];
+    sn.clear = false;
+    return true;
   }
   function publicState() {
     const slide = live.slides[live.index] || null;
@@ -589,12 +617,23 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
         live.clear = false;
         if (deckTimer) startDeckTimer();
         break;
+      case 'screen-goto':
+        if (snapNavigable()) moveSnap(+c.index || 0);
+        break;
+      case 'prep-next':
+        if (live.index < live.slides.length - 1) live.index++;
+        break;
+      case 'prep-prev':
+        if (live.index > 0) live.index--;
+        break;
       case 'next':
+        if (snapNavigable()) { moveSnap(live.screenSnap.index + 1); break; }
         if (live.index < live.slides.length - 1) { live.index++; recTiming(); }
         else return nextItem(1);
         live.clear = false;
         break;
       case 'prev':
+        if (snapNavigable()) { moveSnap(live.screenSnap.index - 1); break; }
         if (live.index > 0) live.index--;
         else return nextItem(-1);
         live.clear = false;
@@ -612,7 +651,9 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       case 'freeze': {
         const on = typeof c.value === 'boolean' ? c.value : !live.frozen;
         if (on && !live.frozen) live.screenSnap = screenView();
+        if (!on && live.screenSnap && !live.rehearsal && live.screenSnap.itemId === live.itemId && live.screenSnap.slides === live.slides && c.keep !== false && live.index === live.screenSnap.prepIndexAtFreeze) live.index = live.screenSnap.index;
         live.frozen = on;
+        if (on && live.screenSnap) live.screenSnap.prepIndexAtFreeze = live.index;
         if (!on) { live.screenSnap = null; live.rehearsal = false; }
         break;
       }

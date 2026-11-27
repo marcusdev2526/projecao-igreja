@@ -56,7 +56,9 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const showChords = !new URLSearchParams(location.search).has('semcifra');
-  io().on('state', (s) => {
+  io().on('state', (s0) => {
+    // congelado: o retorno mostra o que o público vê (a banda acompanha o telão), menos no Ensaio
+    const s = s0.frozen && s0.screen && !s0.rehearsal ? { ...s0, ...s0.screen, title: s0.screen.title || s0.title } : s0;
     renderProgress($('prog'), { slides: s.slides, index: s.index });
     $('title').textContent = s.title || '—';
     $('pos').textContent = s.total ? `${s.index + 1}/${s.total}` : '';

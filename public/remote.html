@@ -136,12 +136,16 @@
     }));
   }
 
-  socket.on('state', (s) => {
+  socket.on('state', (s0) => {
+    // congelado com letra no telão: o celular passa os trechos DO TELÃO
+    const onScreen = !!(s0.frozen && s0.screen?.navigable);
+    const s = onScreen ? { ...s0, slides: s0.screen.slides, index: s0.screen.index, total: s0.screen.total, title: s0.screen.title, slide: s0.screen.slide, itemId: 'tela:' + s0.screen.itemId, songId: null } : s0;
+    const go = (i) => cmd(onScreen ? { type: 'screen-goto', index: i } : { type: 'goto', index: i });
     const changedSong = !state || state.itemId !== s.itemId || state.songId !== s.songId || state.total !== s.total;
     state = s;
     $('title').textContent = s.title || 'Nada selecionado';
-    renderProgress($('prog'), { slides: s.slides, index: s.index, onPick: (i) => cmd({ type: 'goto', index: i }) });
-    $('sub').textContent = s.total ? `Slide ${s.index + 1} de ${s.total}` : 'Escolha um louvor na aba Culto';
+    renderProgress($('prog'), { slides: s.slides, index: s.index, onPick: go });
+    $('sub').textContent = onScreen ? `No telão (congelado) · ${s.index + 1} de ${s.total}` : s.total ? `Slide ${s.index + 1} de ${s.total}` : 'Escolha um louvor na aba Culto';
     $('black').classList.toggle('on', s.black);
     $('freeze').classList.toggle('on', !!s.frozen);
     $('freeze').textContent = s.frozen ? 'Soltar no telão' : 'Congelar';
@@ -157,7 +161,7 @@
       $('slides').innerHTML = s.slides
         .map((sl) => `<button class="slide" data-i="${sl.index}"><div class="n">${esc(sl.name)}${sl.parts > 1 ? ` · ${sl.part}/${sl.parts}` : ''}</div><div class="t">${esc(stripMarkup(sl.preview))}</div></button>`)
         .join('');
-      $('slides').querySelectorAll('.slide').forEach((b) => (b.onclick = () => cmd({ type: 'goto', index: +b.dataset.i })));
+      $('slides').querySelectorAll('.slide').forEach((b) => (b.onclick = () => go(+b.dataset.i)));
     }
     $('slides').querySelectorAll('.slide').forEach((b) => b.classList.toggle('on', +b.dataset.i === s.index));
     const on = $('slides').querySelector('.slide.on');

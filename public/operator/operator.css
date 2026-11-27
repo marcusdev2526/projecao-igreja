@@ -1524,3 +1524,25 @@ body.light .conn-chip.on { color: #0f7a4a; }
 .ph-more ol { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; }
 .ph-more a { color: var(--accent2); }
 .bi-body label.chk, label.chk { display: flex !important; align-items: center; gap: 8px; flex-direction: row; } label.chk input { width: 16px; height: 16px; margin: 0; flex: none; accent-color: var(--accent); }
+
+/* Congelado: controle do que está NO TELÃO (continua passando a letra enquanto prepara o próximo) */
+.live-nav { margin-top: 8px; display: grid; gap: 6px; padding: 8px; border-radius: var(--ds-r); border: 1px solid rgba(63,182,234,.45); background: rgba(63,182,234,.08); }
+.live-nav[hidden] { display: none; }
+.ln-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ln-btn { flex: none; width: 34px; height: 34px; border-radius: var(--ds-r); border: 1px solid var(--ds-border); background: var(--ds-raised); color: var(--text); display: grid; place-items: center; cursor: pointer; }
+.ln-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.ln-btn.main { width: 46px; background: #3fb6ea; border-color: #3fb6ea; color: #04131c; }
+.ln-btn:disabled { opacity: .35; cursor: default; }
+.ln-cur { flex: 1; min-width: 0; display: flex; gap: 8px; align-items: baseline; font-size: 13px; white-space: nowrap; overflow: hidden; }
+.ln-cur b { color: #8fd8ff; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; flex: none; }
+.ln-cur span { overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.ln-pos { flex: none; font: 600 12px Inter, system-ui, sans-serif; color: var(--muted); }
+.ln-chips { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.ln-chips::-webkit-scrollbar { display: none; }
+.ln-chips button { flex: none; min-width: 30px; height: 26px; padding: 0 7px; border-radius: 6px; border: 1px solid var(--ds-border); background: var(--ds-raised); color: var(--muted); font: 700 11.5px Inter, system-ui, sans-serif; cursor: pointer; }
+.ln-chips button small { font-weight: 500; opacity: .7; margin-left: 1px; }
+.ln-chips button[data-type="refrao"] { color: #f5b942; }
+.ln-chips button.on { background: #3fb6ea; border-color: #3fb6ea; color: #04131c; }
+.ln-hint { font-size: 11.5px; color: var(--muted); }
+/* na barra de baixo, Anterior/Próximo passam o telão: fica claro pela cor */
+body.screen-nav .cmdbar .cb.next { background: #3fb6ea !important; border-color: #3fb6ea !important; color: #04131c !important; }

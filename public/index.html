@@ -75,6 +75,16 @@
             <div class="pv-lbl live-lbl" id="liveLbl" hidden><span class="dot"></span>NO TELÃO · congelado</div>
             <div class="pv-drop" data-drop="live"><iframe id="livePreview" src="/screen.html?embed" title="Prévia do telão"></iframe><div class="drop-hint">Solte aqui para mostrar no telão</div>
             <div class="frozen-badge" id="frozenBadge" hidden><svg viewBox="0 0 24 24"><path d="M12 2v20M4.9 6.5l14.2 11M19.1 6.5 4.9 17.5"/></svg>TELÃO CONGELADO · o público vê isto</div></div>
+            <div class="live-nav" id="liveNav" hidden>
+              <div class="ln-row">
+                <button class="ln-btn" id="lnPrev" title="Trecho anterior no telão (←)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+                <div class="ln-cur"><b id="lnName"></b><span id="lnText"></span></div>
+                <span class="ln-pos" id="lnPos"></span>
+                <button class="ln-btn main" id="lnNext" title="Próximo trecho no telão (→ ou Espaço)"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+              </div>
+              <div class="ln-chips" id="lnChips"></div>
+              <div class="ln-hint">As setas, o celular e o passador passam <b>o telão</b>. Prepare o próximo clicando nos trechos abaixo.</div>
+            </div>
           </div>
         </div>
         <div id="liveProg" hidden></div>

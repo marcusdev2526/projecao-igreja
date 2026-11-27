@@ -51,6 +51,9 @@ export function initOrganize(ctx) {
     } else $('timerCard').classList.remove('over');
   }
   setInterval(tick, 1000);
+  $('lnPrev').onclick = () => cmd({ type: 'prev' });
+  $('lnNext').onclick = () => cmd({ type: 'next' });
+  $('lnChips').onclick = (e) => { const b = e.target.closest('[data-i]'); if (b) cmd({ type: 'screen-goto', index: +b.dataset.i }); };
   $('tmReset').onclick = () => { if (confirm('Zerar o cronômetro do culto?')) cmd({ type: 'timer', action: 'reset' }); };
   socket.on('state', (s) => {
     $('logoBtn').classList.toggle('on', !!s.logo);
@@ -65,6 +68,25 @@ export function initOrganize(ctx) {
     $('pvFrame').classList.toggle('dual', !!s.frozen);
     if (s.frozen && !$('prepPreview').src) $('prepPreview').src = '/screen.html?embed&real';
     document.body.classList.toggle('is-frozen', !!s.frozen);
+    // Congelado com letra no telão: controle próprio do telão embaixo do monitor "No telão"
+    const sc = s.frozen && s.screen?.navigable ? s.screen : null;
+    $('liveNav').hidden = !sc;
+    document.body.classList.toggle('screen-nav', !!sc);
+    if (sc) {
+      const cur = sc.slides[sc.index] || {};
+      $('lnName').textContent = (cur.name || '') + (cur.parts > 1 && cur.kind !== 'bible' ? ` ${cur.part}/${cur.parts}` : '');
+      $('lnText').textContent = (cur.preview || '').replace(/[\^*~_]/g, '');
+      $('lnPos').textContent = `${sc.index + 1}/${sc.total}`;
+      $('lnPrev').disabled = sc.index <= 0;
+      $('lnNext').disabled = sc.index >= sc.total - 1;
+      const key = sc.itemId + ':' + sc.total;
+      if ($('lnChips').dataset.k !== key) {
+        $('lnChips').dataset.k = key;
+        $('lnChips').innerHTML = sc.slides.map((x) => `<button data-i="${x.index}" data-type="${x.type || ''}" title="${(x.preview || '').replace(/"/g, '&quot;')}">${x.code || x.name?.[0] || '·'}${x.parts > 1 && x.kind !== 'bible' ? '<small>' + x.part + '</small>' : ''}</button>`).join('');
+      }
+      $('lnChips').querySelectorAll('button').forEach((b) => b.classList.toggle('on', +b.dataset.i === sc.index));
+      $('lnChips').querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
     const lbl = document.querySelector('#liveTitle')?.previousElementSibling;
     if (lbl) lbl.textContent = s.frozen ? 'Preparado · fora do telão' : 'No ar';
     const bid = s.timing?.blockId ?? null;
