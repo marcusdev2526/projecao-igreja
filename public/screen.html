@@ -10,6 +10,8 @@
   #host { position: fixed; inset: 0; }
   #hint { position: fixed; left: 16px; bottom: 14px; color: #fff8; font: 13px system-ui; transition: opacity 1s; cursor: default; }
   body.embedded #hint { display: none; }
+  #sndUnlock { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 50; padding: 10px 18px; border-radius: 10px; background: rgba(20, 24, 32, .92); color: #fff; font: 15px Inter, system-ui, sans-serif; border: 1px solid rgba(255,255,255,.2); cursor: pointer; }
+  #sndUnlock[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -82,6 +84,32 @@
 
   // ---------- Vídeo e áudio ----------
   // A janela do telão é quem toca (com som). A prévia do painel (embed) mostra o vídeo sem som.
+  // Quem toca o som: a janela do telão. Se nenhum telão estiver aberto, a prévia do painel toca
+  // (assim o som sai no notebook mesmo sem o telão aberto).
+  let isFrameLive = false;
+  try { isFrameLive = embedded && window.frameElement?.id === 'livePreview'; } catch {}
+  let screensOpen = 1;
+  const isMaster = () => !embedded || (isFrameLive && screensOpen === 0);
+  socket.on('screens', (n) => {
+    const was = isMaster();
+    screensOpen = n;
+    if (was !== isMaster()) { applied = -1; if (pState) applyPlayer(lastP); }
+  });
+  let lastP = null;
+  // Som bloqueado pelo navegador: aviso na tela; o primeiro clique ou tecla libera e continua de onde estava
+  const unlock = document.createElement('div');
+  unlock.id = 'sndUnlock';
+  unlock.hidden = true;
+  unlock.innerHTML = '🔇 O navegador bloqueou o som · <b>clique aqui</b> para liberar';
+  document.body.appendChild(unlock);
+  const doUnlock = () => {
+    unlock.hidden = true;
+    const el = pState?.el;
+    if (el && isMaster()) { el.muted = false; if (pState.status === 'playing') el.play().catch(() => {}); }
+    aud.muted = false;
+  };
+  addEventListener('pointerdown', doUnlock, true);
+  addEventListener('keydown', doUnlock, true);
   const aud = new Audio();
   aud.preload = 'auto';
   let pState = null;
@@ -96,6 +124,7 @@
   }
   const cancelFade = (el) => { if (el?._fade) { clearInterval(el._fade); el._fade = null; el.volume = el._v0 ?? 1; } };
   function applyPlayer(p) {
+    lastP = p;
     if (!p) { if (!aud.paused) fadeOut(aud); pState = null; return; }
     if (p.seq === applied && mediaEl(p) === pState?.el) return;
     applied = p.seq;
@@ -104,25 +133,25 @@
     if (p.type === 'video' && !aud.paused) fadeOut(aud);
     pState = { ...p, el };
     if (!el) return;
-    el.muted = embedded;
+    el.muted = !isMaster();
     el.volume = p.volume ?? 1;
     el.playbackRate = p.rate || 1;
     el.loop = false;
     if (p.seek != null && isFinite(p.seek)) { try { el.currentTime = p.seek; } catch {} }
     if (p.status === 'playing') {
       cancelFade(el);
-      el.play().catch(() => { if (!embedded) { el.muted = true; el.play().catch(() => {}); socket.emit('player-blocked'); } });
+      el.play().catch(() => { if (isMaster()) { el.muted = true; el.play().catch(() => {}); unlock.hidden = embedded; socket.emit('player-blocked'); } });
     } else if (p.status === 'stopped' && p.type === 'audio') { if (!el.paused) fadeOut(el); }
     else { el.pause(); if (p.type === 'video' && el.currentTime === 0 && el.readyState < 2) el.addEventListener('loadeddata', () => { try { el.currentTime = 0.05; } catch {} }, { once: true }); }
-    if (!embedded && !el._wired) {
+    if (isMaster() && !el._wired) {
       el._wired = true;
       let last = 0;
       el.addEventListener('timeupdate', () => {
-        if (Date.now() - last < 400) return;
+        if (!isMaster() || Date.now() - last < 400) return;
         last = Date.now();
         socket.emit('player-time', { t: el.currentTime, d: el.duration || 0, seq: pState?.seq });
       });
-      el.addEventListener('ended', () => socket.emit('player-ended', { seq: pState?.seq }));
+      el.addEventListener('ended', () => { if (isMaster()) socket.emit('player-ended', { seq: pState?.seq }); });
       const rep = () => socket.emit('player-time', { t: el.currentTime, d: el.duration || 0, seq: pState?.seq });
       el.addEventListener('loadedmetadata', rep);
       el.addEventListener('seeked', rep);

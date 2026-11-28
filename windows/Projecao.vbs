@@ -28,7 +28,7 @@ End If
 
 ' Janela de aplicativo do Edge (sem barra de endereco); se nao tiver Edge, abre no navegador padrao
 On Error Resume Next
-sh.Run "msedge --app=" & url & " --start-maximized", 1, False
+sh.Run "msedge --app=" & url & " --start-maximized --autoplay-policy=no-user-gesture-required --user-data-dir=""" & sh.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\ProjecaoIgreja\navegador""", 1, False
 If Err.Number <> 0 Then
   Err.Clear
   sh.Run url, 1, False

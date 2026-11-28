@@ -490,7 +490,7 @@ export function initMedia(ctx) {
     $('plDur').textContent = fmt(dur);
     $('plSeek').style.setProperty('--pct', dur ? (t / dur) * 100 + '%' : '0%');
   });
-  socket.on('player-blocked', () => toast('O navegador bloqueou o som: clique uma vez na janela do telão para liberar'));
+  socket.on('player-blocked', () => toast('O navegador bloqueou o som do telão: clique uma vez na janela do telão (o vídeo continua de onde está)'));
   const pc = (action, value) => cmd({ type: 'player', action, value });
   $('plToggle').onclick = () => pc(getLive()?.player?.status === 'stopped' ? 'restart' : 'toggle');
   $('plRestart').onclick = () => pc('restart');
