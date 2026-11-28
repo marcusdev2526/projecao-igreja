@@ -1,3 +1,4 @@
+@import url('/fonts/unbounded/900.css');
 @import url('/fonts/unbounded/800.css');
 @import url('/fonts/unbounded/600.css');
 @import url('/fonts/instrument-serif/400-italic.css');
@@ -569,3 +570,44 @@
 .theme-nascer { --mark: #fff; --mark-op: .8; }
 :is(.theme-cena, .theme-mar, .theme-estrelado) { --mark: #eaf2ff; }
 .stage.mark-hide .mark { opacity: 0 !important; }
+
+/* ===== Tema Gravura: cartaz com gravura (globo, nuvens, pomba), retícula e letra laranja pesada ===== */
+.theme-gravura { --fg: #ff6b2c; --sub: #ff8a4f; --glow: 0 0 0 transparent; --kw-case: none; --kw-font: 'Unbounded', 'Montserrat', sans-serif; --plain-font: 'Unbounded', 'Montserrat', sans-serif; --mark: #ff6b2c; --mark-op: .7; }
+.theme-gravura .bg { background: radial-gradient(ellipse 80% 75% at 50% 50%, #23262c 0%, #17181c 55%, #0d0e11 100%); overflow: hidden; }
+.gr-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.gr-svg * { vector-effect: non-scaling-stroke; }
+.gr-globe { animation: gr-float 30s ease-in-out infinite alternate; transform-origin: 960px 560px; }
+@keyframes gr-float { from { transform: translateY(-8px) scale(1); } to { transform: translateY(10px) scale(1.02); } }
+.gr-mer ellipse, .gr-par path { fill: none; stroke: #8fa3c4; stroke-width: 1.4; opacity: .38; }
+.gr-mer { animation: gr-spin 60s linear infinite; transform-origin: 960px 560px; transform-box: view-box; }
+@keyframes gr-spin { from { transform: scaleX(1); } 50% { transform: scaleX(-1); } to { transform: scaleX(1); } }
+.gr-rim { fill: none; stroke: #a9bbd8; stroke-width: 2.6; opacity: .75; }
+.gr-land { fill: url(#grHatch); stroke: #a9bbd8; stroke-width: 1.8; opacity: .7; }
+.cl { animation: gr-cloud var(--d) ease-in-out var(--dl) infinite alternate; }
+@keyframes gr-cloud { from { transform: translateX(-40px); } to { transform: translateX(40px); } }
+.cl-o circle { fill: #000; }
+.gr-lines path { fill: none; stroke: #b5c4dd; stroke-width: 1.6; opacity: .6; }
+.gr-lines .dm { fill: #b5c4dd; stroke: none; }
+.gr-dove { opacity: .75; animation: gr-dove 9s ease-in-out infinite alternate; }
+@keyframes gr-dove { to { transform: translate(60px, 106px); } }
+.gr-dove path { fill: none; stroke: #c9d5e8; stroke-width: 2; stroke-linejoin: round; }
+.gr-dove .rays path { stroke-width: 1.2; opacity: .55; }
+/* retícula de pontos por cima (textura de tela de LED / impressão) */
+.gr-dots { position: absolute; inset: 0; background-image: radial-gradient(rgba(255, 255, 255, .07) 1px, transparent 1.4px); background-size: 7px 7px; mix-blend-mode: screen; }
+.gr-vig { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0, 0, 0, .55) 100%); }
+/* letra: laranja, pesada, como está escrita (sem caixa alta forçada), linhas bem juntas */
+.theme-gravura .kw { font-family: 'Unbounded', sans-serif; font-weight: 900; letter-spacing: -.045em; line-height: .86; color: #ff6b2c; }
+.theme-gravura .pl, .theme-gravura .serif, .theme-gravura .plain-line .mn { font-family: 'Unbounded', sans-serif; font-style: normal; font-weight: 900; letter-spacing: -.04em; color: #ff6b2c; text-transform: none; }
+.theme-gravura .pl { font-size: 96px; } .theme-gravura .serif { font-size: 150px; }
+.theme-gravura .plain-line .mn { font-size: 96px; line-height: .98; }
+.theme-gravura .ln + .ln { margin-top: -6px; }
+.theme-gravura .ln, .theme-gravura .verse { word-spacing: .14em; }
+.theme-gravura .kw { margin: 0 .08em; }
+/* um halo escuro atrás da letra para ler bem por cima da gravura */
+.theme-gravura .kw, .theme-gravura .pl, .theme-gravura .serif, .theme-gravura .mn, .theme-gravura .verse, .theme-gravura .secondary { text-shadow: 0 0 24px #15161a, 0 0 48px #15161a; }
+.theme-gravura .ab, .theme-gravura .bl { color: #ff6b2c; font-family: 'Unbounded', sans-serif; font-weight: 600; letter-spacing: .2em; }
+/* tradução: legenda pequena, espaçada, em caixa alta (como as frases laterais do cartaz) */
+.theme-gravura .secondary { font-family: 'Unbounded', sans-serif; font-style: normal; font-weight: 600; font-size: 30px; letter-spacing: .16em; text-transform: uppercase; color: #ff8a4f; line-height: 1.7; opacity: .95; }
+.theme-gravura .bible .verse { font-family: 'Unbounded', sans-serif; font-weight: 800; letter-spacing: -.025em; line-height: 1.12; color: #ff6b2c; }
+.theme-gravura .bible-ref { color: #b5c4dd; }
+.theme-gravura .cena-hl { color: #ffd2b8; }
