@@ -57,7 +57,7 @@ export function slideHTML(slide, mode = 'pt') {
   if (slide.kind === 'bible') return bibleHTML(slide, mode);
   if (slide.kind === 'media') {
     const u = esc(slide.url || '');
-    if (slide.mtype === 'video') return `<div class="media-full"><canvas class="amb" width="48" height="27"></canvas><video src="${u}" playsinline preload="auto"></video></div>`;
+    if (slide.mtype === 'video') return `<div class="media-full"><canvas class="amb" width="32" height="18"></canvas><video src="${u}" playsinline preload="auto" disablepictureinpicture disableremoteplayback></video></div>`;
     // a própria imagem, ampliada e desfocada, preenche as bordas quando ela não ocupa a tela toda
     if (slide.mtype === 'image') return `<div class="media-full"><img class="amb" src="${u}" alt="" aria-hidden="true"><img class="main" src="${u}" alt=""></div>`;
     return ''; // áudio: só o fundo do tema
@@ -104,7 +104,7 @@ function bibleHTML(slide, mode) {
 // Cartaz fixo: arte do evento/pregador (imagem) ou motion (vídeo em repetição, sem som)
 export function baseHTML(b = {}) {
   const u = esc(b.url || '');
-  if (b.mtype === 'video') return `<div class="media-full base"><canvas class="amb" width="48" height="27"></canvas><video class="base-v" src="${u}" autoplay muted loop playsinline></video></div>`;
+  if (b.mtype === 'video') return `<div class="media-full base"><canvas class="amb" width="32" height="18"></canvas><video class="base-v" src="${u}" autoplay muted loop playsinline></video></div>`;
   return `<div class="media-full base"><img class="amb" src="${u}" alt="" aria-hidden="true"><img class="main" src="${u}" alt=""></div>`;
 }
 
@@ -217,8 +217,11 @@ export function createStage(container, { live = false } = {}) {
       fit(layer);
       ambientVideo(layer);
       const newIsMedia = !!layer.querySelector('.media-full');
+      const hasVideo = (el) => !!el.querySelector('.media-full video:not(.base-v)');
+      const cut = hasVideo(layer) || old.some(hasVideo);
+      if (cut) layer.classList.remove('enter');
       old.forEach((o) => {
-        if (animate && stage.dataset.tr !== 'nenhuma') {
+        if (animate && !cut && stage.dataset.tr !== 'nenhuma') {
           o.classList.add('leave');
           // de imagem para imagem: a anterior fica firme embaixo até a nova aparecer (sem piscar o fundo)
           if (newIsMedia && o.querySelector('.media-full')) o.classList.add('hold');
@@ -254,16 +257,27 @@ function sliceBg(stage) {
   });
 }
 
-// Vídeo que não ocupa a tela toda: as bordas mostram o próprio vídeo, desfocado
+// Vídeo que não ocupa a tela toda: as bordas mostram o próprio vídeo, desfocado.
+// Leve de propósito: um quadro pequeno a cada 2 s (o desfoque é o próprio aumento da imagem) e nada
+// quando o vídeo já preenche a tela — assim não rouba processamento do vídeo (sem travar).
 function ambientVideo(layer) {
   const v = layer.querySelector('.media-full video');
   const cv = layer.querySelector('.media-full canvas.amb');
   if (!v || !cv) return;
-  const ctx = cv.getContext('2d');
-  const t = setInterval(() => {
+  const ctx = cv.getContext('2d', { alpha: false });
+  const draw = () => {
     if (!layer.isConnected) return clearInterval(t);
-    if (v.readyState >= 2) try { ctx.drawImage(v, 0, 0, cv.width, cv.height); } catch {}
-  }, 120);
+    if (v.readyState < 2) return;
+    const stage = layer.closest('.stage');
+    const sa = stage ? stage.clientWidth / stage.clientHeight : 16 / 9;
+    const va = v.videoWidth / v.videoHeight || sa;
+    cv.style.display = Math.abs(sa - va) < 0.06 ? 'none' : '';
+    if (cv.style.display === 'none') return;
+    try { ctx.filter = 'blur(2px) brightness(.5) saturate(1.25)'; ctx.drawImage(v, 0, 0, cv.width, cv.height); } catch {}
+  };
+  const t = setInterval(draw, 2000);
+  v.addEventListener('loadeddata', draw, { once: true });
+  v.addEventListener('seeked', draw);
 }
 
 // Reduz o texto se passar da área segura (8% de margem)
