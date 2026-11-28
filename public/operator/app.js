@@ -125,6 +125,14 @@ function renderTagRow(all) {
   $('tagRow').innerHTML = `<button data-t="" class="${!tagFilter ? 'on' : ''}">Todos</button><button data-t="@sug" class="sug ${tagFilter === '@sug' ? 'on' : ''}" title="Louvores que a igreja canta, mas que não aparecem há mais de 2 meses">Sugestões</button>` +
     tags.map((t) => `<button data-t="${esc(t)}" class="${tagFilter === t ? 'on' : ''}">${esc(t)} <i>${used.get(t)}</i></button>`).join('');
 }
+{
+  const tr = $('tagRow');
+  const edge = () => tr.classList.toggle('at-end', tr.scrollLeft + tr.clientWidth >= tr.scrollWidth - 4);
+  tr.addEventListener('scroll', edge, { passive: true });
+  tr.addEventListener('wheel', (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && tr.scrollWidth > tr.clientWidth) { e.preventDefault(); tr.scrollLeft += e.deltaY; } }, { passive: false });
+  new ResizeObserver(edge).observe(tr);
+  new MutationObserver(edge).observe(tr, { childList: true });
+}
 $('tagRow').onclick = (e) => { const b = e.target.closest('[data-t]'); if (!b) return; tagFilter = b.dataset.t; loadSongs(true); };
 async function loadSongs(keepWeb = false) {
   const q = $('search').value.trim();
@@ -136,7 +144,7 @@ async function loadSongs(keepWeb = false) {
   $('songCount').textContent = `${list.length} louvor${list.length === 1 ? '' : 'es'}`;
   $('songList').innerHTML = (list.length
     ? list.map((s) => `<div class="song" draggable="true" data-id="${s.id}" title="Duplo clique: projetar agora · arraste para o telão ou para o culto">
-        <div class="info"><div class="t">${esc(s.title)}</div><div class="a">${esc(s.artist || '—')}${s.song_key ? ' · Tom ' + esc(s.song_key) : ''}${s.bpm ? ' · ' + esc(s.bpm) + ' BPM' : ''}${tagFilter === '@sug' ? ` · cantado ${s.plays}x, último há ${daysSince(s.last_played)} dias` : ''}${tagsOf(s).length ? ' ' + tagsOf(s).slice(0, 3).map((t) => `<span class="tg">${esc(t)}</span>`).join('') : ''}</div></div>
+        <div class="info"><div class="t">${esc(s.title)}</div><div class="a">${[s.artist && esc(s.artist), s.song_key && 'Tom ' + esc(s.song_key), s.bpm && esc(s.bpm) + ' BPM', tagFilter === '@sug' && `cantado ${s.plays}x, último há ${daysSince(s.last_played)} dias`].filter(Boolean).join(' · ') || '<span class="no-art">Sem artista</span>'}${tagsOf(s).length ? ' ' + tagsOf(s).slice(0, 3).map((t) => `<span class="tg">${esc(t)}</span>`).join('') : ''}</div></div>
         ${s.last_played && (Date.now() - new Date(s.last_played.replace(' ', 'T'))) < 21 * 864e5 ? `<span class="badge recent" title="Cantado em ${s.last_played.slice(0, 10).split('-').reverse().join('/')}">há ${Math.max(0, Math.round((Date.now() - new Date(s.last_played.replace(' ', 'T'))) / 864e5))}d</span>` : ''}
         ${enBadge(s.has_en)}
         <button class="mini" data-act="edit" title="Editar">✎</button>

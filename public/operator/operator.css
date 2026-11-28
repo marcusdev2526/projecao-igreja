@@ -1573,3 +1573,80 @@ body.screen-nav .cmdbar .cb.next { background: #3fb6ea !important; border-color:
 #avisosPane .av-wrap .list { flex: none; overflow: visible; height: auto; max-height: none; padding: 0; }
 #avisosPane .av-card { padding: 10px 12px; }
 #avisosPane .av-card span { font-size: 11.5px; }
+
+/* ================= Ajuste geral de layout (telas menores e notebooks) ================= */
+:root { --foot-h: 58px; }
+/* os três rodapés (culto, barra de comando, biblioteca) na mesma altura e alinhados */
+.cols .panel-f, .src-col .panel-f, #service .panel-f { min-height: var(--foot-h); height: var(--foot-h); box-sizing: border-box; padding-top: 0; padding-bottom: 0; flex: none; white-space: nowrap; overflow: hidden; }
+.cmdbar { min-height: var(--foot-h); height: var(--foot-h); box-sizing: border-box; padding-top: 0; padding-bottom: 0; }
+.panel-f .hint { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.src-col .panel-f .f-acts { display: flex; gap: 12px; white-space: nowrap; margin-left: auto; }
+.src-col .panel-f .f-acts a { white-space: nowrap; }
+#songCount { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.no-art { opacity: .55; }
+/* culto: o seletor ocupa o espaço que sobrar */
+#service .panel-h { gap: 8px; }
+#service .panel-h #serviceSel { flex: 1; min-width: 0; width: auto; text-overflow: ellipsis; }
+#service .panel-h .acts { flex: none; }
+/* etiquetas: rolam de lado, com esmaecido indicando que tem mais */
+.tag-row { flex: none; scroll-behavior: smooth; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); padding-right: 30px; }
+.tag-row.at-end { -webkit-mask-image: none; mask-image: none; }
+/* abas da biblioteca: nunca cortam */
+.src-tabs { overflow-x: auto; scrollbar-width: none; }
+.src-tabs::-webkit-scrollbar { display: none; }
+.src-tabs button { white-space: nowrap; flex: none; }
+
+/* largura: notebook (1366–1500) */
+@media (max-width: 1500px) {
+  :root { --foot-h: 54px; }
+  .cols { grid-template-columns: 250px minmax(0, 1fr) 330px; }
+  .cmdbar .cb { height: 38px; }
+  #service .panel-f .hint { display: none; }
+}
+@media (max-width: 1380px) {
+  .cols { grid-template-columns: 236px minmax(0, 1fr) 306px; }
+  .src-col .panel-f .f-acts { gap: 10px; font-size: 11.5px; }
+  .cmdbar .cb { padding: 0 9px; font-size: 12.5px; }
+  .cmdbar .cb.next { padding: 0 16px; }
+  .slides { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 1280px) {
+  .cols { grid-template-columns: 220px minmax(0, 1fr) 290px; }
+  .top { gap: 6px; padding-left: 10px; padding-right: 10px; }
+  .top .seg button { padding-left: 9px; padding-right: 9px; }
+}
+/* altura: telas baixas (notebook, zoom do Windows em 125%) — prévia menor, mais espaço para os trechos */
+@media (max-height: 820px) {
+  .preview-wrap { width: min(100%, calc(clamp(200px, 40vh, 760px) * var(--ar, 1.7778))); }
+  .live-top { padding-top: 8px; padding-bottom: 8px; }
+  .live-top .preview-wrap:has(#pvFrame.dual), .preview-wrap:has(.pv-frame.dual) { width: min(100%, calc(clamp(180px, 36vh, 620px) * var(--ar, 1.7778) * 2 + 14px)); }
+  .item, .song { min-height: 46px; }
+  .song { padding-top: 6px; padding-bottom: 6px; }
+}
+@media (max-height: 700px) {
+  :root { --foot-h: 50px; }
+  .preview-wrap { width: min(100%, calc(clamp(170px, 34vh, 760px) * var(--ar, 1.7778))); }
+  .cmdbar .cb { height: 34px; }
+}
+/* topo: vai escondendo rótulos em telas menores para nada sair da tela */
+.top { min-width: 0; }
+.top .spacer { min-width: 0; }
+@media (max-width: 1700px) { #songCount, #service .panel-f .hint { display: none; } }
+@media (max-width: 1650px) { .top-timer .tm-svc { display: none; } #palBtn kbd { display: none; } }
+@media (max-width: 1500px) { #palBtn span { display: none; } #themeBtn > span { display: none; } }
+@media (max-width: 1400px) {
+  .vs-long { display: none; }
+  .top .brand { font-size: 0; gap: 0; }
+  .top .brand .dot { margin-right: 0; }
+  #modes button { padding-left: 8px; padding-right: 8px; }
+  #themeName { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
+}
+@media (max-width: 1300px) { .top .btn.ghost.ic span { display: none; } .top .btn.ghost.ic { padding-left: 8px; padding-right: 8px; } }
+@media (max-width: 1400px) { .src-tabs { gap: 2px; } .src-tabs button { font-size: 11.5px; padding-left: 4px; padding-right: 4px; } }
+/* filtro de categoria da Mídia: os 4 botões sempre cabem */
+#mediaFilter { display: flex; gap: 5px; overflow: hidden; }
+#mediaFilter button { flex: 1 1 auto; min-width: 0; padding-left: 6px; padding-right: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* botão Atualizar: texto centralizado */
+#updBadge:not([hidden]) { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+#service .panel-f .hint { display: none; }
+@media (min-height: 821px) { .preview-wrap { width: min(100%, calc(clamp(260px, 46vh, 760px) * var(--ar, 1.7778))); } }
