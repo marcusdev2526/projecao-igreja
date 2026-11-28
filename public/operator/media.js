@@ -1,5 +1,5 @@
 // Abas Mídia, Apresentações e Avisos · player de vídeo/áudio · arrastar arquivos · QR do pregador
-import { sendFiles } from '/shared/uploader.js';
+import { sendFiles, pdfToImages } from '/shared/uploader.js';
 
 const ICONS = {
   song: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
@@ -139,7 +139,7 @@ export function initMedia(ctx) {
     const sel = sidePick.map((n) => media.find((m) => m.name === n)).filter(Boolean);
     if (!sel.length) return;
     if (b === 'del') {
-      if (!confirm(`Excluir ${sel.length} arquivo(s)? Não dá para desfazer.`)) return;
+      if (!confirm(`Excluir ${sel.length} arquivo(s)? (Dá para desfazer com Ctrl+Z.)`)) return;
       for (const m of sel) await api('/api/media/' + encodeURIComponent(m.name), { method: 'DELETE' });
       toast(sel.length + ' arquivo(s) excluído(s)');
       sidePick = [];
@@ -218,8 +218,36 @@ export function initMedia(ctx) {
     const pres = decks.filter((d) => !d.auto);
     const cars = decks.filter((d) => d.auto);
     $('deckList').innerHTML = pres.length ? pres.map(row).join('') : '<div class="empty">Arraste um PowerPoint ou PDF para cá, ou use “Receber do pregador”.</div>';
-    $('avList').innerHTML = cars.length ? '<div class="sub-h">Carrosséis</div>' + cars.map(row).join('') : '';
+    $('avList').innerHTML = cars.length ? '<div class="sub-h">Carrosséis salvos</div>' + cars.map(row).join('') : '';
+    renderAvSvc();
   }
+  // avisos que já estão no culto aberto (texto e carrossel): projetar, editar, tirar
+  function renderAvSvc() {
+    const svc = getService();
+    const host = $('avSvcList');
+    if (!host) return;
+    const its = (svc?.items || []).filter((i) => i.kind === 'text' || (i.kind === 'deck' && decks.find((d) => d.id === safeJson(i.text).deck)?.auto));
+    host.innerHTML = its.length
+      ? its.map((i) => `<div class="mrow av-it" data-item="${i.id}">
+          <span class="kb k-${i.kind === 'text' ? 'text' : 'image'}">${icon(i.kind === 'text' ? 'text' : 'image', 'ki')}</span>
+          <div class="info"><div class="t">${esc(i.title || 'Aviso')}</div><div class="a">${i.kind === 'text' ? esc(String(i.text || '').split('\n').filter(Boolean).slice(0, 2).join(' · ').replace(/[*_^~]/g, '').slice(0, 70)) : 'Carrossel de artes'}</div></div>
+          <button class="mini" data-av="show" title="Projetar agora">${icon('play')}</button>
+          ${i.kind === 'text' ? `<button class="mini" data-av="edit" title="Editar">${icon('edit')}</button>` : ''}
+          <button class="mini danger" data-av="del" title="Tirar do culto (Ctrl+Z desfaz)">${icon('trash')}</button></div>`).join('')
+      : '<div class="empty">Nenhum aviso neste culto ainda. Escolha um tipo acima.</div>';
+  }
+  const safeJson = (t) => { try { return JSON.parse(t || '{}'); } catch { return {}; } };
+  $('avSvcList').onclick = async (e) => {
+    const r = e.target.closest('[data-item]');
+    if (!r) return;
+    const id = +r.dataset.item;
+    const a = e.target.closest('[data-av]')?.dataset.av || 'show';
+    if (a === 'show') selectItem(id);
+    else if (a === 'edit') document.dispatchEvent(new CustomEvent('edit-aviso', { detail: id }));
+    else if (a === 'del') { await api('/api/items/' + id, { method: 'DELETE' }); await openService(getService().id); toast('Aviso tirado do culto · Ctrl+Z desfaz'); }
+  };
+  document.addEventListener('service-opened', () => { if (!$('avisosPane').hidden) renderAvSvc(); });
+  $('avPosterBtn').onclick = () => document.querySelector('#srcTabs [data-src="cartazes"]')?.click();
   async function deckAction(e) {
     const row = e.target.closest('.mrow');
     const act = e.target.closest('[data-act]')?.dataset.act;
@@ -258,7 +286,7 @@ export function initMedia(ctx) {
     media: 'video/*,image/*,audio/*,.mp3,.m4a,.wav,.opus,.ogg',
     deck: '.pptx,.ppt,.ppsx,.pps,.pdf,image/*',
     audio: 'audio/*,.mp3,.m4a,.wav,.aac,.ogg',
-    poster: 'image/*,video/*',
+    poster: 'image/*,video/*,.pdf',
   };
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-pick]');
@@ -365,7 +393,7 @@ export function initMedia(ctx) {
     await openService(id);
     if (!by) toast('Arquivo recebido no culto');
   });
-  socket.on('library', () => { if (!$('mediaPane').hidden) loadMedia(); if (!$('decksPane').hidden || !$('avisosPane').hidden) loadDecks(); });
+  socket.on('library', () => { if (!$('mediaPane').hidden) loadMedia(); if (!$('decksPane').hidden || !$('avisosPane').hidden) loadDecks(); if (!$('postersPane').hidden) loadPosters(); });
 
   // ---------- Carrossel de imagens ----------
   let carSel = [];
@@ -521,7 +549,7 @@ export function initMedia(ctx) {
   // P = tocar/pausar quando tem vídeo ou áudio
   document.addEventListener('keydown', (e) => {
     if (e.target.closest('input, textarea, select, dialog[open]') || e.ctrlKey || e.metaKey) return;
-    if ((e.key === 'p' || e.key === 'P') && getLive()?.player) $('plToggle').click();
+    if ((e.key === 'k' || e.key === 'K') && getLive()?.player) $('plToggle').click();
   });
 
   // ---------- Biblioteca grande (Expandir) ----------
@@ -593,7 +621,7 @@ export function initMedia(ctx) {
   $('mbSelAll').onclick = () => { visibleList().forEach((m) => { if (!picked.includes(m.name)) picked.push(m.name); }); updSel(); renderBig(); };
   $('mbSelNone').onclick = () => { picked = []; updSel(); renderBig(); };
   $('mbDelSel').onclick = async () => {
-    if (!picked.length || !confirm(`Excluir ${picked.length} arquivo(s)? Não dá para desfazer.`)) return;
+    if (!picked.length || !confirm(`Excluir ${picked.length} arquivo(s)? (Dá para desfazer com Ctrl+Z.)`)) return;
     for (const n of picked) await api('/api/media/' + encodeURIComponent(n), { method: 'DELETE' });
     toast(picked.length + ' arquivo(s) excluído(s)');
     picked = [];
@@ -741,7 +769,18 @@ export function initMedia(ctx) {
     toast(pa === 'pin' ? 'Cartaz fixado. Aperte Esc para mostrar.' : 'Cartaz fixado e no telão');
   };
   async function uploadPosters(files) {
-    const res = await upload(files, { toService: false });
+    // PDF de cartaz: cada página vira uma imagem (cartaz) aqui mesmo no navegador
+    const list = [];
+    for (const f of files) {
+      if (!/\.pdf$/i.test(f.name)) { list.push(f); continue; }
+      try {
+        const base = f.name.replace(/\.pdf$/i, '');
+        const pages = await pdfToImages(f, (i, n) => { $('toast').textContent = `Preparando ${f.name}: página ${i} de ${n}`; $('toast').classList.add('on'); });
+        pages.forEach((b, i) => list.push(new File([b], `${base}${pages.length > 1 ? '-' + (i + 1) : ''}.jpg`, { type: 'image/jpeg' })));
+      } catch { toast('Não consegui abrir o PDF ' + f.name); }
+    }
+    if (!list.length) return;
+    const res = await upload(list, { toService: false });
     const names = res.filter((r) => r.ok && r.url).map((r) => decodeURIComponent(r.url.split('/').pop()));
     if (names.length) await api('/api/posters', { method: 'POST', body: { names } });
     loadPosters();

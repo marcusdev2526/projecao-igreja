@@ -78,3 +78,16 @@ test('segurança: pela rede, sem PIN não controla; com PIN controla', { skip: !
   assert.equal((await fetch(`${lan}/api/songs?s=2&k=${k}`)).status, 401);
   assert.equal((await fetch(`${lan}/api/items/1?s=1&k=${k}`, { method: 'DELETE' })).status, 401);
 });
+
+test('Ctrl+Z: desfaz e refaz mudanças no culto (lote vira um passo só)', async () => {
+  const h = { origin: base };
+  const { id } = await j(await post(base + '/api/services', { title: 'Teste desfazer', date: '2026-01-01' }, h));
+  for (const t of ['a', 'b', 'c']) await post(`${base}/api/services/${id}/items`, { kind: 'text', title: t }, h);
+  const titles = async () => (await j(await fetch(base + '/api/services/' + id))).items.map((i) => i.title);
+  assert.deepEqual(await titles(), ['a', 'b', 'c']);
+  const u = await j(await post(base + '/api/undo', {}, h));
+  assert.match(u.label, /3 itens/);
+  assert.deepEqual(await titles(), []);
+  await post(base + '/api/redo', {}, h);
+  assert.deepEqual(await titles(), ['a', 'b', 'c']);
+});

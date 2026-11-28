@@ -108,7 +108,10 @@ Write-Output 'OK'
     execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', enc], { timeout, windowsHide: true }, (err, stdout, stderr) => {
       const imgs = fs.existsSync(outDir) ? imagesIn(outDir) : [];
       if (imgs.length) return resolve(imgs);
-      reject(new Error('O PowerPoint não conseguiu converter o arquivo' + (stderr ? ': ' + String(stderr).split('\n')[0].slice(0, 160) : '')));
+      const noPpt = /80040154|ComObject|class not registered|classe n.o registrada/i.test(String(stderr));
+      reject(new Error(noPpt
+        ? 'Este computador não tem o PowerPoint instalado. Abra a apresentação no PowerPoint, Google Slides ou Canva, salve como PDF e envie o PDF: funciona igual.'
+        : 'O PowerPoint não conseguiu converter o arquivo' + (stderr ? ': ' + String(stderr).split('\n')[0].slice(0, 160) : '') + '. Dica: salve como PDF e envie o PDF.'));
     });
   });
 }

@@ -172,6 +172,30 @@ export function makeRepo(db) {
     },
     updateItem: (id, item) => q('UPDATE service_item SET text = ?, title = ? WHERE id = ?').run(item.text || '', item.title || '', id),
     deleteItem: (id) => q('DELETE FROM service_item WHERE id = ?').run(id),
+    // Desfazer (Ctrl+Z): foto dos itens do culto e restauração com os mesmos ids
+    snapshotItems: (serviceId) => q('SELECT id, position, kind, song_id, text, title FROM service_item WHERE service_id = ? ORDER BY position').all(serviceId),
+    restoreItems(serviceId, rows) {
+      db.exec('BEGIN');
+      try {
+        q('DELETE FROM service_item WHERE service_id = ?').run(serviceId);
+        const ins = q('INSERT OR REPLACE INTO service_item (id, service_id, position, kind, song_id, text, title) VALUES (?,?,?,?,?,?,?)');
+        rows.forEach((r) => { if (r.song_id == null || q('SELECT 1 FROM song WHERE id = ?').get(r.song_id)) ins.run(r.id, serviceId, r.position, r.kind, r.song_id ?? null, r.text || '', r.title || ''); });
+        db.exec('COMMIT');
+      } catch (e) { db.exec('ROLLBACK'); throw e; }
+    },
+    itemServiceId: (id) => q('SELECT service_id FROM service_item WHERE id = ?').get(id)?.service_id || null,
+    songRow: (id) => q('SELECT * FROM song WHERE id = ?').get(id),
+    songItems: (id) => q('SELECT * FROM service_item WHERE song_id = ?').all(id),
+    restoreSong(row, items) {
+      db.exec('BEGIN');
+      try {
+        const cols = Object.keys(row);
+        q(`INSERT OR REPLACE INTO song (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`).run(...cols.map((c) => row[c]));
+        const ins = q('INSERT OR REPLACE INTO service_item (id, service_id, position, kind, song_id, text, title) VALUES (?,?,?,?,?,?,?)');
+        items.forEach((r) => { if (q('SELECT 1 FROM service WHERE id = ?').get(r.service_id)) ins.run(r.id, r.service_id, r.position, r.kind, r.song_id, r.text || '', r.title || ''); });
+        db.exec('COMMIT');
+      } catch (e) { db.exec('ROLLBACK'); throw e; }
+    },
     reorderItems(serviceId, ids) {
       const st = q('UPDATE service_item SET position = ? WHERE id = ? AND service_id = ?');
       ids.forEach((id, i) => st.run(i, id, serviceId));

@@ -191,6 +191,7 @@ async function openService(id) {
   service = await api('/api/services/' + id);
   cmd({ type: 'service', id: service.id });
   renderItems();
+  document.dispatchEvent(new CustomEvent('service-opened'));
 }
 $('serviceSel').onchange = () => openService(+$('serviceSel').value);
 
@@ -219,6 +220,7 @@ socket.on('songs-changed', async ({ id }) => {
   if (selected?.item?.song_id === id) selectItem(selected.item.id, { fresh: true });
   clearTimeout(chT); chT = setTimeout(loadSongs, 800);
 });
+socket.on('library', () => { clearTimeout(chT); chT = setTimeout(() => loadSongs(true), 300); });
 socket.on('en-error', ({ message }) => toast('Tradução automática: ' + message));
 const BLOCK_COLORS = { abertura: '#5fd0b8', louvor: '#ff9a62', palavra: '#b88cff', ofertas: '#f0c654', avisos: '#7fa8e8', outro: '#9aa3ae' };
 const jsonOf = (t) => { try { return JSON.parse(t || '{}'); } catch { return {}; } };
@@ -319,6 +321,27 @@ function itemFromPayload(p) {
 let editingTextId = null;
 $('addTextBtn').onclick = () => { editingTextId = null; $('txTitle').value = 'Avisos'; $('txText').value = ''; $('textItem').showModal(); };
 $('txCancel').onclick = () => $('textItem').close();
+// pela aba Avisos: abrir um aviso já existente para editar
+document.addEventListener('edit-aviso', (e) => {
+  const it = service?.items.find((i) => i.id === e.detail);
+  if (!it) return;
+  editingTextId = it.id; $('txTitle').value = it.title; $('txText').value = it.text; $('textItem').showModal();
+});
+// modelos prontos de aviso
+$('txTpl')?.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-tpl]');
+  if (!b) return;
+  const T = {
+    boas: ['Boas-vindas', 'Seja bem-vindo à\n*ADPC MACAÉ*\n\nQue bom ter você\nconosco hoje!'],
+    agenda: ['Agenda da semana', '*AGENDA*\n\nQuarta · 19h30\nCulto de oração\n\nSábado · 19h\nCulto de jovens'],
+    aniv: ['Aniversariantes', '*PARABÉNS!*\nAniversariantes da semana\n\nNome · dia\nNome · dia'],
+    oferta: ['Dízimos e ofertas', '*DÍZIMOS E OFERTAS*\n\n“Deus ama ao que dá com alegria”\n2 Coríntios 9:7'],
+  }[b.dataset.tpl];
+  if (!T) return;
+  $('txTitle').value = T[0];
+  $('txText').value = T[1];
+  $('txText').focus();
+});
 $('txSave').onclick = async () => {
   const body = { kind: 'text', title: $('txTitle').value || 'Aviso', text: $('txText').value };
   if (editingTextId) await api('/api/items/' + editingTextId, { method: 'PUT', body });
@@ -610,16 +633,48 @@ $('newThemeBtn').onclick = () => openThemeEditor(newCustomTheme());
 $('thClose').onclick = () => $('themes').close();
 
 // Atalhos de teclado (fora de campos de texto)
+// B Bíblia completa · L Louvores · P Projeção (Início) · C Congelar · T ou . tela preta · W ou , sem letra · O logo
+// Alt+letra funciona em qualquer lugar (até dentro da Bíblia, onde digitar vai para a busca)
+function goView(v) { document.querySelector(`#viewSeg [data-view="${v}"]`)?.click(); }
+function goLouvores() {
+  goView('inicio');
+  $('srcTabs').querySelector('[data-src="louvores"]')?.click();
+  setTimeout(() => { $('search')?.focus(); $('search')?.select(); }, 30);
+}
+const NAV_KEYS = { b: () => goView('biblia'), l: goLouvores, p: () => { goView('inicio'); document.activeElement?.blur?.(); }, c: () => cmd({ type: 'freeze' }) };
+document.addEventListener('keydown', (e) => {
+  if (!e.altKey || e.ctrlKey || e.metaKey || document.querySelector('dialog[open]')) return;
+  const f = NAV_KEYS[e.key.toLowerCase()] || NAV_KEYS[{ KeyB: 'b', KeyL: 'l', KeyP: 'p', KeyC: 'c' }[e.code]];
+  if (f) { e.preventDefault(); e.stopImmediatePropagation(); f(); }
+}, true);
 document.addEventListener('keydown', (e) => {
   // passador de slides: o botão "apresentar" manda F5/Shift+F5 — não deixa recarregar o painel no meio do culto
   if (e.key === 'F5' && !e.ctrlKey) { e.preventDefault(); return; }
   if (e.target.closest('input, textarea, select, dialog[open]') || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === ',' || e.key === 'w' || e.key === 'W') return cmd({ type: 'clear' });
+  const k = e.key.toLowerCase();
+  if (NAV_KEYS[k]) { e.preventDefault(); return NAV_KEYS[k](); }
+  if (e.key === ',' || k === 'w') return cmd({ type: 'clear' });
   if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); cmd({ type: 'next' }); }
   else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); cmd({ type: 'prev' }); }
-  else if (e.key === 'b' || e.key === 'B' || e.key === '.') cmd({ type: 'black' });
-  else if (e.key === 'c' || e.key === 'C') cmd({ type: 'clear' });
-  else if (e.key === 'l' || e.key === 'L') cmd({ type: 'logo' });
+  else if (k === 't' || e.key === '.') cmd({ type: 'black' });
+  else if (k === 'o') cmd({ type: 'logo' });
+});
+
+// Desfazer / refazer: Ctrl+Z e Ctrl+Y (ou Ctrl+Shift+Z). Dentro de campos de texto fica o desfazer normal do texto.
+async function undoRedo(kind) {
+  try {
+    const r = await api('/api/' + kind, { method: 'POST' });
+    if (!r.label) return toast(kind === 'undo' ? 'Nada para desfazer' : 'Nada para refazer');
+    toast((kind === 'undo' ? '↶ Desfeito: ' : '↷ Refeito: ') + r.label);
+    loadSongs(true);
+  } catch (err) { toast(err.message); }
+}
+document.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+  if (e.target.closest('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
+  const k = e.key.toLowerCase();
+  if (k === 'z' && !e.shiftKey) { e.preventDefault(); undoRedo('undo'); }
+  else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); undoRedo('redo'); }
 });
 
 // ---------------- Editor de louvor ----------------

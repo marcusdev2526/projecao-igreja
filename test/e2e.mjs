@@ -34,10 +34,16 @@ try {
     await screen.waitForFunction((b) => document.querySelector('.content-layer:last-child').innerText !== b, before, { timeout: 5000 });
   });
   await step('tela preta e volta', async () => {
-    await panel.keyboard.press('b');
+    await panel.keyboard.press('t');
     await screen.waitForFunction(() => document.querySelector('.stage').classList.contains('is-black'));
-    await panel.keyboard.press('b');
+    await panel.keyboard.press('t');
     await screen.waitForFunction(() => !document.querySelector('.stage').classList.contains('is-black'));
+  });
+  await step('atalhos B (Bíblia) e P (projeção)', async () => {
+    await panel.keyboard.press('b');
+    await panel.waitForFunction(() => !document.getElementById('bibleView').hidden);
+    await panel.keyboard.press('Alt+p');
+    await panel.waitForFunction(() => document.getElementById('bibleView').hidden);
   });
   await step('Bíblia completa abre', async () => { await panel.click('#viewSeg [data-view="biblia"]'); await panel.waitForTimeout(400); await panel.click('#viewSeg [data-view="inicio"]'); });
   await step('configurações e temas abrem', async () => {

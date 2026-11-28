@@ -31,6 +31,10 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   const repo = makeRepo(db);
   seedBibles(repo, path.join(ROOT, 'seed/biblias'));
   const mediaDir = path.join(dataDir, 'media');
+  const trashDir = path.join(dataDir, 'lixeira');
+  try { // lixeira: apaga de verdade o que está lá há mais de 7 dias
+    for (const n of fs.readdirSync(trashDir)) { const p = path.join(trashDir, n); if (Date.now() - fs.statSync(p).mtimeMs > 7 * 864e5) fs.rmSync(p, { recursive: true, force: true }); }
+  } catch {}
   fs.mkdirSync(mediaDir, { recursive: true });
 
   // Primeira execução: louvores de demonstração + culto de hoje
@@ -649,12 +653,23 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
         break;
       }
       case 'freeze': {
+        const wasFrozen = live.frozen;
         const on = typeof c.value === 'boolean' ? c.value : !live.frozen;
         if (on && !live.frozen) live.screenSnap = screenView();
         if (!on && live.screenSnap && !live.rehearsal && live.screenSnap.itemId === live.itemId && live.screenSnap.slides === live.slides && c.keep !== false && live.index === live.screenSnap.prepIndexAtFreeze) live.index = live.screenSnap.index;
         live.frozen = on;
         if (on && live.screenSnap) live.screenSnap.prepIndexAtFreeze = live.index;
-        if (!on) { live.screenSnap = null; live.rehearsal = false; }
+        if (!on) {
+          const wasRehearsal = live.rehearsal;
+          live.screenSnap = null; live.rehearsal = false;
+          // Soltou no telão um vídeo ou playback preparado: já começa tocando, com som
+          const p = live.player;
+          if (wasFrozen && !wasRehearsal && c.autoplay !== false && p && p.itemId === live.itemId && p.status !== 'playing' && p.url) {
+            p.status = 'playing';
+            if (p.seek == null && p.type === 'video') p.seek = 0;
+            p.seq++;
+          }
+        }
         break;
       }
       case 'logo':
@@ -944,7 +959,11 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     ok(res);
   }));
   app.delete('/api/songs/:id', (req, res) => {
-    repo.deleteSong(+req.params.id);
+    const id = +req.params.id;
+    const row = repo.songRow(id);
+    const items = repo.songItems(id);
+    repo.deleteSong(id);
+    if (row) pushUndo({ label: 'apagar o louvor “' + row.title + '”', undo: () => { repo.restoreSong(row, items); io.emit('library'); new Set(items.map((i) => i.service_id)).forEach((sid) => io.emit('service-changed', { id: sid, by: 'undo' })); }, redo: () => { repo.deleteSong(id); io.emit('library'); new Set(items.map((i) => i.service_id)).forEach((sid) => io.emit('service-changed', { id: sid, by: 'undo' })); } });
     ok(res);
   });
 
@@ -1012,6 +1031,63 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   });
 
   // Cultos
+  // ---------------- Desfazer / refazer (Ctrl+Z / Ctrl+Y) ----------------
+  // Cada mudança guarda como desfazer e refazer. Várias mudanças seguidas no mesmo culto (ex.: lote de vídeos)
+  // viram um passo só.
+  const undoStack = [];
+  const redoStack = [];
+  function pushUndo(entry) {
+    const last = undoStack.at(-1);
+    // exclusões em sequência (ex.: apagar 5 vídeos de uma vez) viram um passo só
+    if (entry.group && last?.group === entry.group && Date.now() - last.t < 2500 && !redoStack.length) {
+      const u = last.undo, r = last.redo;
+      last.undo = () => { entry.undo(); u(); };
+      last.redo = () => { r(); entry.redo(); };
+      last.n = (last.n || 1) + 1;
+      last.label = entry.groupLabel(last.n);
+      last.t = Date.now();
+      return io.emit('undo-state', undoInfo());
+    }
+    undoStack.push({ ...entry, t: Date.now() });
+    if (undoStack.length > 60) undoStack.shift();
+    redoStack.length = 0;
+    io.emit('undo-state', undoInfo());
+  }
+  const undoInfo = () => ({ undo: undoStack.at(-1)?.label || '', redo: redoStack.at(-1)?.label || '' });
+  function trackService(sid, label, fn) {
+    sid = +sid;
+    if (!sid) return fn();
+    const before = repo.snapshotItems(sid);
+    const out = fn();
+    const after = repo.snapshotItems(sid);
+    if (JSON.stringify(before) === JSON.stringify(after)) return out;
+    const last = undoStack.at(-1);
+    const apply = (rows) => () => { repo.restoreItems(sid, rows); io.emit('service-changed', { id: sid, by: 'undo' }); };
+    if (last && last.sid === sid && (last.base || last.label) === label && Date.now() - last.t < 2500 && !redoStack.length) {
+      last.after = after; last.redo = apply(after); last.t = Date.now(); last.n = (last.n || 1) + 1;
+      if (last.n > 1 && label.startsWith('adicionar')) last.label = 'adicionar ' + last.n + ' itens';
+      last.base = label;
+    } else pushUndo({ sid, label, undo: apply(before), redo: apply(after) });
+    return out;
+  }
+  app.get('/api/undo', (req, res) => ok(res, undoInfo()));
+  app.post('/api/undo', wrap((req, res) => {
+    const e = undoStack.pop();
+    if (!e) return ok(res, { label: '' });
+    e.undo();
+    redoStack.push(e);
+    io.emit('undo-state', undoInfo());
+    ok(res, { label: e.label, ...undoInfo() });
+  }));
+  app.post('/api/redo', wrap((req, res) => {
+    const e = redoStack.pop();
+    if (!e) return ok(res, { label: '' });
+    e.redo();
+    undoStack.push(e);
+    io.emit('undo-state', undoInfo());
+    ok(res, { label: e.label, ...undoInfo() });
+  }));
+
   app.get('/api/services', (req, res) => ok(res, repo.listServices()));
   const templates = () => { try { return JSON.parse(repo.getSetting('templates', '[]')); } catch { return []; } };
   app.post('/api/services', wrap((req, res) => {
@@ -1103,7 +1179,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
       if (!song) throw new Error('Louvor não encontrado');
       req.body = { kind: 'song', song_id: song.id, by: 'pedido', who: String(req.body.who || '').slice(0, 40) };
     }
-    const id = repo.addItem(+req.params.id, req.body);
+    const id = trackService(req.params.id, 'adicionar item', () => repo.addItem(+req.params.id, req.body));
     if (req.body.by === 'pedido') {
       const song = req.body.song_id && repo.getSong(+req.body.song_id);
       io.emit('service-changed', { id: +req.params.id, by: 'pedido', text: (song?.title || 'louvor') + (req.body.who ? ' · ' + String(req.body.who).slice(0, 40) : '') });
@@ -1111,9 +1187,9 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     if (req.body.kind === 'song') queueEnglish([+req.body.song_id]);
     ok(res, { id });
   }));
-  app.post('/api/services/:id/reorder', wrap((req, res) => { repo.reorderItems(+req.params.id, req.body.ids || []); ok(res); }));
-  app.put('/api/items/:id', wrap((req, res) => { repo.updateItem(+req.params.id, req.body); ok(res); }));
-  app.delete('/api/items/:id', (req, res) => { repo.deleteItem(+req.params.id); ok(res); });
+  app.post('/api/services/:id/reorder', wrap((req, res) => { trackService(req.params.id, 'mudar a ordem', () => repo.reorderItems(+req.params.id, req.body.ids || [])); ok(res); }));
+  app.put('/api/items/:id', wrap((req, res) => { trackService(repo.itemServiceId(+req.params.id), 'editar item', () => repo.updateItem(+req.params.id, req.body)); ok(res); }));
+  app.delete('/api/items/:id', (req, res) => { trackService(repo.itemServiceId(+req.params.id), 'remover item', () => repo.deleteItem(+req.params.id)); ok(res); });
 
   // ---------------- Bíblia ----------------
   app.get('/api/bible/versions', (req, res) => ok(res, repo.listVersions()));
@@ -1235,8 +1311,15 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     ok(res, { files: req.files.map((f) => '/media/' + encodeURIComponent(f.filename)) });
   }));
   app.delete('/api/media/:name', (req, res) => {
-    const f = path.join(mediaDir, path.basename(req.params.name));
-    if (f.startsWith(mediaDir) && fs.existsSync(f)) fs.unlinkSync(f);
+    const name = path.basename(req.params.name);
+    const f = path.join(mediaDir, name);
+    if (f.startsWith(mediaDir) && fs.existsSync(f) && fs.statSync(f).isFile()) {
+      // vai para a lixeira (dá para desfazer com Ctrl+Z); a lixeira se limpa sozinha depois de 7 dias
+      const t = path.join(trashDir, name);
+      const toTrash = () => { fs.mkdirSync(trashDir, { recursive: true }); if (fs.existsSync(f)) fs.renameSync(f, t); io.emit('library'); };
+      toTrash();
+      pushUndo({ group: 'media-del', groupLabel: (n) => 'apagar ' + n + ' mídias', label: 'apagar a mídia “' + (mediaTitles()[name] || name) + '”', undo: () => { if (fs.existsSync(t)) { fs.renameSync(t, f); } io.emit('library'); }, redo: toTrash });
+    }
     ok(res);
   });
 
@@ -1248,7 +1331,7 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
   function addToService(sid, item) {
     sid = +sid;
     if (!sid || !repo.getService(sid)) return null;
-    const id = repo.addItem(sid, item);
+    const id = trackService(sid, 'adicionar item', () => repo.addItem(sid, item));
     io.emit('service-changed', { id: sid });
     return id;
   }
@@ -1272,7 +1355,17 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     io.emit('library');
     ok(res, d);
   }));
-  app.delete('/api/decks/:id', (req, res) => { decks.remove(req.params.id); io.emit('library'); ok(res); });
+  app.delete('/api/decks/:id', (req, res) => {
+    const id = String(req.params.id).replace(/[^a-z0-9]/gi, '');
+    const src = path.join(decks.dir, id);
+    const d = fs.existsSync(src) && decks.get?.(id);
+    if (!d) { decks.remove(id); io.emit('library'); return ok(res); }
+    const t = path.join(trashDir, 'slides-' + id);
+    const toTrash = () => { fs.mkdirSync(trashDir, { recursive: true }); fs.rmSync(t, { recursive: true, force: true }); if (fs.existsSync(src)) fs.renameSync(src, t); io.emit('library'); };
+    toTrash();
+    pushUndo({ label: 'apagar “' + (d.title || 'slides') + '”', undo: () => { if (fs.existsSync(t) && !fs.existsSync(src)) fs.renameSync(t, src); io.emit('library'); }, redo: toTrash });
+    ok(res);
+  });
   // Slides já em imagem (PDF convertido no navegador, ou fotos)
   app.post('/api/decks', tmpUpload.array('files', 500), wrap((req, res) => {
     const files = (req.files || []).filter((f) => /\.(png|jpe?g|webp)$/i.test(fixName(f.originalname)));
@@ -1341,7 +1434,10 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     ok(res);
   }));
   app.delete('/api/posters/:name', (req, res) => {
-    repo.setSetting('posters', JSON.stringify(posters().filter((n) => n !== req.params.name)));
+    const prev = posters();
+    const next = prev.filter((n) => n !== req.params.name);
+    if (next.length !== prev.length) pushUndo({ label: 'remover cartaz', undo: () => { repo.setSetting('posters', JSON.stringify(prev)); io.emit('library'); }, redo: () => { repo.setSetting('posters', JSON.stringify(next)); io.emit('library'); } });
+    repo.setSetting('posters', JSON.stringify(next));
     io.emit('library');
     ok(res);
   });

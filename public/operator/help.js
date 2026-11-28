@@ -9,6 +9,18 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 // sel: onde apontar · do: preparar a tela antes (abrir aba etc.) · click: o cursor faz o gesto de clique
 const tab = (t) => () => document.querySelector(`#srcTabs [data-src="${t}"]`)?.click();
 const view = (v) => () => document.querySelector(`#viewSeg [data-view="${v}"]`)?.click();
+const clickEl = (sel) => () => document.querySelector(sel)?.click();
+const closeDlg = (...ids) => () => ids.forEach((id) => { const d = document.getElementById(id); if (d?.open) d.close(); });
+const openDlg = (id, btn) => () => { if (!document.getElementById(id)?.open) document.querySelector(btn)?.click(); };
+// uma seção das Configurações: do título (h3) até o próximo título
+const sec = (txt) => () => {
+  const h = [...document.querySelectorAll('#settings .st-h')].find((x) => x.textContent.trim().startsWith(txt));
+  if (!h) return null;
+  const out = [h];
+  for (let n = h.nextElementSibling; n && !n.classList.contains('st-h'); n = n.nextElementSibling) out.push(n);
+  return out;
+};
+const inSet = (fn) => () => { openDlg('settings', '#settingsBtn')(); return fn?.(); };
 const TOURS = [
   { id: 'comecar', icon: '🚀', title: 'Primeiros passos', desc: 'Abrir o telão e projetar o primeiro louvor', steps: [
     { sel: '#openScreen', click: true, t: 'Abra o telão', d: 'Abre a janela que vai para o projetor. Arraste-a para a segunda tela e aperte F11 para tela cheia.' },
@@ -30,18 +42,18 @@ const TOURS = [
     { sel: '#livePreview', t: 'Prévia do telão', d: 'É exatamente o que o público está vendo agora.' },
     { sel: '#slideGrid', t: 'Trechos', d: 'Clique em qualquer trecho para pular direto. Laranja = no ar.' },
     { sel: '#prevBtn', t: 'Anterior / Próximo', d: 'Setas ← → também funcionam, e o passador de slides sem fio.' },
-    { sel: '#blackBtn', click: true, t: 'Tela preta', d: 'Apaga o telão (tecla B). Clique de novo para voltar.' },
+    { sel: '#blackBtn', click: true, t: 'Tela preta', d: 'Apaga o telão (tecla T). Clique de novo para voltar.' },
     { sel: '#clearBtn', t: 'Sem letra', d: 'Tira só a letra e deixa o fundo do tema.' },
     { sel: '#logoBtn', t: 'Logo', d: 'Mostra a logo da igreja se montando — ótima para abertura e intervalos.' },
     { sel: '#waitBtn', t: 'Espera', d: 'Tela de “o culto já vai começar”, com contagem.' },
     { sel: '#modes', t: 'Idioma', d: 'PT, PT+EN (português com inglês embaixo), EN ou EN+PT.' },
   ] },
   { id: 'congelar', icon: '❄️', title: 'Congelar o telão', desc: 'Preparar o próximo sem o público ver', do: view('inicio'), steps: [
-    { sel: '#freezeBtn', click: true, after: () => { if (!document.body.classList.contains('is-frozen')) document.getElementById('freezeBtn')?.click(); }, t: 'Congelar (tecla F)', d: 'O telão fica parado no que está agora. Você pode mexer à vontade sem o público ver.' },
+    { sel: '#freezeBtn', click: true, after: () => { if (!document.body.classList.contains('is-frozen')) document.getElementById('freezeBtn')?.click(); }, t: 'Congelar (tecla C)', d: 'O telão fica parado no que está agora. Você pode mexer à vontade sem o público ver.' },
     { sel: '#prepPreview', t: 'Preparado', d: 'À esquerda, o que você está preparando.' },
     { sel: '#livePreview', t: 'No telão', d: 'À direita, o que o público vê. Com letra no telão, as setas continuam passando a letra AQUI.' },
     { sel: '#liveNav', t: 'Controle do telão', d: 'Botões ◀ ▶ e um atalho para cada trecho da letra que está no ar.' },
-    { sel: '#prepGo', t: 'Jogar no telão (Enter)', d: 'Quando estiver pronto, solta o que preparou e o telão volta ao normal.' },
+    { sel: '#prepGo', t: 'Jogar no telão (Enter)', d: 'Quando estiver pronto, solta o que preparou e o telão volta ao normal. Vídeo ou playback preparado já começa tocando, com som.' },
   ], after: () => { if (document.body.classList.contains('is-frozen')) document.getElementById('freezeBtn')?.click(); }, cleanup: true },
   { id: 'biblia', icon: '📖', title: 'Bíblia', desc: 'Achar e projetar versículos', steps: [
     { sel: '#srcTabs [data-src="biblia"]', do: tab('biblia'), t: 'Busca rápida', d: 'Na aba Bíblia da direita, digite a referência: “jo 3 16”, “sl 23”, “rm 8 28-30”.' },
@@ -52,7 +64,7 @@ const TOURS = [
   ] },
   { id: 'video', icon: '🎬', title: 'Vídeos, imagens e playback', desc: 'Enviar arquivos e controlar o vídeo', do: view('inicio'), steps: [
     { sel: '#srcTabs [data-src="midia"]', do: tab('midia'), click: true, t: 'Aba Mídia', d: 'Vídeos, imagens e playbacks da igreja.' },
-    { sel: '#mediaList', do: tab('midia'), t: 'Envie arquivos', d: 'Arraste do computador, cole com Ctrl+V (WhatsApp, Telegram) ou use “Procurar na pasta”.' },
+    { sel: '#mediaList', do: tab('midia'), t: 'Envie arquivos', d: 'Arraste do computador, cole com Ctrl+V (WhatsApp, Telegram) ou use “Procurar na pasta”. Aceita MP4, MOV, WEBM, imagens e áudio MP3, M4A, WAV.' },
     { sel: '#mediaList .mrow', do: tab('midia'), t: 'Mostrar no telão', d: 'Arraste para a prévia do telão, ou clique no ▶ do arquivo.' },
     { sel: '#mediaSelBtn', do: tab('midia'), t: 'Em lote', d: 'Marque vários arquivos na ordem e crie uma sequência para passar com →.' },
     { sel: '#mediaFiltBtn', do: tab('midia'), t: 'Filtro', d: 'Separe por categoria, data ou origem (WhatsApp, gravações…).' },
@@ -69,9 +81,83 @@ const TOURS = [
     { sel: '#focusBtn', t: 'Modo culto', d: 'Esconde o que não é usado durante o culto, para não errar.' },
   ] },
   { id: 'emergencia', icon: '🆘', title: 'Se algo der errado', desc: 'Atalhos para não passar aperto', steps: [
-    { sel: '#blackBtn', t: 'Apague o telão', d: 'Tecla B: tela preta na hora enquanto você resolve.' },
+    { sel: '#blackBtn', t: 'Apague o telão', d: 'Tecla T (ou ponto): tela preta na hora enquanto você resolve.' },
     { sel: '#screenWarn', t: 'Telão fechou?', d: 'Se ficar vermelho, clique nele para abrir de novo. O telão também reconecta sozinho se o sistema reiniciar.' },
     { sel: '#settingsBtn', t: 'Backup e atualização', d: 'Em Configurações: backup automático, “Fechar o sistema” e atualização.' },
+    { sel: '#itemList', t: 'Errou? Ctrl+Z', d: 'Ctrl+Z desfaz o que você fez no culto: item adicionado ou tirado, lote de vídeos, ordem trocada, mídia ou louvor apagado. Ctrl+Y refaz.' },
+  ] },
+  { id: 'importar', icon: '📥', title: 'Importar um louvor', desc: 'Pela internet, colando a letra ou por arquivo (Holyrics, Word)', do: () => { view('inicio')(); tab('louvores')(); }, steps: [
+    { sel: '#search', t: 'Jeito mais rápido: busque', d: 'Digite o nome do louvor. Se ele não estiver na biblioteca, aparece “Buscar na internet”: clique, confira a letra e importe com 1 clique.' },
+    { sel: '#importBtn', click: true, t: 'Ou use o botão Importar', d: 'Abre a janela de importação com três jeitos de trazer letras.', after: openDlg('importer', '#importBtn') },
+    { sel: '#imUrl', do: openDlg('importer', '#importBtn'), t: '1 · Link da letra', d: 'Copie o endereço da página da letra (site de letras ou cifras), cole aqui e clique em Buscar. O sistema tira a cifra e as propagandas sozinho.' },
+    { sel: '#imText', do: openDlg('importer', '#importBtn'), t: '2 · Colar a letra', d: 'Cole o texto. A primeira linha vira o título. Para vários louvores de uma vez, separe com uma linha ===. Linha começando com | é a tradução em inglês.' },
+    { sel: '#drop', do: openDlg('importer', '#importBtn'), t: '3 · Arquivos', d: 'Arraste arquivos do Holyrics (.mufl), Word (.docx), texto (.txt), OpenLyrics (.xml) ou um backup (.json). Pode ser vários de uma vez.' },
+    { sel: '#imPreview', do: openDlg('importer', '#importBtn'), click: true, t: 'Ver prévia', d: 'Mostra a lista do que vai entrar, avisa os repetidos e deixa escolher: importar, pular ou substituir. Depois clique em Importar.' },
+    { sel: '#imClose', do: openDlg('importer', '#importBtn'), t: 'Pronto!', d: 'Os louvores aparecem na biblioteca. Arraste para o culto ou clique no ＋.' },
+  ], after: closeDlg('importer'), cleanup: true },
+  { id: 'editor', icon: '✏️', title: 'Criar e editar a letra', desc: 'Partes, palavra-chave, inglês, tom e etiquetas', do: () => { view('inicio')(); tab('louvores')(); }, steps: [
+    { sel: '#newSongBtn', click: true, t: '+ Novo louvor', d: 'Abre o editor com um modelo pronto. Para editar um que já existe, dê dois cliques nele ou use o lápis.', after: openDlg('editor', '#newSongBtn') },
+    { sel: '#edSource', do: openDlg('editor', '#newSongBtn'), t: 'Escreva a letra', d: 'Primeira linha = título. Use [Verso 1], [Refrão], [Ponte] para as partes. Linha em branco = próximo slide.' },
+    { sel: '.ed-metabar', do: openDlg('editor', '#newSongBtn'), t: 'Tom, BPM e etiquetas', d: 'Dados para a banda e para achar depois (ex.: etiqueta “Ceia”, “Adoração”). As etiquetas viram filtros na biblioteca.' },
+    { sel: '#editor details.help', do: openDlg('editor', '#newSongBtn'), t: 'Como escrever', d: '*PALAVRA* fica gigante, _texto_ em itálico serifado, ^texto^ pequeno em cima. [Refrão] sozinho repete o refrão.' },
+    { sel: '#edKw', do: openDlg('editor', '#newSongBtn'), t: 'Destacar palavras', d: 'Sugere a palavra-chave de cada slide automaticamente. Não gostou? ↶ Desfazer.' },
+    { sel: '#edOfficial', do: openDlg('editor', '#newSongBtn'), t: 'Inglês', d: 'Tradução automática ou a letra oficial em inglês, linha por linha.' },
+    { sel: '#edTheme', do: openDlg('editor', '#newSongBtn'), t: 'Tema do louvor', d: 'Opcional: este louvor sempre entra com esse tema no telão.' },
+    { sel: '#edPreviews', do: openDlg('editor', '#newSongBtn'), t: 'Prévia', d: 'Cada slide como vai aparecer no telão, atualizado enquanto você digita.' },
+    { sel: '#edSave', do: openDlg('editor', '#newSongBtn'), t: 'Salvar', d: 'Salva na biblioteca. (Neste passo a passo nada é salvo.)' },
+  ], after: closeDlg('editor'), cleanup: true },
+  { id: 'tema', icon: '🖼️', title: 'Tema: tudo o que tem', desc: 'Galeria, categorias e o editor de tema por dentro', steps: [
+    { sel: '#themeBtn', click: true, t: 'Botão Tema', d: 'Abre a galeria de temas do telão.', after: openDlg('themes', '#themeBtn') },
+    { sel: '#themeGrid .theme-cat', do: openDlg('themes', '#themeBtn'), t: 'Categorias', d: 'Os temas estão separados: os da igreja (criados por vocês), animados, cenas ilustradas, fotos e vídeos, e os especiais (ADPC, Gravura).' },
+    { sel: '#themeGrid .theme-card', do: openDlg('themes', '#themeBtn'), click: true, t: 'Clique para usar', d: 'O tema entra no telão na hora, em tudo que for letra e Bíblia. A borda azul marca o tema atual.' },
+    { sel: '#themeGrid .theme-card .edit', do: openDlg('themes', '#themeBtn'), t: 'Copiar e editar', d: 'Faz uma cópia do tema para você mudar cores, fontes e fundo sem estragar o original.' },
+    { sel: '#mediaBtn', do: openDlg('themes', '#themeBtn'), t: 'Mídia (fundos e logos)', d: 'Envie suas imagens e vídeos de fundo e a logo da igreja para usar nos temas.' },
+    { sel: '#newThemeBtn', do: openDlg('themes', '#themeBtn'), click: true, t: '+ Criar tema', d: 'Vamos abrir o editor e ver cada parte.', after: openDlg('themeEd', '#newThemeBtn') },
+    { sel: '#teName', do: openDlg('themeEd', '#newThemeBtn'), t: 'Nome do tema', d: 'Ex.: “Santa Ceia”, “Jovens”.' },
+    { sel: '#teForm fieldset:nth-of-type(1)', do: openDlg('themeEd', '#newThemeBtn'), t: 'Fundo', d: 'Animado, cor, degradê, imagem ou vídeo. Em “Movimento” você coloca um motion por cima (partículas, luzes, brilho). “Escurecer” deixa a letra mais legível.' },
+    { sel: '#teForm fieldset:nth-of-type(2)', do: openDlg('themeEd', '#newThemeBtn'), t: 'Texto', d: 'Cor da letra e da tradução, as três fontes (palavra-chave, texto e itálico), tamanho, MAIÚSCULAS e brilho.' },
+    { sel: '#teForm fieldset:nth-of-type(3)', do: openDlg('themeEd', '#newThemeBtn'), t: 'Logo e transição', d: 'Logo no canto (posição e tamanho) e como um slide passa para o outro.' },
+    { sel: '#teSample', do: openDlg('themeEd', '#newThemeBtn'), t: 'Prévia', d: 'Veja o tema com letra estilizada, com inglês e com versículo antes de usar.' },
+    { sel: '#teApply', do: openDlg('themeEd', '#newThemeBtn'), t: 'Salvar e usar', d: 'Guarda o tema em “Temas da igreja” e já coloca no telão. (Neste passo a passo nada é salvo.)' },
+  ], after: closeDlg('themeEd', 'themes'), cleanup: true },
+  { id: 'config', icon: '⚙️', title: 'Configurações, uma por uma', desc: 'Segurança, Stream Deck, igreja, OBS, backup e atualização', steps: [
+    { sel: '#settingsBtn', click: true, t: 'Botão Configurações', d: 'A engrenagem no canto de cima abre as configurações deste sistema.', after: openDlg('settings', '#settingsBtn') },
+    { el: inSet(sec('Segurança')), t: 'Segurança', d: 'Quem pode controlar pela rede. Este computador nunca pede senha. Celulares entram pelo QR do botão 📱 ou pelo PIN.' },
+    { el: inSet(() => document.querySelector('#secPin')?.parentElement), t: 'Criar o PIN', d: 'Digite de 4 a 8 números (evite 1234) e clique em Salvar PIN. Quem abrir o sistema por outro aparelho digita esse PIN uma vez.' },
+    { el: inSet(() => document.querySelector('#secRevoke')?.parentElement), t: 'Se perder o controle', d: '“Desconectar todos” derruba os celulares conectados. “Invalidar QRs” cancela os links do pregador e dos pedidos.' },
+    { el: inSet(sec('Passador')), t: 'Passador e Stream Deck', d: 'O passador sem fio já funciona. Para o Stream Deck, copie o link de cada ação (próximo, tela preta, congelar…) para um botão “Website”.' },
+    { el: inSet(sec('Sistema')), t: 'Sistema', d: 'Liga/desliga a animação da logo na abertura e tem o botão “Fechar o sistema” (desliga tudo no fim do culto).' },
+    { el: inSet(sec('Inteligência')), t: 'Inteligência artificial (opcional)', d: 'Com a chave da Anthropic, o sistema traduz letras para o inglês e escolhe a palavra-chave melhor. Sem ela, tudo continua funcionando.' },
+    { el: inSet(sec('Igreja')), t: 'Igreja e tela de espera', d: 'Nome e logo da igreja, a marca pequena embaixo da letra, o horário do culto (contagem da tela de espera), a frase e os avisos que passam na espera.' },
+    { el: inSet(sec('Transmissão')), t: 'Transmissão (OBS / YouTube)', d: 'Copie o endereço e cole numa fonte “Navegador” do OBS: a letra aparece por cima da câmera, no estilo que você escolher.' },
+    { el: inSet(sec('Backup')), t: 'Backup automático', d: 'Escolha uma pasta (pen drive ou Google Drive) e marque “todo dia”. Se o computador der problema, nada se perde.' },
+    { el: inSet(sec('Atualizações')), t: 'Atualizações', d: '“Procurar atualização” busca a versão nova no GitHub. Só instala versões que passaram nos testes, e reabre sozinho.' },
+    { sel: '#stSave', do: openDlg('settings', '#settingsBtn'), click: true, t: 'Salvar', d: 'Depois de mudar algo, clique em Salvar. (Neste passo a passo nada é salvo.)' },
+  ], after: closeDlg('settings'), cleanup: true },
+  { id: 'avisos', icon: '📢', title: 'Avisos', desc: 'Aviso escrito, carrossel de artes e cartaz fixo', do: () => { view('inicio')(); tab('avisos')(); }, steps: [
+    { sel: '#srcTabs [data-src="avisos"]', click: true, t: 'Aba Avisos', d: 'Tudo de aviso fica aqui.' },
+    { sel: '.av-how', t: 'Como funciona', d: 'Escolha o tipo, ele entra na lista do culto e você clica para projetar quando chegar a hora.' },
+    { sel: '#avTextBtn', t: 'Aviso escrito', d: 'Digite o recado (tem modelos prontos: boas-vindas, agenda, aniversariantes, ofertas). Linha em branco = próximo slide.' },
+    { sel: '#avCarBtn', t: 'Carrossel de artes', d: 'Escolha as imagens na ordem. Elas passam sozinhas, em repetição — ótimo antes do culto começar.' },
+    { sel: '#avPosterBtn', t: 'Cartaz fixo', d: 'Uma arte que fica de fundo entre os momentos. Tecla Esc volta para ele. Aceita imagem e PDF.' },
+    { sel: '#avSvcList', t: 'Avisos deste culto', d: '▶ projeta, lápis edita, lixeira tira do culto (Ctrl+Z desfaz).' },
+  ], after: tab('louvores') },
+  { id: 'slides', icon: '📊', title: 'Slides, PowerPoint e PDF', desc: 'Pregação e apresentações', do: () => { view('inicio')(); tab('apresentacoes')(); }, steps: [
+    { sel: '#srcTabs [data-src="apresentacoes"]', click: true, t: 'Aba Slides', d: 'Apresentações da pregação, estudos e eventos.' },
+    { sel: '#decksPane [data-pick="deck"]', t: '+ Enviar', d: 'PowerPoint (.pptx) ou PDF viram slides sozinhos. Sem PowerPoint no computador? Salve como PDF: funciona igual.' },
+    { sel: '#qrBtn', t: 'Receber do pregador', d: 'Mostra um QR: o pregador manda o arquivo pelo celular e ele entra direto no culto.' },
+    { sel: '#deckList', t: 'Projetar', d: 'Clique no ▶ ou adicione ao culto. Passe com → e ← ou com o passador sem fio.' },
+  ], after: tab('louvores') },
+  { id: 'extras', icon: '🧰', title: 'Ferramentas extras', desc: 'Busca, escala, pedidos, ensaio, histórico', do: view('inicio'), steps: [
+    { sel: '#palBtn', t: 'Buscar tudo (Ctrl+K)', d: 'Um campo só para achar louvor, versículo, cartaz, mídia ou slide. Enter projeta, Shift+Enter põe no culto.' },
+    { sel: '#scaleBtn', t: 'Escala', d: 'Quem dirige, prega, ministra e opera neste culto.' },
+    { sel: '#reqBtn', t: 'Pedidos', d: 'QR para o ministro de louvor escolher as músicas pelo celular. Cada pedido chega aqui com aviso.' },
+    { sel: '#rehBtn', t: 'Ensaio', d: 'Congela o telão e deixa a equipe passar o culto só na prévia e no retorno.' },
+    { sel: '#histBtn', t: 'Histórico', d: 'O que foi cantado em cada culto e quantas vezes.' },
+    { sel: '#focusBtn', t: 'Modo culto', d: 'Esconde o que não é usado durante o culto para não errar.' },
+  ] },
+  { id: 'atalhos', icon: '⌨️', title: 'Atalhos do teclado', desc: 'Todas as teclas, num cartão só', steps: [
+    { t: 'Atalhos', d: 'P · ir para a Projeção (Início)\nL · Louvores (já com a busca)\nB · Bíblia completa\nC ou F · Congelar · Enter · jogar no telão\n→ / Espaço · próximo · ← · anterior\n1 a 9 · pula para o trecho · R · próximo refrão\nT ou . · tela preta · W ou , · sem letra · O · logo\nEsc · cartaz · K · play/pausa do vídeo\nCtrl+Z · desfazer · Ctrl+Y · refazer · Ctrl+K · buscar · F1 · ajuda\nNa Bíblia, use Alt+letra (Alt+P, Alt+L…), porque digitar vai para a busca.' },
   ] },
 ];
 
@@ -97,8 +183,8 @@ const WHAT = [
   ['#playerBar', 'Player', 'Controles do vídeo ou playback que está tocando.'],
   ['#prevBtn', 'Anterior', 'Volta um trecho (seta ←).'],
   ['#nextBtn', 'Próximo', 'Avança um trecho (seta →, Espaço).'],
-  ['#freezeBtn', 'Congelar', 'Para o telão para preparar o próximo sem o público ver (tecla F).'],
-  ['#blackBtn', 'Tela preta', 'Apaga o telão (tecla B).'],
+  ['#freezeBtn', 'Congelar', 'Para o telão para preparar o próximo sem o público ver (tecla C ou F).'],
+  ['#blackBtn', 'Tela preta', 'Apaga o telão (tecla T ou ponto).'],
   ['#clearBtn', 'Sem letra', 'Tira a letra e deixa só o fundo.'],
   ['#baseBtn', 'Cartaz', 'Mostra o cartaz fixo do culto (Esc).'],
   ['#msgBtn', 'Recado', 'Mensagem rápida na tela (ex.: “carro placa X”).'],
@@ -109,6 +195,18 @@ const WHAT = [
   ['#mediaList', 'Mídia', 'Vídeos, imagens e playbacks. Arraste para o telão.'],
   ['.bv-search', 'Busca da Bíblia', 'Digite “jo 3 16” e aperte Enter.'],
   ['.bv-left', 'Versões da Bíblia', 'Versão principal, tradução e quantos versículos por slide.'],
+  ['#importBtn', 'Importar', 'Traz letras por link, colando o texto ou por arquivo (Holyrics, Word, OpenLyrics).'],
+  ['#newSongBtn', 'Novo louvor', 'Abre o editor para escrever uma letra.'],
+  ['#search', 'Buscar louvor', 'Título, artista ou trecho. Se não achar, busca na internet.'],
+  ['#tagRow', 'Etiquetas', 'Filtra a biblioteca por etiqueta. “Sugestões” mostra louvores que não aparecem há tempo.'],
+  ['#postersPane', 'Cartazes', 'Artes fixas do evento. Esc volta para o cartaz.'],
+  ['#decksPane', 'Slides', 'PowerPoint e PDF da pregação.'],
+  ['#avisosPane', 'Avisos', 'Aviso escrito, carrossel de artes e cartaz fixo.'],
+  ['#addBlockBtn', 'Bloco', 'Separa o culto em partes com tempo previsto.'],
+  ['#addTextBtn', 'Aviso', 'Texto livre que entra no culto.'],
+  ['#prepGo', 'Jogar no telão', 'Solta o que foi preparado (Enter). Vídeo e playback já tocam.'],
+  ['#prepPreview', 'Preparado', 'O que você está preparando com o telão congelado.'],
+  ['#helpBtn', 'Ajuda', 'Passo a passo animado de cada parte do sistema (F1).'],
 ];
 
 // ------------------------------------------------------------------ interface
@@ -134,6 +232,10 @@ css.textContent = `
 
 /* passo a passo */
 .hp-tour { position: fixed; inset: 0; z-index: 9500; pointer-events: none; }
+.hp-tour[popover] { inset: 0; width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: transparent; overflow: visible; color: inherit; }
+.hp-tour[popover]::backdrop { display: none; }
+.hp-card p { white-space: pre-line; }
+dialog[open] .st-h, dialog[open] fieldset, dialog[open] label, dialog[open] div { scroll-margin-top: 64px; scroll-margin-bottom: 12px; }
 .hp-shade { position: fixed; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(3, 6, 12, .68); transition: all .55s cubic-bezier(.16,1,.3,1); pointer-events: none; }
 .hp-ring { position: fixed; border-radius: 12px; border: 2px solid #5fb4ff; box-shadow: 0 0 0 4px rgba(95,180,255,.25), 0 0 30px rgba(95,180,255,.45); transition: all .55s cubic-bezier(.16,1,.3,1); pointer-events: none; }
 .hp-ring::after { content: ''; position: absolute; inset: -2px; border-radius: inherit; border: 2px solid #5fb4ff; animation: hp-ring 1.8s ease-out infinite; }
@@ -169,6 +271,19 @@ const CURSOR = '<svg viewBox="0 0 24 24"><path d="M5 3l14 7.5-6.2 1.6L10 18.5z" 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const visible = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 4 && r.height > 4 && getComputedStyle(el).visibility !== 'hidden'; };
 const find = (sel) => [...document.querySelectorAll(sel)].find(visible) || null;
+// alvo do passo: seletor ou função que devolve um ou vários elementos (o destaque abraça todos)
+function targetOf(step) {
+  let els = step.el ? step.el() : step.sel ? find(step.sel) : null;
+  els = (Array.isArray(els) ? els : [els]).filter((e) => e && visible(e));
+  return els.length ? els : null;
+}
+// o passo a passo fica por cima até das janelas abertas (fica na "camada do topo", dentro da janela aberta)
+function mount(root) {
+  const dlgs = [...document.querySelectorAll('dialog[open]')];
+  const host = dlgs.at(-1) || document.body;
+  if (root.parentNode !== host) host.appendChild(root);
+  if (root.showPopover) { try { if (root.matches(':popover-open')) root.hidePopover(); root.showPopover(); } catch {} }
+}
 
 // ------------------------------------------------------------------ menu
 function openMenu(anchor) {
@@ -209,8 +324,9 @@ async function runTour(tour) {
   await sleep(250);
   const root = document.createElement('div');
   root.className = 'hp-tour';
+  root.setAttribute('popover', 'manual');
   root.innerHTML = `<div class="hp-shade"></div><div class="hp-ring"></div><div class="hp-cursor">${CURSOR}</div><div class="hp-card"></div>`;
-  document.body.appendChild(root);
+  mount(root);
   const st = (tourState = { tour, i: 0, root, cx: innerWidth / 2, cy: innerHeight - 60 });
   const cursor = root.querySelector('.hp-cursor');
   cursor.style.transform = `translate(${st.cx}px, ${st.cy}px)`;
@@ -226,6 +342,11 @@ async function runTour(tour) {
   const onResize = () => place(st.i, true);
   addEventListener('resize', onResize);
   st.onResize = onResize;
+  // janelas que abrem depois (ex.: Configurações carrega antes de abrir): sobe o passo a passo para cima delas
+  st.watch = setInterval(() => {
+    const host = [...document.querySelectorAll('dialog[open]')].at(-1) || document.body;
+    if (root.parentNode !== host) { mount(root); place(st.i, true); }
+  }, 200);
   go(0);
 
   async function go(i) {
@@ -242,20 +363,33 @@ async function runTour(tour) {
   }
   function place(i, quick) {
     const step = tour.steps[i];
-    const el = find(step.sel);
+    const els = targetOf(step);
+    if (!quick) mount(root);
+    const el = els?.[0] || null;
     const card = root.querySelector('.hp-card');
     const shade = root.querySelector('.hp-shade');
     const ring = root.querySelector('.hp-ring');
     let r;
     if (el) {
-      el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-      const b = el.getBoundingClientRect();
+      if (!quick) el.scrollIntoView({ block: els.length > 1 ? 'start' : 'nearest', inline: 'nearest' });
+      const rs = els.map((e) => e.getBoundingClientRect());
+      const b = { left: Math.min(...rs.map((x) => x.left)), top: Math.min(...rs.map((x) => x.top)), right: Math.max(...rs.map((x) => x.right)), bottom: Math.max(...rs.map((x) => x.bottom)) };
+      // dentro de uma janela: não passa da área visível dela (nem por baixo do cabeçalho fixo)
+      const dlg = el.closest('dialog');
+      if (dlg) {
+        const d = dlg.getBoundingClientRect();
+        const hd = dlg.querySelector('.modal-h');
+        const top = hd && !els.some((e) => hd.contains(e)) ? hd.getBoundingClientRect().bottom : d.top;
+        b.top = Math.max(b.top, top + 2); b.bottom = Math.min(b.bottom, d.bottom - 2);
+        b.left = Math.max(b.left, d.left + 2); b.right = Math.min(b.right, d.right - 2);
+      }
+      b.width = b.right - b.left; b.height = Math.max(8, b.bottom - b.top);
       const pad = 6;
       r = { x: Math.max(4, b.left - pad), y: Math.max(4, b.top - pad), w: Math.min(innerWidth - 8, b.width + pad * 2), h: Math.min(innerHeight - 8, b.height + pad * 2) };
     } else r = { x: innerWidth / 2 - 1, y: innerHeight / 2 - 1, w: 2, h: 2 };
     for (const x of [shade, ring]) Object.assign(x.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px', opacity: el ? 1 : 0 });
     shade.style.opacity = 1;
-    card.classList.toggle('miss', !el);
+    card.classList.toggle('miss', !el && !!(step.sel || step.el));
     card.innerHTML = `<div class="k">${esc(tour.title)} · passo ${i + 1} de ${tour.steps.length}</div><h4>${esc(step.t)}</h4><p>${esc(step.d)}</p>
       <div class="dots">${tour.steps.map((_, k) => `<i class="${k <= i ? 'on' : ''}"></i>`).join('')}</div>
       <div class="row"><button class="ghost" data-a="x">Sair</button>${i ? '<button data-a="p">Voltar</button>' : ''}<button class="pri" data-a="n">${i === tour.steps.length - 1 ? 'Concluir ✓' : 'Próximo →'}</button></div>`;
@@ -291,6 +425,8 @@ function endTour() {
   if (tourState.tour.cleanup) try { tourState.tour.after?.(); } catch {}
   removeEventListener('keydown', tourState.keys, true);
   removeEventListener('resize', tourState.onResize);
+  clearInterval(tourState.watch);
+  try { tourState.root.hidePopover?.(); } catch {}
   tourState.root.remove();
   tourState = null;
 }
