@@ -56,17 +56,22 @@ export const THEMES = [
     bg: () => {
       let seed = 11;
       const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
-      // meridianos e paralelos do globo
+      // globo girando de verdade (bem devagar): cada meridiano muda a largura conforme a rotação
+      const R = 430;
+      const STEPS = 24;
       let mer = '';
-      for (let i = 1; i < 12; i++) { const rx = Math.abs(Math.cos((i / 12) * Math.PI)) * 430; mer += `<ellipse cx="960" cy="560" rx="${rx.toFixed(1)}" ry="430"/>`; }
+      for (let i = 0; i < 12; i++) {
+        const vals = Array.from({ length: STEPS + 1 }, (_, k) => (R * Math.abs(Math.sin(((i / 12) + k / STEPS) * Math.PI))).toFixed(1)).join(';');
+        mer += `<ellipse cx="960" cy="560" ry="${R}" rx="${(R * Math.abs(Math.sin((i / 12) * Math.PI))).toFixed(1)}"><animate attributeName="rx" dur="160s" repeatCount="indefinite" values="${vals}"/></ellipse>`;
+      }
       let par = '';
-      for (let i = -3; i <= 3; i++) { const y = 560 + i * 115; const w = Math.sqrt(Math.max(0, 430 * 430 - (y - 560) ** 2)); par += `<path d="M${(960 - w).toFixed(1)} ${y} H${(960 + w).toFixed(1)}"/>`; }
+      for (let i = -3; i <= 3; i++) { const y = 560 + i * 115; const w = Math.sqrt(Math.max(0, R * R - (y - 560) ** 2)); const ry = (w * 0.12).toFixed(1); par += `<ellipse cx="960" cy="${y}" rx="${w.toFixed(1)}" ry="${ry}"/>`; }
       const k0 = Math.random().toString(36).slice(2, 7);
       // nuvens em gravura: bolhas com contorno + hachura
       const cloud = (x, y, k, id) => {
         const puffs = [[0, 0, 70], [70, -30, 85], [160, -10, 75], [230, 20, 60], [110, 30, 70], [40, 40, 55], [190, 45, 55]];
         const c = puffs.map(([dx, dy, r]) => `<circle cx="${x + dx * k}" cy="${y + dy * k}" r="${r * k}"/>`).join('');
-        return `<g class="cl" style="--d:${(40 + rnd() * 30).toFixed(0)}s;--dl:-${(rnd() * 30).toFixed(0)}s"><clipPath id="${id}">${c}</clipPath><g clip-path="url(#${id})"><rect x="${x - 120 * k}" y="${y - 140 * k}" width="${420 * k}" height="${260 * k}" fill="#17191e"/><rect x="${x - 120 * k}" y="${y - 140 * k}" width="${420 * k}" height="${260 * k}" fill="url(#grHatch)"/></g><g class="cl-o" filter="url(#grEdge${k0})">${c}</g></g>`;
+        return `<g class="cl" style="--d:${(70 + rnd() * 40).toFixed(0)}s;--dl:-${(rnd() * 30).toFixed(0)}s"><clipPath id="${id}">${c}</clipPath><g clip-path="url(#${id})"><rect x="${x - 120 * k}" y="${y - 140 * k}" width="${420 * k}" height="${260 * k}" fill="#17191e"/><rect x="${x - 120 * k}" y="${y - 140 * k}" width="${420 * k}" height="${260 * k}" fill="url(#grHatch)"/></g><g class="cl-o" filter="url(#grEdge${k0})">${c}</g></g>`;
       };
       return `<svg class="gr-svg" viewBox="-960 0 3840 1080" preserveAspectRatio="xMidYMid slice">
         <defs>
@@ -78,9 +83,9 @@ export const THEMES = [
         <g class="gr-globe">
           <circle cx="960" cy="560" r="430" fill="url(#grHatch2)" opacity=".35"/>
           <g clip-path="url(#grBall)"><g class="gr-mer">${mer}</g></g>
-          <g class="gr-par">${par}</g>
+          <g class="gr-par" clip-path="url(#grBall)">${par}</g>
           <circle class="gr-rim" cx="960" cy="560" r="430"/>
-          <path class="gr-land" d="M720 380 C760 340 840 330 880 360 C910 390 880 430 900 470 C930 520 880 560 840 540 C800 520 780 470 740 460 C700 450 690 410 720 380 Z M1040 420 C1090 400 1160 430 1170 480 C1180 540 1120 600 1080 640 C1050 670 1010 640 1020 600 C1030 560 1000 520 1010 480 C1015 450 1020 430 1040 420 Z M860 620 C900 600 950 630 940 680 C930 730 880 760 860 720 C845 690 840 640 860 620 Z"/>
+          <circle class="gr-shade" cx="960" cy="560" r="430"/>
         </g>
         ${cloud(420, 520, 1.25, 'gc1' + k0)}${cloud(1240, 820, 1.4, 'gc2' + k0)}${cloud(1480, 420, 0.9, 'gc3' + k0)}${cloud(60, 860, 1.1, 'gc4' + k0)}${cloud(-480, 340, 1, 'gc5' + k0)}${cloud(2150, 640, 1.2, 'gc6' + k0)}
         <g class="gr-lines"><path d="M180 600 H640 M1300 520 H1820"/><path class="dm" d="M180 594 l6 6 -6 6 -6 -6 Z M1820 514 l6 6 -6 6 -6 -6 Z"/></g>
