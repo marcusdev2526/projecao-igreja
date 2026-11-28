@@ -51,7 +51,6 @@ async function loadThemes() {
   $('edTheme').innerHTML = '<option value="">Tema do culto (padrão)</option>' +
     [...THEMES, ...customThemes].map((t) => `<option value="${esc(t.id)}">Tema: ${esc(t.name)}</option>`).join('');
   if (live) $('themeName').textContent = themeLabel(live.themeId);
-  renderQuickThemes();
 }
 socket.on('themes', loadThemes);
 
@@ -65,18 +64,14 @@ socket.on('state', (s) => {
   if (prevMode !== s.mode && service) renderItems();
   document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === s.mode));
   $('themeName').textContent = themeLabel(s.themeId);
-  markQuickTheme();
   $('trSel').value = s.transition || 'suave';
   $('trSpeedSel').value = s.trSpeed || 'normal';
   if ($('bibleMain').options.length) { $('bibleMain').value = s.bibleMain; $('bibleSecond').value = s.bibleSecond || ''; }
   $('blackBtn').classList.toggle('on', s.black);
   $('clearBtn').classList.toggle('on', s.clear);
-  $('liveTitle').textContent = s.title || '—';
   const prog = { slides: s.slides, index: s.index, onPick: (i) => cmd({ type: 'goto', index: i }) };
   renderProgress($('liveProg'), prog);
   renderProgress($('bvProg'), prog);
-  $('livePos').textContent = s.total ? `Slide ${s.index + 1} de ${s.total}${s.slide ? ' · ' + s.slide.name : ''}` : '';
-  $('liveNext').textContent = s.next ? '' : s.total ? 'Fim — próximo item do culto' : '';
   // linha "Próximo" acima do telão
   $('nextLine').innerHTML = s.next
     ? `<b>Próximo:</b> ${esc(s.next.name || '')}${(s.next.lines || []).length ? ' — ' + esc(niceCase(stripMarkup(s.next.lines.map((l) => l.pt).join(' / '))).slice(0, 90)) : ''}`
@@ -150,6 +145,7 @@ async function loadSongs(keepWeb = false) {
         <button class="mini" data-act="edit" title="Editar">✎</button>
         <button class="mini" data-act="add" title="Adicionar ao culto">＋</button></div>`).join('')
     : (tagFilter === '@sug' ? '<div class="empty">Nenhuma sugestão por enquanto: todos os louvores cantados apareceram nos últimos 2 meses.</div>' : tagFilter ? '<div class="empty">Nenhum louvor com essa etiqueta.</div>' : q ? '<div class="empty">Não está na biblioteca.</div>' : '<div class="empty">Nenhum louvor encontrado</div>')) + (tagFilter ? '' : webBlock(q));
+  paintSongSel();
   // Sem resultado aqui: já procura na internet sozinho
   clearTimeout(webT);
   if (!tagFilter && !list.length && q.length >= 3 && !webBusy && !(webRes && webQ === q)) webT = setTimeout(() => { if ($('search').value.trim() === q) webSearch(q); }, 500);
@@ -171,14 +167,62 @@ $('songList').addEventListener('click', async (e) => {
 });
 let searchT;
 $('search').oninput = () => { clearTimeout(searchT); searchT = setTimeout(loadSongs, 150); };
+// Seleção de vários louvores: Ctrl+clique soma, Shift+clique pega o intervalo; arraste qualquer um selecionado para levar todos
+let songSel = [];
+let songAnchor = null;
+function paintSongSel() {
+  const on = new Set(songSel);
+  document.querySelectorAll('#songList .song').forEach((el) => el.classList.toggle('msel', on.has(+el.dataset.id)));
+  $('songSelBar').hidden = songSel.length < 2;
+  $('songSelN').textContent = songSel.length;
+}
 $('songList').onclick = async (e) => {
   const row = e.target.closest('.song');
   if (!row) return;
   const id = +row.dataset.id;
   const act = e.target.dataset.act;
   if (act === 'edit') return openEditor(id);
-  if (act === 'add') return addSongToService(id);
+  if (act === 'add') {
+    if (songSel.length > 1 && songSel.includes(id)) return addSongsToService(songSel);
+    return addSongToService(id);
+  }
+  if (e.ctrlKey || e.metaKey) { songSel = songSel.includes(id) ? songSel.filter((x) => x !== id) : [...songSel, id]; songAnchor = id; return paintSongSel(); }
+  if (e.shiftKey && songAnchor != null) {
+    const ids = [...document.querySelectorAll('#songList .song')].map((r) => +r.dataset.id);
+    const a = ids.indexOf(songAnchor), b = ids.indexOf(id);
+    if (a >= 0 && b >= 0) { songSel = ids.slice(Math.min(a, b), Math.max(a, b) + 1); return paintSongSel(); }
+  }
+  songSel = [id]; songAnchor = id; paintSongSel();
 };
+async function addSongsToService(ids) {
+  for (const sid of ids) await api(`/api/services/${service.id}/items`, { method: 'POST', body: { kind: 'song', song_id: sid } });
+  await openService(service.id);
+  toast(`${ids.length} louvores adicionados ao culto · Ctrl+Z desfaz`);
+  songSel = []; paintSongSel();
+}
+$('songSelBar').onclick = (e) => {
+  const a = e.target.closest('[data-sb]')?.dataset.sb;
+  if (a === 'add') addSongsToService(songSel);
+  else if (a === 'x') { songSel = []; paintSongSel(); }
+};
+// Teclas da seleção: Delete tira do culto, Ctrl+A seleciona tudo, Esc limpa (vale para a lista onde você clicou por último)
+let selScope = null;
+document.addEventListener('pointerdown', (e) => { selScope = e.target.closest('#itemList, #itemSelBar') ? 'items' : e.target.closest('#songList, #songSelBar') ? 'songs' : null; }, true);
+document.addEventListener('keydown', (e) => {
+  if (!selScope || e.target.closest('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
+  const k = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && k === 'a') {
+    e.preventDefault();
+    if (selScope === 'items' && service) { itemSel = new Set(service.items.map((i) => i.id)); paintItemSel(); }
+    else { songSel = [...document.querySelectorAll('#songList .song')].map((r) => +r.dataset.id); paintSongSel(); }
+  } else if (e.key === 'Escape' && (itemSel.size > 1 || songSel.length > 1)) {
+    e.stopImmediatePropagation();
+    itemSel.clear(); songSel = []; paintItemSel(); paintSongSel();
+  } else if ((e.key === 'Delete' || e.key === 'Backspace') && selScope === 'items' && itemSel.size) {
+    e.preventDefault();
+    removeSelected();
+  }
+}, true);
 $('songList').ondblclick = (e) => {
   const row = e.target.closest('.song');
   if (row && !e.target.dataset.act) cmd({ type: 'song', id: +row.dataset.id });
@@ -204,18 +248,6 @@ async function openService(id) {
 $('serviceSel').onchange = () => openService(+$('serviceSel').value);
 
 
-let nextStage = null;
-function renderNextPreview(s) {
-  const host = $('nextPv');
-  host.hidden = !s.next;
-  if (!s.next) return;
-  if (!nextStage) { nextStage = createStage(host); nextStage.el.classList.add('static'); }
-  nextStage.setTheme(s.themeId, themeDefOf(s.themeId));
-  nextStage.el.querySelectorAll('video').forEach((v) => v.pause());
-  nextStage.resize();
-  nextStage.show(slideHTML(s.next, s.mode), { animate: false });
-}
-window.addEventListener('resize', () => nextStage?.resize());
 const wantsEn = () => !!live && live.mode !== 'pt';
 let enPending = new Set();
 socket.on('en-queue', (ids) => { enPending = new Set(ids); if (service) renderItems(); });
@@ -238,6 +270,7 @@ function blockRow(it) {
   return `<div class="item block ${cur ? 'cur' : ''}" draggable="true" data-id="${it.id}" style="--bc:${BLOCK_COLORS[j.color] || BLOCK_COLORS.outro}">
     <span class="b-dot"></span><span class="b-name">${esc(it.title)}</span>
     <button class="b-min" data-act="min" title="Tempo previsto (clique para mudar)">${j.minutes ? j.minutes + ' min' : 'sem tempo'}</button>
+    <button class="b-save" data-act="savetpl" title="Guardar este bloco com os itens dele como bloco pronto (para repetir em outros cultos)">⤓</button>
     <button class="x" title="Remover bloco">×</button></div>`;
 }
 function renderItems() {
@@ -253,7 +286,9 @@ function renderItems() {
         <button class="x" title="Remover do culto">×</button></div>`;
     }).join('')
     : '<div class="empty">Adicione louvores pelo botão ＋ da lista ao lado</div>';
-
+  const n = service.items.filter((i) => i.kind !== 'block').length;
+  $('svcCount').textContent = n ? `${n} ${n === 1 ? 'item' : 'itens'}` : '';
+  paintItemSel();
 }
 async function addSongToService(songId) {
   await api(`/api/services/${service.id}/items`, { method: 'POST', body: { kind: 'song', song_id: songId } });
@@ -275,13 +310,118 @@ $('itemList').onclick = async (e) => {
     await api('/api/items/' + id, { method: 'PUT', body: { text: JSON.stringify(j), title: it.title } });
     return openService(service.id);
   }
+  if (e.target.closest('[data-act="savetpl"]')) return saveBlockTpl(blockMembers(id), service.items.find((x) => x.id === id));
   if (e.target.classList.contains('x')) {
     await api('/api/items/' + id, { method: 'DELETE' });
     if (selected?.item?.id === id) { selected = null; renderSlides(); }
     return openService(service.id);
   }
+  if (rubberMoved) { rubberMoved = false; return; }
+  // seleção como no Excel: Ctrl+clique soma, Shift+clique pega o intervalo
+  if (e.ctrlKey || e.metaKey) { itemSel.has(id) ? itemSel.delete(id) : itemSel.add(id); itemAnchor = id; return paintItemSel(); }
+  if (e.shiftKey && itemAnchor != null) { selRange(id); return paintItemSel(); }
+  itemSel = new Set([id]); itemAnchor = id; paintItemSel();
+  if (row.classList.contains('block')) return;
   selectItem(id);
 };
+// ---------- Seleção de vários itens do culto ----------
+let itemSel = new Set();
+let itemAnchor = null;
+let rubberMoved = false;
+function selRange(id) {
+  const ids = service.items.map((i) => i.id);
+  const a = ids.indexOf(itemAnchor), b = ids.indexOf(id);
+  if (a < 0 || b < 0) return;
+  itemSel = new Set(ids.slice(Math.min(a, b), Math.max(a, b) + 1));
+}
+function paintItemSel() {
+  const have = new Set(service?.items.map((i) => i.id) || []);
+  for (const id of itemSel) if (!have.has(id)) itemSel.delete(id);
+  document.querySelectorAll('#itemList .item').forEach((el) => el.classList.toggle('msel', itemSel.size > 1 && itemSel.has(+el.dataset.id)));
+  $('itemSelBar').hidden = itemSel.size < 2;
+  $('itemSelN').textContent = itemSel.size;
+}
+const orderedSel = () => service.items.filter((i) => itemSel.has(i.id)).map((i) => i.id);
+// itens que pertencem a um bloco: do bloco até o próximo bloco
+function blockMembers(blockId) {
+  const out = [];
+  let on = false;
+  for (const it of service.items) {
+    if (it.id === blockId) { on = true; continue; }
+    if (on && it.kind === 'block') break;
+    if (on) out.push(it.id);
+  }
+  return out;
+}
+async function removeSelected() {
+  const ids = orderedSel();
+  if (!ids.length) return;
+  await api(`/api/services/${service.id}/remove`, { method: 'POST', body: { ids } });
+  if (selected && ids.includes(selected.item?.id)) { selected = null; renderSlides(); }
+  itemSel.clear();
+  await openService(service.id);
+  toast(`${ids.length} ${ids.length === 1 ? 'item tirado' : 'itens tirados'} do culto · Ctrl+Z desfaz`);
+}
+async function saveBlockTpl(ids, block) {
+  ids = ids.filter((id) => service.items.find((i) => i.id === id)?.kind !== 'block');
+  if (!ids.length) return toast(block ? 'Esse bloco ainda não tem itens embaixo dele' : 'Selecione os itens do bloco');
+  const name = prompt('Nome do bloco pronto (ex.: Quarta-feira, Congresso de jovens):', block?.title || '');
+  if (!name) return;
+  const j = block ? jsonOf(block.text) : {};
+  await api('/api/blocktpls', { method: 'POST', body: { service_id: service.id, ids, name, color: j.color || 'outro', minutes: j.minutes || 0 } });
+  toast(`Bloco pronto “${name}” salvo com ${ids.length} ${ids.length === 1 ? 'item' : 'itens'}. Use em “+ Bloco”.`);
+}
+$('itemSelBar').onclick = (e) => {
+  const a = e.target.closest('[data-sb]')?.dataset.sb;
+  if (a === 'del') removeSelected();
+  else if (a === 'tpl') saveBlockTpl(orderedSel());
+  else if (a === 'x') { itemSel.clear(); paintItemSel(); }
+};
+// Laço de seleção: clique num espaço vazio da lista (ou Shift + arrastar sobre os itens) e arraste
+(() => {
+  const list = $('itemList');
+  let band = null;
+  list.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || !service) return;
+    const onItem = e.target.closest('.item');
+    if (onItem && !e.shiftKey) return;
+    if (e.target.closest('button')) return;
+    if (onItem) list.querySelectorAll('.item').forEach((x) => (x.draggable = false));
+    const base = e.ctrlKey || e.metaKey ? new Set(itemSel) : new Set();
+    const lr = list.getBoundingClientRect();
+    const start = { x: e.clientX, y: e.clientY + list.scrollTop };
+    band = { start, base, el: null, lr, id: e.pointerId };
+    const move = (ev) => {
+      if (!band) return;
+      const y = ev.clientY + list.scrollTop;
+      if (!band.el) {
+        if (Math.abs(ev.clientX - start.x) + Math.abs(y - start.y) < 6) return;
+        band.el = document.createElement('div');
+        band.el.className = 'rubber';
+        document.body.appendChild(band.el);
+        list.setPointerCapture?.(band.id);
+      }
+      // rola sozinho perto das bordas
+      if (ev.clientY > lr.bottom - 24) list.scrollTop += 14; else if (ev.clientY < lr.top + 24) list.scrollTop -= 14;
+      const top = Math.min(start.y, y) - list.scrollTop, bot = Math.max(start.y, y) - list.scrollTop;
+      const left = Math.max(lr.left, Math.min(start.x, ev.clientX)), right = Math.min(lr.right, Math.max(start.x, ev.clientX));
+      Object.assign(band.el.style, { left: left + 'px', top: Math.max(lr.top, top) + 'px', width: Math.max(1, right - left) + 'px', height: Math.max(1, Math.min(lr.bottom, bot) - Math.max(lr.top, top)) + 'px' });
+      itemSel = new Set(band.base);
+      list.querySelectorAll('.item').forEach((r) => { const b = r.getBoundingClientRect(); if (b.bottom > top && b.top < bot) itemSel.add(+r.dataset.id); });
+      paintItemSel();
+      document.querySelectorAll('#itemList .item').forEach((el) => el.classList.toggle('msel', itemSel.has(+el.dataset.id)));
+    };
+    const up = () => {
+      removeEventListener('pointermove', move, true);
+      removeEventListener('pointerup', up, true);
+      list.querySelectorAll('.item').forEach((x) => (x.draggable = true));
+      if (band?.el) { band.el.remove(); rubberMoved = true; setTimeout(() => (rubberMoved = false), 0); const ids = orderedSel(); itemAnchor = ids.at(-1) ?? null; paintItemSel(); }
+      band = null;
+    };
+    addEventListener('pointermove', move, true);
+    addEventListener('pointerup', up, true);
+  });
+})();
 $('itemList').ondblclick = (e) => {
   const row = e.target.closest('.item');
   if (row && !e.target.classList.contains('x')) cmd({ type: 'item', id: +row.dataset.id, index: 0 });
@@ -304,15 +444,21 @@ $('itemList').addEventListener('drop', async (e) => {
     if (!raw) return; // arquivo do computador: quem cuida é o "arrastar e soltar" geral
     e.preventDefault();
     e.stopPropagation();
-    const body = itemFromPayload(JSON.parse(raw));
-    if (!body) return;
-    id = (await api(`/api/services/${service.id}/items`, { method: 'POST', body })).id;
+    const p = JSON.parse(raw);
+    const bodies = p.kind === 'songs' ? p.ids.map((sid) => ({ kind: 'song', song_id: sid })) : [itemFromPayload(p)].filter(Boolean);
+    if (!bodies.length) return;
+    const newIds = [];
+    for (const body of bodies) newIds.push((await api(`/api/services/${service.id}/items`, { method: 'POST', body })).id);
     service = await api('/api/services/' + service.id);
-    toast('Adicionado ao culto');
+    toast(newIds.length > 1 ? `${newIds.length} louvores adicionados ao culto` : 'Adicionado ao culto');
+    id = newIds;
   } else e.preventDefault();
-  const ids = service.items.map((i) => i.id).filter((i) => i !== id);
+  // arrastou um item que faz parte da seleção: move todos os selecionados juntos
+  const group = Array.isArray(id) ? id : itemSel.size > 1 && itemSel.has(id) ? orderedSel() : [id];
+  if (target && group.includes(+target.dataset.id)) { dragId = null; return; }
+  const ids = service.items.map((i) => i.id).filter((i) => !group.includes(i));
   const at = target ? ids.indexOf(+target.dataset.id) : ids.length;
-  ids.splice(at < 0 ? ids.length : at, 0, id);
+  ids.splice(at < 0 ? ids.length : at, 0, ...group);
   await api(`/api/services/${service.id}/reorder`, { method: 'POST', body: { ids } });
   dragId = null;
   openService(service.id);
@@ -517,28 +663,6 @@ function renderThemeGallery() {
     };
   }
 }
-function renderQuickThemes() {
-  const box = $('quickThemes');
-  if (!box) return;
-  const sample = { lines: [{ pt: '*graça*', en: '' }] };
-  const all = [...customThemes.map((t) => ({ ...t, cat: 'igreja' })), ...THEMES];
-  box.innerHTML = '';
-  for (const th of all) {
-    const el = document.createElement('div');
-    el.className = 'qt' + (live?.themeId === th.id ? ' on' : '');
-    el.dataset.id = th.id;
-    el.title = th.desc || th.name;
-    el.innerHTML = `<div class="host"></div><div class="nm">${esc(th.name)}</div>`;
-    box.appendChild(el);
-    const st = createStage(el.querySelector('.host'));
-    st.setTheme(th.id, th.custom ? th : null);
-    st.el.classList.add('static');
-    st.el.querySelectorAll('video').forEach((v) => v.pause());
-    st.show(slideHTML(sample, 'pt'), { animate: false });
-    el.onclick = () => cmd({ type: 'theme', value: th.id });
-  }
-}
-const markQuickTheme = () => document.querySelectorAll('#quickThemes .qt').forEach((q) => q.classList.toggle('on', q.dataset.id === live?.themeId));
 $('trSel').onchange = () => cmd({ type: 'transition', value: $('trSel').value });
 $('trSpeedSel').onchange = () => cmd({ type: 'transition', speed: $('trSpeedSel').value });
 // Recado para o palco: abre uma caixinha acima da barra de comando
@@ -635,7 +759,6 @@ $('lightBtn').onclick = (e) => {
   setTimeout(() => document.addEventListener('click', function close(ev) { if (!pop.contains(ev.target)) { pop.remove(); document.removeEventListener('click', close); } }), 0);
 };
 applyPrefs();
-$('allThemesBtn').onclick = (e) => { e.preventDefault(); $('themeBtn').click(); };
 $('themeBtn').onclick = async () => { await loadThemes(); renderThemeGallery(); $('themes').showModal(); };
 $('newThemeBtn').onclick = () => openThemeEditor(newCustomTheme());
 $('thClose').onclick = () => $('themes').close();

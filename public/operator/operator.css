@@ -1650,3 +1650,57 @@ body.screen-nav .cmdbar .cb.next { background: #3fb6ea !important; border-color:
 #updBadge:not([hidden]) { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
 #service .panel-f .hint { display: none; }
 @media (min-height: 821px) { .preview-wrap { width: min(100%, calc(clamp(260px, 46vh, 760px) * var(--ar, 1.7778))); } }
+
+/* ---------- Título "Projeção" da coluna do culto ---------- */
+.col-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 12px 14px 0; flex: none; }
+.col-title h2 { margin: 0; font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+#svcCount { font-size: 11.5px; color: var(--muted); opacity: .8; }
+
+/* ---------- Seleção de vários (culto e biblioteca) ---------- */
+.item.msel, .song.msel { background: rgba(var(--accent-rgb), .16) !important; box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), .7); }
+.item.msel .t, .song.msel .t { color: var(--text); }
+.sel-bar { flex: none; display: flex; align-items: center; gap: 6px; margin: 0 10px 6px; padding: 6px 6px 6px 12px; border-radius: 10px; background: rgba(var(--accent-rgb), .12); border: 1px solid rgba(var(--accent-rgb), .45); font-size: 12.5px; color: var(--text); animation: sb-in .18s ease-out; }
+.sel-bar[hidden] { display: none; }
+.sel-bar > span { margin-right: auto; white-space: nowrap; }
+.sel-bar .btn.sm { height: 28px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
+.sel-bar .sb-x { width: 28px; height: 28px; border-radius: 7px; border: 0; background: transparent; color: var(--muted); font-size: 18px; cursor: pointer; }
+.sel-bar .sb-x:hover { color: var(--text); background: var(--ds-hover); }
+@keyframes sb-in { from { opacity: 0; transform: translateY(-4px); } }
+.rubber { position: fixed; z-index: 50; pointer-events: none; border: 1px solid rgba(var(--accent-rgb), .9); background: rgba(var(--accent-rgb), .14); border-radius: 4px; }
+#itemList { user-select: none; padding-bottom: 40px; }
+#itemList:focus, #songList:focus { outline: none; }
+.item.block .b-save { width: 24px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; opacity: 0; transition: opacity .15s; }
+.item.block:hover .b-save { opacity: 1; }
+.item.block .b-save:hover { color: var(--text); background: var(--ds-hover); }
+
+/* ---------- Blocos prontos ---------- */
+.blk-h { margin: 16px 0 8px; font-size: 13.5px; }
+.blk-tpls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.blk-tpl { display: flex; align-items: stretch; border-radius: 10px; border: 1px solid var(--ds-border); background: var(--ds-raised); overflow: hidden; }
+.blk-tpl { --bc: #9aa3ae; } .blk-tpl[data-c="abertura"] { --bc: #5fd0b8; } .blk-tpl[data-c="louvor"] { --bc: #ff9a62; } .blk-tpl[data-c="palavra"] { --bc: #b88cff; } .blk-tpl[data-c="ofertas"] { --bc: #f0c654; } .blk-tpl[data-c="avisos"] { --bc: #7fa8e8; }
+.blk-tpl { box-shadow: inset 3px 0 0 var(--bc); }
+.blk-tpl .bt-go { flex: 1; min-width: 0; text-align: left; padding: 10px 12px; border: 0; background: transparent; color: var(--text); cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.blk-tpl .bt-go:hover { background: var(--ds-hover); }
+.blk-tpl .bt-go b { font-size: 13.5px; }
+.blk-tpl .bt-go span { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.blk-tpl .bt-del { width: 32px; border: 0; background: transparent; color: var(--muted); font-size: 16px; cursor: pointer; }
+.blk-tpl .bt-del:hover { color: #ff6b6b; }
+.blk-how { margin-top: 10px; }
+
+/* ---------- Biblioteca mais fluida ---------- */
+/* só desenha o que está na tela (1.900+ louvores rolam leve) */
+#songList .song { content-visibility: auto; contain-intrinsic-size: auto 52px; }
+#songList, #itemList { overscroll-behavior: contain; scroll-behavior: auto; }
+/* nada muda de tamanho ao passar o mouse (antes os botões entravam e empurravam a linha) */
+.song { position: relative; cursor: pointer; }
+.song[draggable="true"], .bs-hit { cursor: pointer; }
+.song:active { cursor: grabbing; }
+.song .mini { display: inline-flex !important; align-items: center; justify-content: center; position: absolute; top: 50%; transform: translateY(-50%); opacity: 0; pointer-events: none; transition: opacity .12s; }
+.song .mini[data-act="add"] { right: 8px; }
+.song .mini[data-act="edit"] { right: 42px; }
+.song:hover .mini { opacity: 1; pointer-events: auto; }
+.song:hover .badge { display: inline-flex !important; visibility: hidden; }
+.song .info { padding-right: 4px; }
+.sel-bar .btn.sm { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+/* listas: a linha que está saindo por cima some suave (não parece "cortada") */
+#songList, #itemList { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px); mask-image: linear-gradient(to bottom, transparent 0, #000 14px); padding-top: 8px; }

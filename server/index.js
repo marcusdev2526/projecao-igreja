@@ -1124,6 +1124,45 @@ export function startServer({ port = Number(process.env.PORT) || 3000, dataDir =
     repo.setSetting('templates', JSON.stringify(list));
     ok(res, { count: list.length });
   }));
+  // Tirar vários itens do culto de uma vez (seleção com Ctrl/Shift ou arrastando) — um passo só no Ctrl+Z
+  app.post('/api/services/:id/remove', wrap((req, res) => {
+    const sid = +req.params.id;
+    const ids = (req.body.ids || []).map(Number).filter((id) => repo.itemServiceId(id) === sid);
+    if (ids.length) trackService(sid, ids.length > 1 ? `tirar ${ids.length} itens` : 'remover item', () => ids.forEach((id) => repo.deleteItem(id)));
+    io.emit('service-changed', { id: sid, by: 'undo' });
+    ok(res, { removed: ids.length });
+  }));
+  // Blocos prontos: um bloco com seus itens (louvores, vídeos, playbacks, cartazes…) para repetir
+  // (ex.: "Quarta-feira", "Congresso de jovens"). Entram no culto com 1 clique.
+  const blockTpls = () => { try { return JSON.parse(repo.getSetting('blocktpls', '[]')); } catch { return []; } };
+  const BCOLORS = ['abertura', 'louvor', 'palavra', 'ofertas', 'avisos', 'outro'];
+  app.get('/api/blocktpls', (req, res) => ok(res, blockTpls().map((t, i) => ({ i, name: t.name, color: t.color, minutes: t.minutes || 0, count: t.items.length, kinds: [...new Set(t.items.map((x) => x.kind))] }))));
+  app.post('/api/blocktpls', wrap((req, res) => {
+    const svc = repo.getService(+req.body.service_id);
+    if (!svc) throw new Error('Culto não encontrado');
+    const ids = (req.body.ids || []).map(Number);
+    const items = svc.items.filter((it) => ids.includes(it.id) && it.kind !== 'block').map((it) => ({ kind: it.kind, song_id: it.song_id, text: it.text, title: it.title }));
+    if (!items.length) throw new Error('Escolha os itens do bloco');
+    const name = String(req.body.name || 'Bloco').trim().slice(0, 60) || 'Bloco';
+    const color = BCOLORS.includes(req.body.color) ? req.body.color : 'outro';
+    const list = blockTpls().filter((t) => t.name.toLowerCase() !== name.toLowerCase());
+    list.push({ name, color, minutes: Math.max(0, Math.round(+req.body.minutes || 0)), items });
+    repo.setSetting('blocktpls', JSON.stringify(list));
+    ok(res, { count: items.length });
+  }));
+  app.delete('/api/blocktpls/:i', (req, res) => { const list = blockTpls(); list.splice(+req.params.i, 1); repo.setSetting('blocktpls', JSON.stringify(list)); ok(res); });
+  app.post('/api/services/:id/blocktpl', wrap((req, res) => {
+    const sid = +req.params.id;
+    const t = blockTpls()[+req.body.i];
+    if (!t || !repo.getService(sid)) throw new Error('Bloco não encontrado');
+    let n = 0;
+    trackService(sid, 'inserir o bloco “' + t.name + '”', () => {
+      repo.addItem(sid, { kind: 'block', title: t.name, text: JSON.stringify({ minutes: t.minutes || 0, color: t.color || 'outro' }) });
+      t.items.forEach((it) => { if (it.kind !== 'song' || repo.getSong(it.song_id)) { repo.addItem(sid, it); n++; } });
+    });
+    io.emit('service-changed', { id: sid, by: 'undo' });
+    ok(res, { count: n });
+  }));
   app.delete('/api/templates/:i', (req, res) => { const list = templates(); list.splice(+req.params.i, 1); repo.setSetting('templates', JSON.stringify(list)); ok(res); });
   // Igreja / tela de espera
   app.get('/api/settings/church', (req, res) => ok(res, { ...churchInfo(), deckId: repo.getSetting('wait_deck', '') }));

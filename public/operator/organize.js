@@ -87,15 +87,36 @@ export function initOrganize(ctx) {
       $('lnChips').querySelectorAll('button').forEach((b) => b.classList.toggle('on', +b.dataset.i === sc.index));
       $('lnChips').querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
     }
-    const lbl = document.querySelector('#liveTitle')?.previousElementSibling;
-    if (lbl) lbl.textContent = s.frozen ? 'Preparado · fora do telão' : 'No ar';
     const bid = s.timing?.blockId ?? null;
     if (bid !== lastBlock) { lastBlock = bid; renderItems(); }
     tick();
   });
 
   // ---------- Blocos ----------
-  $('addBlockBtn').onclick = () => { if (!getService()) return toast('Abra um culto primeiro'); $('blockDlg').showModal(); };
+  $('addBlockBtn').onclick = async () => { if (!getService()) return toast('Abra um culto primeiro'); await renderBlockTpls(); $('blockDlg').showModal(); };
+  // Blocos prontos (ex.: Quarta-feira, Congresso de jovens): bloco + itens entram juntos no culto
+  const KIND_TXT = { song: 'letras', media: 'mídias', bible: 'Bíblia', text: 'avisos', deck: 'slides', seq: 'sequências' };
+  async function renderBlockTpls() {
+    const list = await api('/api/blocktpls').catch(() => []);
+    $('blkTpls').innerHTML = list.length
+      ? list.map((t) => `<div class="blk-tpl" data-i="${t.i}" data-c="${esc(t.color || 'outro')}"><button class="bt-go" title="Colocar no fim do culto"><b>${esc(t.name)}</b><span>${t.count} ${t.count === 1 ? 'item' : 'itens'} · ${t.kinds.map((k) => KIND_TXT[k] || k).join(', ')}${t.minutes ? ' · ' + t.minutes + ' min' : ''}</span></button><button class="bt-del" title="Apagar este bloco pronto">×</button></div>`).join('')
+      : '<div class="empty small">Nenhum bloco pronto ainda.</div>';
+  }
+  $('blkTpls').onclick = async (e) => {
+    const row = e.target.closest('.blk-tpl');
+    if (!row) return;
+    const i = +row.dataset.i;
+    if (e.target.closest('.bt-del')) {
+      if (!confirm('Apagar o bloco pronto “' + row.querySelector('b').textContent + '”? (Os cultos que já usam continuam iguais.)')) return;
+      await api('/api/blocktpls/' + i, { method: 'DELETE' });
+      return renderBlockTpls();
+    }
+    const svc = getService();
+    const r = await api(`/api/services/${svc.id}/blocktpl`, { method: 'POST', body: { i } });
+    $('blockDlg').close();
+    await openService(svc.id);
+    toast(`Bloco “${row.querySelector('b').textContent}” colocado no fim do culto com ${r.count} itens · Ctrl+Z desfaz`);
+  };
   $('blkCancel').onclick = () => $('blockDlg').close();
   $('blkGrid').onclick = async (e) => {
     const b = e.target.closest('button');

@@ -91,3 +91,19 @@ test('Ctrl+Z: desfaz e refaz mudanças no culto (lote vira um passo só)', async
   await post(base + '/api/redo', {}, h);
   assert.deepEqual(await titles(), ['a', 'b', 'c']);
 });
+
+test('blocos prontos e tirar vários itens de uma vez', async () => {
+  const h = { origin: base };
+  const { id } = await j(await post(base + '/api/services', { title: 'Teste blocos', date: '2026-01-02' }, h));
+  for (const t of ['x', 'y', 'z']) await post(`${base}/api/services/${id}/items`, { kind: 'text', title: t }, h);
+  const items = (await j(await fetch(base + '/api/services/' + id))).items;
+  await post(base + '/api/blocktpls', { service_id: id, ids: items.slice(0, 2).map((i) => i.id), name: 'Quarta' }, h);
+  const tpls = await j(await fetch(base + '/api/blocktpls'));
+  const t = tpls.find((x) => x.name === 'Quarta');
+  assert.equal(t.count, 2);
+  await post(`${base}/api/services/${id}/remove`, { ids: items.map((i) => i.id) }, h);
+  assert.equal((await j(await fetch(base + '/api/services/' + id))).items.length, 0);
+  await post(`${base}/api/services/${id}/blocktpl`, { i: t.i }, h);
+  const after = (await j(await fetch(base + '/api/services/' + id))).items;
+  assert.deepEqual(after.map((i) => i.kind), ['block', 'text', 'text']);
+});

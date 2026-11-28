@@ -41,6 +41,7 @@
   <!-- Esquerda: roteiro do culto -->
   <aside class="left-col">
   <section class="panel" id="service">
+    <div class="col-title"><h2>Projeção</h2><span id="svcCount"></span></div>
     <div class="panel-h">
       <select id="serviceSel" class="sel"></select>
       <div class="acts"><button class="btn sm" id="newServiceBtn" title="Novo culto">+ Culto</button></div>
@@ -50,7 +51,8 @@
       <button class="link" id="reqBtn" title="O ministro de louvor monta a lista pelo celular">Pedidos pelo celular</button>
       <span class="svc-scale" id="svcScale"></span>
     </div>
-    <div class="list" id="itemList"></div>
+    <div class="sel-bar" id="itemSelBar" hidden><span><b id="itemSelN">0</b> selecionados</span><button class="btn sm danger" data-sb="del" title="Tirar do culto (Delete) · Ctrl+Z desfaz">Tirar</button><button class="btn sm" data-sb="tpl" title="Guardar estes itens como um bloco para repetir (ex.: Quarta-feira, Congresso)">Salvar bloco pronto</button><button class="sb-x" data-sb="x" title="Limpar seleção (Esc)">×</button></div>
+    <div class="list" id="itemList" tabindex="-1"></div>
     <div class="panel-f"><button class="btn sm" id="addBlockBtn" title="Separar o culto em partes (Abertura, Louvor, Palavra…) com tempo previsto">+ Bloco</button><button class="btn sm" id="addTextBtn" title="Aviso de texto. Dica: arraste os itens para mudar a ordem">+ Aviso</button></div>
   </section>
 
@@ -168,7 +170,8 @@
     </div>
     <input class="search" id="search" placeholder="Buscar título, artista ou trecho da letra…" autocomplete="off">
     <div class="tag-row" id="tagRow"></div>
-    <div class="list" id="songList"></div>
+    <div class="sel-bar" id="songSelBar" hidden><span><b id="songSelN">0</b> selecionados</span><button class="btn sm primary" data-sb="add" title="Adicionar ao culto, nesta ordem">+ Adicionar ao culto</button><button class="sb-x" data-sb="x" title="Limpar seleção (Esc)">×</button></div>
+    <div class="list" id="songList" tabindex="-1"></div>
     <div class="panel-f"><span id="songCount"></span><span class="f-acts"><a href="#" class="link" id="histBtn" title="Louvores cantados nos últimos cultos">Histórico</a><a href="#" class="link" id="dedupeBtn" title="Apaga louvores com a letra repetida">Remover duplicados</a><a href="/api/export" class="link">Baixar backup</a></span></div>
     </div>
 
@@ -246,24 +249,6 @@
 
   </aside>
 
-  <!-- itens antigos que o código ainda atualiza (ficam escondidos) -->
-  <div hidden>
-    <div class="rc-card">
-      <div class="label">No ar</div>
-      <div id="liveTitle" class="live-title">—</div>
-      <div id="livePos" class="muted small"></div>
-    </div>
-    <div class="rc-card">
-      <div class="label">Próximo</div>
-      <div class="next-pv" id="nextPv"></div>
-      <div id="liveNext" class="muted next"></div>
-    </div>
-    <div id="trChips"></div><div id="trSpeed"></div>
-    <div class="rc-themes">
-      <div class="rc-h"><span class="label">Temas</span><a href="#" class="link" id="allThemesBtn">Ver todos</a></div>
-      <div class="qt-grid" id="quickThemes"></div>
-    </div>
-  </div>
 </main>
 
 <!-- Tela da Bíblia -->
@@ -592,6 +577,9 @@
       <button data-b="" data-m="10" data-c="outro">Outro…<span>nome livre</span></button>
     </div>
     <p class="muted small">O bloco entra no fim do culto. Arraste para o lugar certo: os itens abaixo dele fazem parte do bloco. Clique no tempo para mudar.</p>
+    <h3 class="blk-h">Blocos prontos <span class="muted small">— letras, playbacks, vídeos e cartazes que se repetem</span></h3>
+    <div class="blk-tpls" id="blkTpls"></div>
+    <p class="muted small blk-how">Para criar: selecione os itens no culto (Ctrl+clique, Shift+clique ou arrastando num espaço vazio da lista) e clique em <b>Salvar bloco pronto</b>. Ou use o ⤓ ao lado de um bloco do culto para guardar ele inteiro.</p>
   </div>
 </dialog>
 

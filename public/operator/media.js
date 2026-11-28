@@ -682,7 +682,9 @@ export function initMedia(ctx) {
     const r = e.target.closest?.('#posterList .pst, #mediaList .mrow, #mbGrid .mb-card, #deckList .mrow, #avList .mrow, #songList .song, #bsList .bs-hit, #itemList .item:not(.block)');
     if (!r) return;
     let payload;
-    if (r.matches('.song')) payload = { kind: 'song', id: +r.dataset.id };
+    const multi = r.matches('.song.msel') ? [...document.querySelectorAll('#songList .song.msel')].map((x) => +x.dataset.id) : [];
+    if (multi.length > 1) payload = { kind: 'songs', ids: multi };
+    else if (r.matches('.song')) payload = { kind: 'song', id: +r.dataset.id };
     else if (r.matches('.bs-hit')) payload = { kind: 'bible', book: +r.dataset.b, chapter: +r.dataset.c, verse: +r.dataset.v };
     else if (r.matches('.item')) payload = { kind: 'item', id: +r.dataset.id };
     else if (r.dataset.n) {
@@ -702,6 +704,7 @@ export function initMedia(ctx) {
   const show = (p) => {
     if (p.kind === 'deck') return cmd({ type: 'deck', id: p.id });
     if (p.kind === 'song') return cmd({ type: 'song', id: p.id });
+    if (p.kind === 'songs') return cmd({ type: 'song', id: p.ids[0] });
     if (p.kind === 'bible') return cmd({ type: 'bible', book: p.book, chapter: p.chapter, verse: p.verse });
     if (p.kind === 'item') return cmd({ type: 'item', id: p.id, index: 0 });
     cmd({ type: 'media', url: p.url, mtype: p.mtype, name: p.name });
