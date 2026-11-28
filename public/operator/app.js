@@ -7,6 +7,7 @@ import { initBibleView } from '/operator/bible.js';
 import { initMedia } from '/operator/media.js';
 import { initOrganize } from '/operator/organize.js';
 import { initExtras } from '/operator/extras.js';
+import { initHelp } from '/operator/help.js';
 let MEDIA = null;
 import { renderProgress } from '/shared/progress.js';
 import { autoKeywords, chunksOf, markChunk, wordFreq, applyChunks, missingTranslations, insertTranslations, setEnStatus } from '/shared/enhance.js';
@@ -1313,3 +1314,4 @@ initOrganize({ api, cmd, toast, esc, socket, getService: () => service, openServ
 initExtras({ api, cmd, toast, esc, socket, getService: () => service, openService, getLive: () => live });
 MEDIA = initMedia({ api, cmd, toast, esc, socket, getService: () => service, openService, getLive: () => live, selectItem: (id) => selectItem(id) });
 initBibleView({ api, cmd, toast, esc, getLive: () => live, getService: () => service, openService, loadVersions, onState: (fn) => socket.on('state', fn) });
+initHelp();

@@ -20,7 +20,7 @@ try {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 } });
   const panel = watch(await ctx.newPage(), 'painel');
   const screen = watch(await ctx.newPage(), 'telão');
-  await step('painel abre', async () => { await panel.goto(base + '/?semintro'); await panel.waitForSelector('#itemList .item'); });
+  await step('painel abre', async () => { await panel.addInitScript(() => localStorage.setItem('helpSeen', '1')); await panel.goto(base + '/?semintro'); await panel.waitForSelector('#itemList .item'); });
   await step('telão abre e o selo fica verde (projetando)', async () => {
     await screen.goto(base + '/screen.html');
     await panel.waitForFunction(() => document.getElementById('screenWarn').classList.contains('on'));
